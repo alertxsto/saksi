@@ -3,9 +3,11 @@ vi.mock('server-only', () => ({}));
 // The presenter endpoints read through db().execute; a queue of canned results stands in for Postgres.
 const execute = vi.fn();
 vi.mock('../db/client', () => ({ db: () => ({ execute }) }));
-import { evidenceHash } from '../lib/shared/commit';
+import { PgDialect } from 'drizzle-orm/pg-core';
+import { canonicalize, evidenceHash } from '../lib/shared/commit';
 import { encrypt } from '../lib/server/crypto';
 import { toDemoReceipts } from '../lib/server/demo';
+import { tamper } from '../lib/server/tamper';
 import { GET, POST } from '../app/api/[...path]/route';
 
 const token = 'synthetic-demo-admin-token-for-tests';
@@ -102,18 +104,55 @@ describe('GET /api/demo/receipts', () => {
 
 describe('toDemoReceipts', () => {
   const names = new Map([[controller, 'Demo Two']]);
-  test('a row restored to its recorded state is intact again, and Edit needs SHARE_THIRD_PARTY', () => {
+  test('a row restored to its recorded state is intact again, and any intact action can be edited', () => {
     const original = snapshot(ids[0], 3, '2026-11-21T03:00:00+00:00', 'a');
     const editedHash = evidenceHash({ ...original, event_type: 0 });
     const [row] = toDemoReceipts([{ snapshot: original, controllerName: 'Demo Two' }], [], [{ targetId: ids[0], afterHash: editedHash }], names);
     expect(row).toMatchObject({ state: 'intact', restorable: false, editable: true });
-    const [read] = toDemoReceipts([{ snapshot: snapshot(ids[1], 0, '2026-11-21T03:00:00+00:00', 'b'), controllerName: 'Demo Two' }], [], [], names);
-    expect(read).toMatchObject({ state: 'intact', editable: false });
+    for (const eventType of [0, 1, 2]) {
+      const [other] = toDemoReceipts([{ snapshot: snapshot(ids[1], eventType, '2026-11-21T03:00:00+00:00', 'b'), controllerName: 'Demo Two' }], [], [], names);
+      expect(other).toMatchObject({ state: 'intact', editable: true });
+    }
+    // An edited row is restored first, never edited twice.
+    const edited = { ...original, event_type: 0 };
+    const [again] = toDemoReceipts([{ snapshot: edited, controllerName: 'Demo Two' }], [], [{ targetId: ids[0], afterHash: editedHash }], names);
+    expect(again).toMatchObject({ state: 'edited', restorable: true, editable: false });
   });
 
   test('deleted rows fall back to a neutral name and reject malformed snapshots', () => {
     const [row] = toDemoReceipts([], [{ snapshot: { ...snapshot(ids[2], 1, '2026-11-21T03:00:00+00:00', 'c'), controller_id: tx('0') } }], [], names);
     expect(row).toMatchObject({ controllerName: 'Unknown controller', state: 'deleted', restorable: true, editable: false });
     expect(() => toDemoReceipts([], [{ snapshot: { id: 'nope' } }], [], names)).toThrow();
+  });
+});
+
+describe('tamper edit and restore', () => {
+  // The only numeric parameter of the tamper mutation is the event_type it writes.
+  const writtenType = (call: number) => new PgDialect().sqlToQuery(execute.mock.calls[call][0]).params.filter((value) => typeof value === 'number');
+
+  test.each([[3, 0], [0, 3], [1, 0], [2, 0]])('edit flips event type %i to %i', async (from, to) => {
+    vi.stubEnv('DATA_KEY', dataKey);
+    const live = snapshot(ids[0], from, '2026-11-21T03:00:00+00:00', 'a');
+    execute.mockResolvedValueOnce([{ snapshot: live }]).mockResolvedValueOnce([]).mockResolvedValueOnce([{ target_id: ids[0] }]);
+    await expect(tamper({ action: 'edit', eventId: ids[0] })).resolves.toEqual({ action: 'edit', eventId: ids[0] });
+    expect(writtenType(2)).toEqual([to]);
+  });
+
+  test('an edited row must be restored before it is edited again', async () => {
+    execute.mockResolvedValueOnce([{ snapshot: snapshot(ids[0], 0, '2026-11-21T03:00:00+00:00', 'a') }]).mockResolvedValueOnce([{ '?column?': 1 }]);
+    await expect(tamper({ action: 'edit', eventId: ids[0] })).rejects.toMatchObject({ status: 409, code: 'TAMPER_CONFLICT' });
+    expect(execute).toHaveBeenCalledTimes(2);
+  });
+
+  test('restore writes back the anchored event type after an edit of any action', async () => {
+    vi.stubEnv('DATA_KEY', dataKey);
+    const original = snapshot(ids[0], 1, '2026-11-21T03:00:00+00:00', 'a');
+    const edited = { ...original, event_type: 0 };
+    const saved = encrypt(canonicalize(original));
+    execute.mockResolvedValueOnce([{ snapshot: edited }])
+      .mockResolvedValueOnce([{ snapshot: `${saved.iv}.${saved.ciphertext}`, after_hash: evidenceHash(edited) }])
+      .mockResolvedValueOnce([{ target_id: ids[0] }]);
+    await expect(tamper({ action: 'restore', eventId: ids[0] })).resolves.toEqual({ action: 'restore', eventId: ids[0] });
+    expect(writtenType(2)).toEqual([1]);
   });
 });

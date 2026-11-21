@@ -227,7 +227,7 @@ function ReceiptRow({
         <div className="flex flex-wrap gap-3">
           {row.editable ? (
             <Button variant="dark" size="lg" icon={<DotIcon name="edit" size={16} />} loading={busy === 'edit'} disabled={locked} onClick={() => onAction('edit')}>
-              Edit (change action to READ)
+              Edit (change action to {eventVerb(row.eventType === 0 ? 3 : 0)})
             </Button>
           ) : null}
           {live ? (
@@ -247,9 +247,6 @@ function ReceiptRow({
           </Button>
         </div>
       )}
-      {live && !row.editable && row.state === 'intact' ? (
-        <p className="font-mono text-[12px] text-ink-2">Edit is offered only for SHARED WITH THIRD PARTY receipts.</p>
-      ) : null}
     </li>
   )
 }

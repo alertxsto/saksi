@@ -23,8 +23,8 @@ function view(snapshot: Record<string, unknown>, controllerName: string, state: 
   return {
     id: r.id, controllerName, eventType: r.event_type, createdAt: new Date(r.created_at).toISOString(), txHash: r.tx_hash,
     logIndex: r.log_index, blockNumber: r.block_number, status: r.status, state, restorable,
-    // tamper() only rewrites SHARE_THIRD_PARTY rows (to READ), so Edit is offered for those alone.
-    editable: state !== 'deleted' && r.event_type === 3,
+    // tamper() flips any action (READ to SHARE_THIRD_PARTY, anything else to READ) on a row that is not already edited.
+    editable: state === 'intact',
   };
 }
 
