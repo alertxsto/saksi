@@ -3,7 +3,7 @@ import { accessInput, confirmAccess, confirmInput, prepareAccess, recentAccess, 
 import { breachDetails, confirmBreach, listBreaches, prepareBreach, prepareBreachInput, submitBreach } from '../../../lib/server/breach';
 import { createCitizen, citizenReceipts, deleteCitizen } from '../../../lib/server/citizen';
 import { hash } from '../../../lib/server/chain';
-import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, secureCookies, validate } from '../../../lib/server/http';
+import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, sameOrigin, secureCookies, validate } from '../../../lib/server/http';
 import { consume } from '../../../lib/server/rate-limit';
 import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai';
 import { demoReceipts } from '../../../lib/server/demo';
@@ -28,6 +28,7 @@ async function route(request: Request, context: Context): Promise<Response> {
   const { path } = await context.params;
   const url = new URL(request.url);
   try {
+    if (request.method !== 'GET' && !sameOrigin(request)) throw new HttpError(403, 'BAD_ORIGIN', 'Cross-site requests are not allowed.');
     switch (request.method + ' ' + path.join('/')) {
       case 'POST citizen/session': {
         await input(request, z.strictObject({}));

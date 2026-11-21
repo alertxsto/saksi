@@ -42,6 +42,18 @@ export function clientIp(request: Request) {
   const forwarded = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
   return vercel || real || forwarded || 'local';
 }
+// Browsers send Origin on cross-site POST/DELETE. Accept it only when it is the origin this request was addressed to:
+// the forwarded (or direct) host and scheme, or NEXT_PUBLIC_SITE_URL. Requests without Origin (curl, scripts) pass.
+const originOf = (value: string | undefined) => { try { return value ? new URL(value).origin : undefined; } catch { return undefined; } };
+export function sameOrigin(request: Request) {
+  const supplied = request.headers.get('origin');
+  if (supplied === null) return true;
+  const url = new URL(request.url);
+  const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || request.headers.get('host') || url.host;
+  const scheme = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || url.protocol.replace(/:$/, '');
+  const origin = originOf(supplied);
+  return origin !== undefined && [originOf(`${scheme}://${host}`), originOf(process.env.NEXT_PUBLIC_SITE_URL)].includes(origin);
+}
 // Browsers drop Secure cookies set over plain http, so follow the scheme the browser used.
 // COOKIE_SECURE=true|false overrides the detection (e.g. when a proxy does not send x-forwarded-proto).
 export function secureCookies(request: Request) {

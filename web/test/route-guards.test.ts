@@ -10,6 +10,7 @@ vi.mock('../lib/server/ai', async (importOriginal) => ({
   explain: (...args: unknown[]) => explain(...args),
 }));
 import { POST } from '../app/api/[...path]/route';
+import { sameOrigin } from '../lib/server/http';
 
 const controllerId = `0x${'81'.repeat(32)}`;
 const eventId = '3f1c2a4e-8b7d-4c1a-9e2f-0a1b2c3d4e5f';
@@ -53,5 +54,36 @@ describe('AI endpoints are throttled', () => {
   test('invalid bodies are rejected before they spend quota', async () => {
     expect((await post('controller/breach/draft', { controllerId, narrative: '' })).status).toBe(400);
     expect(consume).not.toHaveBeenCalled();
+  });
+});
+
+describe('state-changing requests check Origin', () => {
+  const at = (url: string, headers: Record<string, string>) => new Request(url, { method: 'POST', headers });
+  test('cross-site POST and DELETE are a 403 before any work', async () => {
+    const response = await post('controller/breach/draft', { controllerId, narrative: 'Synthetic incident.' }, { origin: 'https://evil.example' });
+    expect(response.status).toBe(403);
+    expect(await response.json()).toEqual({ error: { code: 'BAD_ORIGIN', message: 'Cross-site requests are not allowed.' } });
+    const removal = await POST(new Request('http://localhost/api/citizen/session', { method: 'DELETE', headers: { origin: 'null' } }),
+      { params: Promise.resolve({ path: ['citizen', 'session'] }) });
+    expect(removal.status).toBe(403);
+    expect(consume).not.toHaveBeenCalled();
+    expect(draft).not.toHaveBeenCalled();
+  });
+
+  test('same-origin browsers, local dev and clients without Origin pass', async () => {
+    draft.mockResolvedValue({ fields: {} });
+    consume.mockResolvedValue(true);
+    expect((await post('controller/breach/draft', { controllerId, narrative: 'Synthetic incident.' }, { origin: 'http://localhost' })).status).toBe(200);
+    expect((await post('controller/breach/draft', { controllerId, narrative: 'Synthetic incident.' })).status).toBe(200);
+    // Behind Caddy: the app sees http://127.0.0.1:3000 but the browser used https://saksiku.web.id.
+    expect(sameOrigin(at('http://127.0.0.1:3000/api/x', { origin: 'https://saksiku.web.id', host: 'saksiku.web.id', 'x-forwarded-proto': 'https' }))).toBe(true);
+    expect(sameOrigin(at('http://127.0.0.1:3000/api/x', { origin: 'https://saksiku.web.id', 'x-forwarded-host': 'saksiku.web.id', 'x-forwarded-proto': 'https' }))).toBe(true);
+    expect(sameOrigin(at('http://localhost:3000/api/x', { origin: 'http://localhost:3000' }))).toBe(true);
+    expect(sameOrigin(at('http://192.168.1.20:3000/api/x', { origin: 'http://192.168.1.20:3000', host: '192.168.1.20:3000' }))).toBe(true);
+    // The scheme is part of the origin.
+    expect(sameOrigin(at('http://127.0.0.1:3000/api/x', { origin: 'http://saksiku.web.id', host: 'saksiku.web.id', 'x-forwarded-proto': 'https' }))).toBe(false);
+    vi.stubEnv('NEXT_PUBLIC_SITE_URL', 'https://saksiku.web.id');
+    expect(sameOrigin(at('http://127.0.0.1:3000/api/x', { origin: 'https://saksiku.web.id' }))).toBe(true);
+    expect(sameOrigin(at('http://127.0.0.1:3000/api/x', { origin: 'https://saksiku.web.id.evil.example' }))).toBe(false);
   });
 });
