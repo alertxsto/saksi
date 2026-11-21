@@ -12,8 +12,9 @@ const TABS = [
   { href: '/citizen/profile', label: 'Profile', Icon: IconUser, match: (p: string) => p.startsWith('/citizen/profile') },
 ]
 
-// Each page mounts its own TabBar, so the last active tab is kept outside React: the indicator then slides
-// from where it was on the previous screen. sessionStorage carries it across reloads.
+// Each page mounts its own TabBar, so the tab you left is kept outside React, written when a tab is tapped
+// (not on mount: Next can mount the next route's tree early). The new screen's indicator slides from it.
+// sessionStorage carries it across reloads.
 const KEY = 'saksi.tabbar'
 let last: number | null = null
 
@@ -61,7 +62,6 @@ function Bar({ path }: { path: string }) {
   useLayoutEffect(() => {
     if (idx < 0) return
     const prev = readLast()
-    writeLast(idx)
     if (prev === null || prev < 0 || prev === idx) {
       setPos(idx)
       return
@@ -104,6 +104,7 @@ function Bar({ path }: { path: string }) {
               <li key={href} className="relative">
                 <Link
                   href={href}
+                  onClick={() => writeLast(idx)}
                   aria-current={active ? 'page' : undefined}
                   className={`sl-tab tb-tab flex h-full flex-col items-center justify-center gap-1 rounded-pill text-[12px] font-medium leading-none focus-visible:outline-offset-[-3px] ${
                     active ? 'text-ink' : 'text-paper/70 hover:text-paper'
