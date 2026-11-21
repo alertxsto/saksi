@@ -1,18 +1,13 @@
 // Turns an /api/status response body into one tab-separated line per check:
 //   PASS|WARN|FAIL <TAB> check <TAB> detail
 // Exits 0 when the body has the expected shape, 2 when it does not.
-// Used by deploy.sh (health gate) and preflight.sh (demo-day checklist).
+//   node status-report.mjs status.json    (preflight.sh, host Node)
+//   node status-report.mjs < status.json  (deploy.sh runs it inside the saksi-web image)
 import { readFileSync } from 'node:fs';
-
-const file = process.argv[2];
-if (!file) {
-  console.error('usage: node status-report.mjs <status.json>');
-  process.exit(2);
-}
 
 let status;
 try {
-  status = JSON.parse(readFileSync(file, 'utf8'));
+  status = JSON.parse(readFileSync(process.argv[2] ?? 0, 'utf8'));
 } catch {
   console.log('FAIL\tstatus\tresponse is not JSON');
   process.exit(2);

@@ -1,0 +1,24 @@
+# Build context for web/Dockerfile: only what `next build` needs.
+node_modules
+.next
+.next-*
+out
+coverage
+*.tsbuildinfo
+next-env.d.ts
+
+# Secrets never go into an image; the container reads them from deploy/compose.yaml env_file.
+.env*
+!.env.example
+
+# Dev-only code (vitest suite, offline AI eval) and local tooling.
+test
+scripts
+.omc
+.vercel
+vercel.json
+*.log
+.DS_Store
+
+Dockerfile
+.dockerignore
