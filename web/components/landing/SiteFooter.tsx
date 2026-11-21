@@ -22,6 +22,7 @@ const COLS = [
   {
     h: "Try it",
     links: [
+      ["/enter", "Sign in"],
       ["/citizen", "Citizen app"],
       ["/controller", "Controller console"],
       ["/regulator/watch", "Regulator Watch"],
@@ -35,6 +36,7 @@ const COLS = [
       ["#breach", "72 hours"],
       ["#roles", "Roles"],
       ["#faq", "FAQ"],
+      ["/integrate", "Connect your system"],
       ["/why", "Why Saksi exists"],
       ["/why#sources", "Sources"],
     ],
