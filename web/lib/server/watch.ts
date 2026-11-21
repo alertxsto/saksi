@@ -37,7 +37,9 @@ export function isUnanchoredClaim(row: { status: string; txHash: string | null; 
 async function scan(controllerId?: Hex) {
   const client = rpc();
   if (await client.getChainId() !== 11155111) throw new Error('Expected Sepolia.');
-  const [head, first, journal] = [await client.getBlockNumber(), deployBlock(), addresses().journal];
+  // One block behind the reported tip: the fallback transport may send getLogs to an RPC that is a block behind.
+  const tip = await client.getBlockNumber();
+  const [head, first, journal] = [tip > 0n ? tip - 1n : tip, deployBlock(), addresses().journal];
   const scope = `${journal}:${first}:${controllerId ?? '*'}`;
   const previous = windows.get(scope);
   // Cache only older blocks; re-read the recent tip so shallow reorgs cannot stick.
