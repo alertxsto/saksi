@@ -59,7 +59,7 @@ function Pill({ verdict }: { verdict: PassVerdict }) {
  */
 export function CitizenPass({ code, verdict, title, subtitle, size, onCopy }: CitizenPassProps) {
   const compact = size === 'compact'
-  const notch = compact ? 104 : 184
+  const notch = compact ? 128 : 184
   const tamper = verdict === 'tamper'
   return (
     <div className="st-shadow">
