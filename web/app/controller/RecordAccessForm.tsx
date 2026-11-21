@@ -1,11 +1,9 @@
 'use client'
 
 import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
-import { stringToHex } from 'viem'
-import { OdoText } from '@/components/landing/OdoText'
-import { PhonePreview } from '@/components/controller/PhonePreview'
+import { CarbonTicket, type CarbonStatus } from '@/components/controller/AgencyKit'
+import { IconLock } from '@/components/controller/agency-icons'
 import { Button } from '@/components/ui/Button'
-import { IconLock } from '@/components/ui/icons'
 import { normalizeCitizenCode } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import {
@@ -18,8 +16,6 @@ import {
   type DataCategory,
   type EventTypeCode,
   type LegalBasisKey,
-  type ReceiptOpening,
-  type RecordStatus,
 } from '@/lib/shared/types'
 
 /** What onSeal receives. Add controllerId and it is RecordAccessInput (lib/client/controller.ts). */
@@ -88,6 +84,49 @@ export const DEFAULT_ACCESS_VALUES: AccessFormValues = {
   operatorRef: 'officer',
 }
 
+/**
+ * One-click scenarios: they fill every citizen-facing field except the citizen code. The values go through the
+ * same validation and the same submit as typed ones.
+ */
+type Preset = { id: string; title: string; note?: string; values: Omit<AccessFormValues, 'subjectCode'> }
+export const SCENARIOS: Preset[] = [
+  {
+    id: 'kur',
+    title: 'Bank checks NIK for a KUR loan',
+    values: { eventType: 0, dataCategories: ['identity'], legalBasisKey: 'PDP-20-2-b', purposeText: 'Cek NIK untuk pengajuan pinjaman KUR', system: 'Core banking · KUR', operatorRef: 'teller-03' },
+  },
+  {
+    id: 'pinjol',
+    title: 'Loan app checks NIK at 02:13',
+    note: 'The citizen will tap “Not me”',
+    values: { eventType: 0, dataCategories: ['identity'], legalBasisKey: 'PDP-20-2-a', purposeText: 'Verifikasi pinjaman online', system: 'Loan app API', operatorRef: 'api-0213' },
+  },
+  {
+    id: 'simrs',
+    title: 'Hospital opens a medical record',
+    values: { eventType: 0, dataCategories: ['health'], legalBasisKey: 'PDP-20-2-e', purposeText: 'Buka rekam medis untuk pemeriksaan pasien', system: 'SIMRS', operatorRef: 'desk-07' },
+  },
+  {
+    id: 'share',
+    title: 'Agency shares data with a third party',
+    values: { eventType: 3, dataCategories: ['identity', 'address'], legalBasisKey: 'PDP-20-2-f', purposeText: 'Berbagi data ke mitra penagihan', system: '', operatorRef: 'officer' },
+  },
+]
+
+function presetMatches(p: Preset, v: AccessFormValues) {
+  const x = p.values
+  return (
+    x.eventType === v.eventType &&
+    x.legalBasisKey === v.legalBasisKey &&
+    x.purposeText === v.purposeText &&
+    x.system === v.system &&
+    x.operatorRef === v.operatorRef &&
+    x.dataCategories.join() === v.dataCategories.join()
+  )
+}
+
+const VERB_SHORT = ['Read', 'Update', 'Export', 'Share'] as const
+
 /** Arrow keys move a radio group's selection (WAI-ARIA radio pattern). */
 function arrowPick<T>(e: KeyboardEvent, list: readonly T[], current: T, pick: (v: T) => void) {
   const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
@@ -99,50 +138,48 @@ function arrowPick<T>(e: KeyboardEvent, list: readonly T[], current: T, pick: (v
   requestAnimationFrame(() => group.querySelector<HTMLElement>('[aria-checked="true"]')?.focus())
 }
 
-/** One hairline ledger row: label + hint on the left, the control on the right. */
-function Row({ label, htmlFor, hint, children, as = 'div' }: { label: string; htmlFor?: string; hint?: ReactNode; children: ReactNode; as?: 'div' | 'fieldset' }) {
-  const Tag = as
-  const labelId = useId()
+/** One inset group: a title + one line, then the controls. */
+function Group({ title, hint, children, labelledBy }: { title: string; hint?: ReactNode; children: ReactNode; labelledBy?: string }) {
+  const id = useId()
   return (
-    <Tag
-      {...(as === 'fieldset' ? { 'aria-labelledby': labelId } : {})}
-      className="grid min-w-0 gap-x-8 gap-y-3 border-t border-line py-6 sm:grid-cols-[156px_1fr]"
-    >
-      <div className="flex flex-col gap-1.5 sm:pt-1">
-        {htmlFor ? (
-          <label htmlFor={htmlFor} className="label text-[11px] text-ink">
-            {label}
-          </label>
-        ) : (
-          <p id={labelId} className="label text-[11px] text-ink">
-            {label}
-          </p>
-        )}
-        {hint ? <span className="text-[13px] leading-snug text-ink-2">{hint}</span> : null}
+    <section aria-labelledby={labelledBy ?? id} className="ag-group">
+      <div className="px-5 pb-3 pt-4">
+        <h2 id={labelledBy ? undefined : id} className="text-[15px] font-semibold text-ink">
+          {title}
+        </h2>
+        {hint ? <p className="mt-0.5 text-[13px] leading-snug text-ink-2">{hint}</p> : null}
       </div>
-      <div className="min-w-0">{children}</div>
-    </Tag>
+      <div className="flex flex-col gap-6 px-5 pb-5 pt-2">{children}</div>
+    </section>
+  )
+}
+
+function FieldLabel({ children, htmlFor, id }: { children: ReactNode; htmlFor?: string; id?: string }) {
+  return htmlFor ? (
+    <label htmlFor={htmlFor} className="mb-2 block text-[14px] font-medium text-ink">
+      {children}
+    </label>
+  ) : (
+    <p id={id} className="mb-2 text-[14px] font-medium text-ink">
+      {children}
+    </p>
+  )
+}
+
+function Help({ id, bad, children }: { id?: string; bad?: boolean; children: ReactNode }) {
+  return (
+    <p id={id} className={`mt-2 text-[13px] leading-snug ${bad ? 'text-pending' : 'text-ink-2'}`}>
+      {children}
+    </p>
   )
 }
 
 /** Six code slots over one real input (paste and autofill work; the input carries label + errors). */
-function CodeSlots({
-  id,
-  value,
-  invalid,
-  describedBy,
-  onChange,
-}: {
-  id: string
-  value: string
-  invalid: boolean
-  describedBy: string
-  onChange: (v: string) => void
-}) {
+function CodeSlots({ id, value, invalid, describedBy, onChange }: { id: string; value: string; invalid: boolean; describedBy: string; onChange: (v: string) => void }) {
   const [focus, setFocus] = useState(false)
   const active = Math.min(value.length, 5)
   return (
-    <div className="relative max-w-[420px]">
+    <div className="relative max-w-[400px]">
       <input
         id={id}
         value={value}
@@ -155,31 +192,30 @@ function CodeSlots({
         spellCheck={false}
         aria-invalid={invalid}
         aria-describedby={describedBy}
-        className="absolute inset-0 z-10 h-full w-full cursor-text rounded-md opacity-0"
+        className="absolute inset-0 z-10 h-full w-full cursor-text rounded-[12px] opacity-0"
       />
       <div aria-hidden="true" className="grid grid-cols-6 gap-2">
         {Array.from({ length: 6 }, (_, i) => {
           const ch = value[i] ?? ''
           const bad = ch && !CODE_CHAR.test(ch)
-          const isActive = focus && i === active && value.length < 6
-          const isFull = focus && value.length === 6 && i === 5
+          const on = focus && ((i === active && value.length < 6) || (value.length === 6 && i === 5))
           return (
             <span
               key={i}
-              className={`relative flex h-[60px] items-center justify-center rounded-md border font-mono text-[26px] font-medium transition-[border-color,background-color] duration-150 ${
+              className={`relative flex h-14 items-center justify-center rounded-[12px] border text-[26px] transition-[border-color,background-color] duration-150 ${
                 bad
                   ? 'border-pending bg-pending-bg text-pending'
-                  : isActive || isFull
+                  : on
                     ? 'border-blue bg-card text-ink'
                     : ch
                       ? 'border-line-strong bg-card text-ink'
                       : invalid
-                        ? 'border-pending/60 bg-paper-2/60'
-                        : 'border-line bg-paper-2/60'
+                        ? 'border-pending/60 bg-paper'
+                        : 'border-line bg-paper'
               }`}
             >
-              {ch ? <span key={ch + i} className="ctl-stamp">{ch}</span> : null}
-              {isActive ? <span className="ctl-caret absolute h-7 w-[2px] rounded-full bg-blue" /> : null}
+              {ch ? <span className="doto">{ch}</span> : null}
+              {on && value.length < 6 ? <span className="ctl-caret absolute h-7 w-[2px] rounded-full bg-blue" /> : null}
             </span>
           )
         })}
@@ -189,15 +225,16 @@ function CodeSlots({
 }
 
 /**
- * Record-access form + live "What the citizen will see" phone. Field state lives here; the parent only
- * gets validated values through onSeal. `aside` renders under the phone (the transaction chamber).
+ * Record-access form (inset groups) + the live carbon copy of the citizen's receipt. Field state lives here; the
+ * parent only gets validated values through onSeal. `aside` renders under the ticket (the seal stepper).
  */
 export function RecordAccessForm({
   controllerName,
   initial,
   showErrors = false,
   busy = false,
-  previewStatus = 'pending',
+  ticketStatus = 'draft',
+  sealedAt,
   aside,
   onSeal,
 }: {
@@ -206,16 +243,17 @@ export function RecordAccessForm({
   /** Show validation messages before the first submit (dev gallery). */
   showErrors?: boolean
   busy?: boolean
-  /** Status the preview receipt shows (mirror the transaction: anchored once it confirms). */
-  previewStatus?: RecordStatus
-  /** Rendered in the right column under the phone preview. */
+  /** Status the carbon copy shows (mirror the transaction). */
+  ticketStatus?: CarbonStatus
+  sealedAt?: number | string | null
+  /** Rendered in the right column under the ticket. */
   aside?: ReactNode
   onSeal: (values: AccessFormValues) => void
 }) {
   const [v, setV] = useState<AccessFormValues>({ ...DEFAULT_ACCESS_VALUES, ...initial })
   const [touched, setTouched] = useState(showErrors)
   const now = useNow()
-  const ids = { code: useId(), purpose: useId(), basis: useId(), data: useId(), system: useId(), operator: useId() }
+  const ids = { code: useId(), purpose: useId(), type: useId(), data: useId(), basis: useId(), system: useId(), operator: useId() }
   const formRef = useRef<HTMLFormElement>(null)
 
   const cErr = codeError(v.subjectCode)
@@ -224,22 +262,6 @@ export function RecordAccessForm({
   const sErr = sourceError(v.system, v.operatorRef)
   const valid = !cErr && !pErr && !dErr && !sErr
   const set = (patch: Partial<AccessFormValues>) => setV((cur) => ({ ...cur, ...patch }))
-
-  const preview: ReceiptOpening = {
-    eventId: 'preview',
-    controllerId: '0x',
-    controllerName,
-    subjectPseudonym: '0x',
-    purposeText: v.purposeText.trim() || 'Your purpose appears here',
-    purposeSalt: '0x',
-    legalBasisKey: stringToHex(v.legalBasisKey, { size: 32 }),
-    eventType: v.eventType,
-    evidence: { dataCategories: v.dataCategories },
-    txHash: null,
-    logIndex: null,
-    status: previewStatus,
-    createdAt: new Date(now || 0).toISOString(),
-  }
 
   const onSubmit = () => {
     setTouched(true)
@@ -257,205 +279,260 @@ export function RecordAccessForm({
   // Kept in DATA_CATEGORIES order, so the same choice always hashes to the same evidence.
   const toggleCategory = (c: DataCategory) =>
     set({ dataCategories: DATA_CATEGORIES.filter((x) => (x === c ? !v.dataCategories.includes(c) : v.dataCategories.includes(x))) })
+  // The button names who signs; the "(fiktif)" suffix stays on the ticket and in the sidebar.
+  const signer = controllerName.replace(/\s*\([^)]*\)\s*$/, '') || 'your agency'
 
   return (
-    <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12">
-      <form
-        ref={formRef}
-        className="flex min-w-0 flex-col lg:col-span-7"
-        aria-label="Record an access"
-        onSubmit={(e) => {
-          e.preventDefault()
-          onSubmit()
-        }}
-        noValidate
-      >
-        <Row label="Citizen code" htmlFor={ids.code} hint="The code the citizen shows you.">
-          <CodeSlots
-            id={ids.code}
-            value={v.subjectCode}
-            invalid={codeInvalid}
-            describedBy={`${ids.code}-h`}
-            onChange={(subjectCode) => set({ subjectCode: normalizeCitizenCode(subjectCode) })}
-          />
-          <p id={`${ids.code}-h`} className={`mt-2.5 text-[13px] ${codeInvalid ? 'text-pending' : 'text-ink-2'}`}>
-            {codeInvalid ? cErr : 'Six characters. Letters are capitalised for you; codes never use 0, O, 1 or I.'}
-          </p>
-        </Row>
-
-        <Row label="Access type" as="fieldset" hint="What you did with the data.">
-          <div
-            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
-            role="radiogroup"
-            aria-label="Access type"
-            onKeyDown={(e) => arrowPick(e, [0, 1, 2, 3] as EventTypeCode[], v.eventType, (eventType) => set({ eventType }))}
-          >
-            {EVENT_TYPES.map((name, i) => {
-              const code = i as EventTypeCode
-              const on = v.eventType === code
-              return (
-                <button
-                  key={name}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  tabIndex={on ? 0 : -1}
-                  onClick={() => set({ eventType: code })}
-                  className={`flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-[14px] font-medium leading-tight transition-[background-color,border-color,color] duration-150 ease-[cubic-bezier(.65,0,.2,1)] ${
-                    on ? 'border-ink bg-ink text-paper' : 'border-line-strong bg-card text-ink hover:border-ink'
-                  }`}
-                >
-                  {EVENT_LABELS[name]}
-                </button>
-              )
-            })}
+    <div className="grid gap-x-10 gap-y-10 lg:grid-cols-[minmax(0,1fr)_400px]">
+      <div className="flex min-w-0 flex-col gap-5">
+        <section aria-labelledby="scenarios-h" className="flex flex-col gap-3">
+          <div className="flex items-baseline justify-between gap-3">
+            <h2 id="scenarios-h" className="text-[15px] font-semibold text-ink">
+              Start from a scenario
+            </h2>
+            <span className="hidden text-[13px] text-ink-3 sm:inline">Fills everything except the citizen</span>
           </div>
-        </Row>
-
-        <Row label="Which data" as="fieldset" hint="Every kind you opened. Hashed into the receipt.">
-          <div className="flex flex-wrap gap-2" role="group" aria-label="Which data" aria-describedby={`${ids.data}-h`}>
-            {DATA_CATEGORIES.map((c, i) => {
-              const on = v.dataCategories.includes(c)
+          <div className="-mx-4 flex snap-x gap-2.5 overflow-x-auto px-4 pb-1 sm:mx-0 sm:grid sm:grid-cols-2 sm:overflow-visible sm:px-0 sm:pb-0">
+            {SCENARIOS.map((p) => {
+              const on = presetMatches(p, v)
+              const meta = [VERB_SHORT[p.values.eventType], p.values.dataCategories.map((c) => DATA_CATEGORY_LABELS[c]).join(', '), LEGAL_BASES[p.values.legalBasisKey]].join(' · ')
               return (
                 <button
-                  key={c}
+                  key={p.id}
                   type="button"
                   aria-pressed={on}
-                  aria-invalid={categoriesInvalid && i === 0 ? true : undefined}
-                  onClick={() => toggleCategory(c)}
-                  className={`inline-flex h-10 items-center gap-2 rounded-pill border px-4 text-[14px] font-medium transition-[background-color,border-color,color] duration-150 ease-[cubic-bezier(.65,0,.2,1)] ${
-                    on
-                      ? 'border-ink bg-ink text-paper'
-                      : categoriesInvalid
-                        ? 'border-pending/60 bg-card text-ink hover:border-ink'
-                        : 'border-line-strong bg-card text-ink hover:border-ink'
-                  }`}
+                  disabled={busy}
+                  onClick={() => set(p.values)}
+                  className={`ag-chip flex w-[236px] shrink-0 snap-start flex-col items-start gap-1 rounded-[14px] px-4 py-3 text-left sm:w-auto ${
+                    on ? 'bg-ink text-paper' : 'bg-card text-ink shadow-[0_0_0_1px_var(--color-line)] hover:shadow-[0_0_0_1px_var(--color-ink-2)]'
+                  } disabled:opacity-60`}
                 >
-                  <span aria-hidden="true" className={`size-1.5 rounded-full ${on ? 'bg-paper' : 'bg-line-strong'}`} />
-                  {DATA_CATEGORY_LABELS[c]}
+                  <span className="text-[15px] font-medium leading-snug">{p.title}</span>
+                  <span className={`text-[13px] leading-snug ${on ? 'text-paper/70' : 'text-ink-2'}`}>{meta}</span>
+                  {p.note ? <span className={`text-[12px] ${on ? 'text-paper/70' : 'text-pending'}`}>{p.note}</span> : null}
                 </button>
               )
             })}
           </div>
-          <p id={`${ids.data}-h`} className={`mt-2.5 text-[13px] ${categoriesInvalid ? 'text-pending' : 'text-ink-2'}`}>
-            {categoriesInvalid
-              ? dErr
-              : v.dataCategories.length
-                ? `${v.dataCategories.length} selected. The citizen sees these on the receipt.`
-                : 'Tap each kind of data the officer opened.'}
-          </p>
-        </Row>
+        </section>
 
-        <Row label="Purpose" htmlFor={ids.purpose} hint="Plain words. The citizen reads exactly this.">
-          <div className="relative">
-            <input
-              id={ids.purpose}
-              value={v.purposeText}
-              maxLength={PURPOSE_MAX}
-              onChange={(e) => set({ purposeText: e.target.value })}
-              aria-invalid={purposeInvalid}
-              aria-describedby={`${ids.purpose}-h`}
-              className="h-[52px] w-full rounded-md border border-line-strong bg-card pl-4 pr-20 text-[16px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue aria-[invalid=true]:border-pending"
-              placeholder="e.g. Debt collection"
-            />
-            <span
-              className={`tnum pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[12px] ${v.purposeText.length >= PURPOSE_MAX ? 'text-pending' : 'text-ink-3'}`}
-              aria-hidden="true"
-            >
-              {v.purposeText.length}/{PURPOSE_MAX}
-            </span>
-          </div>
-          <p id={`${ids.purpose}-h`} className={`mt-2.5 text-[13px] ${purposeInvalid ? 'text-pending' : 'text-ink-2'}`}>
-            {purposeInvalid ? pErr : `${v.purposeText.length} of ${PURPOSE_MAX} characters.`}
-          </p>
-        </Row>
-
-        <Row label="Legal basis" as="fieldset" hint="UU PDP Art. 20(2). Pick the one that applies.">
-          <div
-            id={ids.basis}
-            className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
-            role="radiogroup"
-            aria-label="Legal basis, UU PDP Art. 20(2)"
-            onKeyDown={(e) => arrowPick(e, LEGAL_BASIS_KEYS, v.legalBasisKey, (legalBasisKey) => set({ legalBasisKey }))}
-          >
-            {LEGAL_BASIS_KEYS.map((k) => {
-              const on = v.legalBasisKey === k
-              return (
-                <button
-                  key={k}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  tabIndex={on ? 0 : -1}
-                  onClick={() => set({ legalBasisKey: k })}
-                  className={`flex min-h-[72px] flex-col items-start gap-1 rounded-md border px-3.5 py-3 text-left transition-[background-color,border-color] duration-150 ${
-                    on ? 'border-ink bg-card shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'border-line-strong bg-card hover:border-ink'
-                  }`}
-                >
-                  <span className="flex items-baseline gap-1.5 text-[14px] font-medium text-ink">
-                    <span className={`font-mono text-[12px] ${on ? 'text-ink' : 'text-ink-3'}`}>({k.slice(-1)})</span>
-                    {LEGAL_BASES[k]}
-                  </span>
-                  <span className="text-[12px] leading-snug text-ink-2">{BASIS_HINT[k]}</span>
-                </button>
-              )
-            })}
-          </div>
-        </Row>
-
-        <Row label="Recorded from" as="fieldset" hint="Where it happened and which desk. No names.">
-          <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor={ids.system} className="text-[12px] text-ink-2">
-                System
-              </label>
-              <input
-                id={ids.system}
-                value={v.system}
-                maxLength={SYSTEM_MAX}
-                onChange={(e) => set({ system: e.target.value })}
-                aria-describedby={`${ids.system}-h`}
-                className="h-11 w-full min-w-0 rounded-md border border-line-strong bg-card px-3.5 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue"
-                placeholder={controllerName || 'Your registered name'}
+        <form
+          ref={formRef}
+          className="flex min-w-0 flex-col gap-5"
+          aria-label="Simulate one lookup"
+          onSubmit={(e) => {
+            e.preventDefault()
+            onSubmit()
+          }}
+          noValidate
+        >
+          <Group title="Citizen" hint="In production the agency already has the NIK it looked up. Saksi turns it into a per-agency pseudonym, and no NIK goes on chain.">
+            <div>
+              <FieldLabel htmlFor={ids.code}>Citizen NIK (in this prototype: the citizen’s code)</FieldLabel>
+              <CodeSlots
+                id={ids.code}
+                value={v.subjectCode}
+                invalid={codeInvalid}
+                describedBy={`${ids.code}-h`}
+                onChange={(subjectCode) => set({ subjectCode: normalizeCitizenCode(subjectCode) })}
               />
+              <Help id={`${ids.code}-h`} bad={codeInvalid}>
+                {codeInvalid ? cErr : 'Six characters from the citizen’s phone. Codes never use 0, O, 1 or I.'}
+              </Help>
             </div>
-            <div className="flex min-w-0 flex-col gap-1.5">
-              <label htmlFor={ids.operator} className="text-[12px] text-ink-2">
-                Officer reference
-              </label>
-              <input
-                id={ids.operator}
-                value={v.operatorRef}
-                maxLength={32}
-                onChange={(e) => set({ operatorRef: e.target.value })}
-                autoComplete="off"
-                spellCheck={false}
-                aria-invalid={sourceInvalid}
-                aria-describedby={`${ids.system}-h`}
-                className="h-11 w-full min-w-0 rounded-md border border-line-strong bg-card px-3.5 font-mono text-[14px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue aria-[invalid=true]:border-pending"
-                placeholder="desk-07"
-              />
-            </div>
-          </div>
-          <p id={`${ids.system}-h`} className={`mt-2.5 text-[13px] ${sourceInvalid ? 'text-pending' : 'text-ink-2'}`}>
-            {sourceInvalid
-              ? sErr
-              : `Left empty, the system is recorded as ${controllerName ? `“${controllerName}”` : 'your registered name'}.`}
-          </p>
-        </Row>
+          </Group>
 
-        <div className="flex flex-col gap-5 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
-          <p className="flex max-w-[38ch] items-start gap-2.5 text-[14px] leading-snug text-ink-2">
-            <IconLock size={15} className="mt-0.5 shrink-0" /> Only a pseudonym and a fingerprint go on chain. No names, no ID numbers.
-          </p>
-          <Button type="submit" variant="dark" size="lg" arrow loading={busy} disabled={busy} className="sm:min-w-[232px]">
-            {busy ? 'Sealing…' : <OdoText>Seal on chain</OdoText>}
-          </Button>
+          <Group title="What the officer did">
+            <div role="group" aria-labelledby={ids.type}>
+              <FieldLabel id={ids.type}>Access type</FieldLabel>
+              <div
+                className="grid grid-cols-2 gap-1 rounded-[12px] bg-paper-2/80 p-1 sm:grid-cols-4"
+                role="radiogroup"
+                aria-labelledby={ids.type}
+                onKeyDown={(e) => arrowPick(e, [0, 1, 2, 3] as EventTypeCode[], v.eventType, (eventType) => set({ eventType }))}
+              >
+                {EVENT_TYPES.map((name, i) => {
+                  const code = i as EventTypeCode
+                  const on = v.eventType === code
+                  return (
+                    <button
+                      key={name}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      tabIndex={on ? 0 : -1}
+                      onClick={() => set({ eventType: code })}
+                      className={`ag-chip flex min-h-11 items-center justify-center rounded-[9px] px-2 text-center text-[14px] font-medium leading-tight ${
+                        on ? 'bg-card text-ink shadow-[0_1px_2px_rgb(30_26_22/0.12),0_0_0_1px_var(--color-line)]' : 'text-ink-2 hover:text-ink'
+                      }`}
+                    >
+                      {VERB_SHORT[i]}
+                      <span className="sr-only"> · {EVENT_LABELS[name]}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+
+            <div>
+              <FieldLabel id={`${ids.data}-l`}>Which data</FieldLabel>
+              <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`${ids.data}-l`} aria-describedby={`${ids.data}-h`}>
+                {DATA_CATEGORIES.map((c, i) => {
+                  const on = v.dataCategories.includes(c)
+                  return (
+                    <button
+                      key={c}
+                      type="button"
+                      aria-pressed={on}
+                      aria-invalid={categoriesInvalid && i === 0 ? true : undefined}
+                      onClick={() => toggleCategory(c)}
+                      className={`ag-chip inline-flex h-10 items-center gap-1.5 rounded-pill border px-3.5 text-[14px] font-medium ${
+                        on ? 'border-ink bg-ink text-paper' : categoriesInvalid ? 'border-pending/60 bg-card text-ink hover:border-ink' : 'border-line-strong bg-card text-ink hover:border-ink'
+                      }`}
+                    >
+                      {on ? (
+                        <svg viewBox="0 0 16 16" className="size-3.5" aria-hidden="true">
+                          <path d="M3.5 8.5 6.5 11.5 12.5 5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      ) : null}
+                      {DATA_CATEGORY_LABELS[c]}
+                    </button>
+                  )
+                })}
+              </div>
+              <Help id={`${ids.data}-h`} bad={categoriesInvalid}>
+                {categoriesInvalid ? dErr : v.dataCategories.length ? `${v.dataCategories.length} selected. The citizen sees these on the receipt.` : 'Every kind of data the officer opened.'}
+              </Help>
+            </div>
+          </Group>
+
+          <Group title="Why" hint="UU PDP Pasal 20(2): every access needs a stated purpose and a legal basis.">
+            <div>
+              <FieldLabel htmlFor={ids.purpose}>Purpose</FieldLabel>
+              <div className="relative">
+                <input
+                  id={ids.purpose}
+                  value={v.purposeText}
+                  maxLength={PURPOSE_MAX}
+                  onChange={(e) => set({ purposeText: e.target.value })}
+                  aria-invalid={purposeInvalid}
+                  aria-describedby={`${ids.purpose}-h`}
+                  className="ag-input pr-16"
+                  placeholder="e.g. Verifikasi pinjaman online"
+                />
+                <span aria-hidden="true" className={`tnum pointer-events-none absolute right-3.5 top-1/2 -translate-y-1/2 text-[12px] ${v.purposeText.length >= PURPOSE_MAX ? 'text-pending' : 'text-ink-3'}`}>
+                  {v.purposeText.length}/{PURPOSE_MAX}
+                </span>
+              </div>
+              <Help id={`${ids.purpose}-h`} bad={purposeInvalid}>
+                {purposeInvalid ? pErr : 'Plain words. The citizen reads exactly this.'}
+              </Help>
+            </div>
+
+            <div role="group" aria-labelledby={ids.basis}>
+              <FieldLabel id={ids.basis}>Legal basis</FieldLabel>
+              <div
+                className="grid grid-cols-1 gap-2 sm:grid-cols-2"
+                role="radiogroup"
+                aria-label="Legal basis, UU PDP Pasal 20(2)"
+                onKeyDown={(e) => arrowPick(e, LEGAL_BASIS_KEYS, v.legalBasisKey, (legalBasisKey) => set({ legalBasisKey }))}
+              >
+                {LEGAL_BASIS_KEYS.map((k) => {
+                  const on = v.legalBasisKey === k
+                  return (
+                    <button
+                      key={k}
+                      type="button"
+                      role="radio"
+                      aria-checked={on}
+                      tabIndex={on ? 0 : -1}
+                      onClick={() => set({ legalBasisKey: k })}
+                      className={`ag-chip flex items-start gap-3 rounded-[12px] border px-3.5 py-3 text-left ${
+                        on ? 'border-ink bg-card shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'border-line-strong bg-card hover:border-ink-2'
+                      }`}
+                    >
+                      <span aria-hidden="true" className={`mt-0.5 flex size-[18px] shrink-0 items-center justify-center rounded-full border ${on ? 'border-ink' : 'border-line-strong'}`}>
+                        {on ? <span className="size-2.5 rounded-full bg-ink" /> : null}
+                      </span>
+                      <span className="min-w-0">
+                        <span className="block text-[14px] font-medium text-ink">
+                          {LEGAL_BASES[k]} <span className="font-normal text-ink-3">({k.slice(-1)})</span>
+                        </span>
+                        <span className="block text-[13px] leading-snug text-ink-2">{BASIS_HINT[k]}</span>
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </Group>
+
+          <Group title="Recorded from" hint="Which system and which desk. Never a person’s name.">
+            <div className="grid gap-4 sm:grid-cols-[1fr_180px]">
+              <div className="min-w-0">
+                <FieldLabel htmlFor={ids.system}>System</FieldLabel>
+                <input
+                  id={ids.system}
+                  value={v.system}
+                  maxLength={SYSTEM_MAX}
+                  onChange={(e) => set({ system: e.target.value })}
+                  aria-describedby={`${ids.system}-h`}
+                  className="ag-input"
+                  placeholder={controllerName || 'Your registered name'}
+                />
+              </div>
+              <div className="min-w-0">
+                <FieldLabel htmlFor={ids.operator}>Officer reference</FieldLabel>
+                <input
+                  id={ids.operator}
+                  value={v.operatorRef}
+                  maxLength={32}
+                  onChange={(e) => set({ operatorRef: e.target.value })}
+                  autoComplete="off"
+                  spellCheck={false}
+                  aria-invalid={sourceInvalid}
+                  aria-describedby={`${ids.system}-h`}
+                  className="ag-input font-mono text-[15px]"
+                  placeholder="desk-07"
+                />
+              </div>
+            </div>
+            <Help id={`${ids.system}-h`} bad={sourceInvalid}>
+              {sourceInvalid ? sErr : `Left empty, the system is recorded as ${controllerName ? `“${controllerName}”` : 'your registered name'}.`}
+            </Help>
+          </Group>
+
+          <div className="ag-sticky-cta flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:pt-1">
+            <p className="hidden max-w-[40ch] items-start gap-2 text-[13px] leading-snug text-ink-2 lg:flex">
+              <IconLock size={14} className="mt-0.5 shrink-0" /> Only a pseudonym and a fingerprint reach the public ledger. No NIK, no names.
+            </p>
+            <Button type="submit" variant="dark" size="lg" arrow loading={busy} disabled={busy} full className="lg:w-auto lg:min-w-[340px]">
+              {busy ? 'Sealing…' : `Sign as ${signer} and seal`}
+            </Button>
+          </div>
+        </form>
+      </div>
+
+      <div className="flex min-w-0 flex-col gap-5 lg:sticky lg:top-8 lg:self-start">
+        <div className="flex items-baseline justify-between gap-3">
+          <h2 className="text-[15px] font-semibold text-ink">What the citizen receives</h2>
+          <span className="text-[13px] text-ink-3">Your carbon copy</span>
         </div>
-      </form>
-
-      <div className="flex min-w-0 flex-col gap-10 lg:col-span-5">
-        <PhonePreview opening={preview} code={v.subjectCode} legalBasisKey={v.legalBasisKey} now={now} />
+        <CarbonTicket
+          status={ticketStatus}
+          sealedAt={sealedAt}
+          data={{
+            controllerName,
+            code: v.subjectCode,
+            eventType: v.eventType,
+            purposeText: v.purposeText.trim(),
+            legalBasisKey: v.legalBasisKey,
+            dataCategories: v.dataCategories,
+            system: v.system.trim(),
+            operatorRef: v.operatorRef.trim(),
+            at: now,
+          }}
+        />
         {aside}
       </div>
     </div>

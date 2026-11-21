@@ -1,20 +1,128 @@
 'use client'
 
+import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { ConsoleHead, MetaLine } from '@/components/controller/ConsoleHead'
-import { TxChamber } from '@/components/controller/TxChamber'
+import { AgencyPageHead, AgencyWalletPanel, SealStepper, type CarbonStatus } from '@/components/controller/AgencyKit'
+import { IconArrowUpRight, IconPlug } from '@/components/controller/agency-icons'
 import { useToast } from '@/components/ui/Toast'
-import { txViewFromState } from '@/components/ui/TxStepper'
-import { WalletGate } from '@/components/ui/WalletGate'
+import { txViewFromState, type TxView } from '@/components/ui/TxStepper'
+import type { WalletView } from '@/components/ui/WalletGate'
 import { useRecordAccess } from '@/lib/client/controller'
 import type { TransactionState } from '@/lib/client/transactions'
 import { getControllerRecent, type SealAccessInput } from '@/lib/data'
 import { normalizeCitizenCode } from '@/lib/format'
-import { RecentReceipts } from './RecentReceipts'
 import { RecordAccessForm, type AccessFormValues } from './RecordAccessForm'
 import { useControllerWallet } from './wallet'
+
+function ticketStatus(tx: TxView): CarbonStatus {
+  if (tx.phase === 'confirmed') return 'sealed'
+  if (tx.phase === 'idle') return 'draft'
+  if (tx.phase === 'error') return tx.canReconfirm ? 'sealing' : 'stopped'
+  return 'sealing'
+}
+
+/** The persistent framing note: this screen stands in for the agency's own system. */
+export function SimulationNote() {
+  return (
+    <aside aria-label="About this screen" className="mb-6 flex items-start gap-3 rounded-[16px] bg-blue-bg/60 px-4 py-3.5 lg:mb-8">
+      <span aria-hidden="true" className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-[10px] bg-card text-blue">
+        <IconPlug size={17} />
+      </span>
+      <p className="min-w-0 text-[14px] leading-relaxed text-ink">
+        In production nobody fills this form. The agency’s system calls Saksi automatically every time an officer looks up a citizen
+        (see{' '}
+        <Link href="/integrate" className="inline-flex items-center gap-0.5 font-medium text-blue underline-offset-4 hover:underline">
+          Connect your system <IconArrowUpRight size={12} />
+        </Link>
+        ). <span className="text-ink-2">This screen simulates one lookup.</span>
+      </p>
+    </aside>
+  )
+}
+
+/** Presentational /controller: the dev gallery renders this with fixtures. */
+export function RecordAccessView({
+  wallet,
+  tx,
+  busy,
+  initialCode,
+  initialValues,
+  sealedAt,
+  showErrors,
+  onSeal,
+  onRetry,
+  onReconfirm,
+  onConnect,
+  onSwitchNetwork,
+  onRefresh,
+  onCopy,
+}: {
+  wallet: WalletView
+  tx: TxView
+  busy: boolean
+  initialCode?: string
+  /** Gallery only: start with these values (a scenario applied). */
+  initialValues?: Partial<AccessFormValues>
+  sealedAt?: number | null
+  showErrors?: boolean
+  onSeal: (values: AccessFormValues) => void
+  onRetry: () => void
+  onReconfirm: () => void
+  onConnect?: () => void
+  onSwitchNetwork?: () => void
+  onRefresh?: () => void
+  onCopy?: (text: string) => void
+}) {
+  const ready = wallet.state === 'ready' && !wallet.isChecking
+  const name = wallet.controller?.name ?? ''
+  // On phones the stepper sits under the form: bring it into view once a seal starts.
+  const stepRef = useRef<HTMLDivElement>(null)
+  const started = tx.phase !== 'idle'
+  useEffect(() => {
+    if (started && window.matchMedia('(max-width: 1023px)').matches) stepRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, [started])
+
+  return (
+    <div>
+      <AgencyPageHead
+        title="Agency system (simulated)"
+        description={
+          ready ? (
+            <>
+              Simulate one officer looking up a citizen at <span className="font-medium text-ink">{name}</span>. Saksi witnesses it and the citizen’s phone gets the receipt.
+            </>
+          ) : (
+            'Simulate one officer looking up a citizen. Saksi witnesses it and the citizen’s phone gets the receipt.'
+          )
+        }
+      />
+      <SimulationNote />
+      {ready ? (
+        <RecordAccessForm
+          controllerName={name}
+          initial={initialCode || initialValues ? { ...initialValues, ...(initialCode ? { subjectCode: initialCode } : {}) } : undefined}
+          showErrors={showErrors}
+          busy={busy}
+          ticketStatus={ticketStatus(tx)}
+          sealedAt={tx.phase === 'confirmed' ? sealedAt : null}
+          onSeal={onSeal}
+          aside={
+            <div ref={stepRef} className="ag-group p-5">
+              <p className="mb-4 text-[15px] font-semibold text-ink">
+                {tx.phase === 'idle' ? 'When you press Sign and seal' : tx.phase === 'confirmed' ? 'Witnessed. The citizen has it.' : 'Sealing'}
+              </p>
+              <SealStepper tx={tx} onRetry={onRetry} onReconfirm={onReconfirm} />
+            </div>
+          }
+        />
+      ) : (
+        <AgencyWalletPanel wallet={wallet} onConnect={onConnect} onSwitchNetwork={onSwitchNetwork} onRefresh={onRefresh} onCopy={onCopy} />
+      )}
+    </div>
+  )
+}
 
 /**
  * /controller. Handlers: onSeal, onRetry, onReconfirm (+ wallet: onConnect, onSwitchNetwork,
@@ -33,7 +141,9 @@ export function RecordAccess() {
   const tx = txViewFromState(access.state)
   const busy = access.isBusy
   const lastInput = useRef<SealAccessInput | null>(null)
+  const [sealedAt, setSealedAt] = useState<number | null>(null)
 
+  // The access log reads the same query key, so a seal here refreshes it there.
   const recent = useQuery({
     queryKey: ['controller', 'recent', controllerId],
     queryFn: () => getControllerRecent(controllerId ?? '0x'),
@@ -43,10 +153,11 @@ export function RecordAccess() {
 
   const settle = (state: TransactionState, input: SealAccessInput) => {
     if (state.step === 'anchored') {
-      toast(`Sealed · receipt sent to ${input.subjectCode}`)
+      setSealedAt(Date.now())
+      toast(`Sealed · receipt on its way to ${input.subjectCode}`)
       void recent.refetch()
     } else if (state.step === 'failed') {
-      if (state.error.code === 'rejected') toast('Signature rejected · nothing was sent', 'bad')
+      if (state.error.code === 'rejected') toast('Signature declined · nothing left your office', 'bad')
       // Pending, failed and submitted rows show up in the recent list too.
       void recent.refetch()
     }
@@ -75,31 +186,20 @@ export function RecordAccess() {
     settle(await access.reconfirm(), input)
   }
 
-  const recentStatus = !ready ? 'locked' : recent.isPending ? 'loading' : recent.isError ? 'error' : 'ready'
-
   return (
-    <div className="flex flex-col gap-10 lg:gap-12">
-      <ConsoleHead
-        lead="Record an access."
-        tail="The citizen sees it in seconds."
-        aside={<MetaLine items={['Pseudonym + fingerprint only', 'Signed by your wallet']} />}
-      >
-        Each time your team opens a citizen’s data, write down what you did and why. Saksi seals its fingerprint on chain and
-        the citizen’s phone gets the receipt.
-      </ConsoleHead>
-
-      <WalletGate wallet={wallet} onConnect={onConnect} onSwitchNetwork={onSwitchNetwork} onRefresh={onRefresh} onCopy={onCopy}>
-        <RecordAccessForm
-          controllerName={wallet.controller?.name ?? ''}
-          initial={scannedCode ? { subjectCode: scannedCode } : undefined}
-          busy={busy}
-          previewStatus={tx.phase === 'confirmed' ? 'anchored' : 'pending'}
-          onSeal={onSeal}
-          aside={<TxChamber tx={tx} onRetry={onRetry} onReconfirm={() => void onReconfirm()} />}
-        />
-      </WalletGate>
-
-      <RecentReceipts status={recentStatus} rows={recent.data ?? []} error={recent.error?.message} onRetry={() => void recent.refetch()} />
-    </div>
+    <RecordAccessView
+      wallet={wallet}
+      tx={tx}
+      busy={busy}
+      initialCode={scannedCode || undefined}
+      sealedAt={sealedAt}
+      onSeal={onSeal}
+      onRetry={onRetry}
+      onReconfirm={() => void onReconfirm()}
+      onConnect={onConnect}
+      onSwitchNetwork={onSwitchNetwork}
+      onRefresh={onRefresh}
+      onCopy={onCopy}
+    />
   )
 }

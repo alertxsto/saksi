@@ -1,0 +1,187 @@
+/* Agency / controller workspace + operator evidence room (riset-ui/37). Every class is prefixed ag-.
+   Motion: 150 hover, 220 content, 320 panes/sheets; enter cubic-bezier(.2,.8,.2,1), leave (.4,0,1,1). */
+
+.ag-root {
+  --ag-in: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ag-out: cubic-bezier(0.4, 0, 1, 1);
+  --ag-blue: #2a2ae8;
+}
+
+/* ---- sidebar ---------------------------------------------------------------------------------- */
+.ag-nav-link {
+  transition: background-color 150ms var(--ag-in), color 150ms var(--ag-in);
+}
+.ag-nav-link[aria-current='page'] {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  font-weight: 500;
+}
+.ag-nav-link:not([aria-current='page']):hover {
+  background: rgb(30 26 22 / 0.05);
+  color: var(--color-ink);
+}
+
+/* ---- inset groups (form) ---------------------------------------------------------------------- */
+.ag-group {
+  border-radius: 16px;
+  background: var(--color-card);
+  box-shadow: 0 0 0 1px var(--color-line);
+}
+.ag-input {
+  height: 48px;
+  width: 100%;
+  min-width: 0;
+  border-radius: 12px;
+  border: 1px solid var(--color-line-strong);
+  background: var(--color-paper);
+  padding: 0 14px;
+  font-size: 16px;
+  color: var(--color-ink);
+  outline: none;
+  transition: border-color 150ms var(--ag-in), background-color 150ms var(--ag-in);
+}
+.ag-input::placeholder { color: var(--color-ink-3); }
+.ag-input:hover { border-color: var(--color-ink-2); }
+.ag-input:focus { border-color: var(--ag-blue); background: var(--color-card); }
+.ag-input[aria-invalid='true'] { border-color: var(--color-pending); }
+
+.ag-chip {
+  transition: background-color 150ms var(--ag-in), border-color 150ms var(--ag-in), color 150ms var(--ag-in);
+}
+
+/* Sticky primary action on phones: sits above the home indicator with a paper fade behind it. */
+.ag-sticky-cta {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-inline: -16px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to top, var(--color-paper) 72%, rgb(244 242 236 / 0));
+}
+@media (min-width: 1024px) {
+  .ag-sticky-cta { position: static; margin: 0; padding: 0; background: none; }
+}
+
+/* ---- carbon-copy ticket ------------------------------------------------------------------------ */
+/* The agency's copy of the citizen receipt: the same ticket. The only cue is the "Agency copy" label with a
+   small blue dot (agency accent); no coloured edge. */
+.ag-carbon {
+  position: relative;
+}
+/* Values typed into the form arrive with a short blue wash, then settle (220ms content change). */
+@keyframes ag-ink {
+  from { background-color: rgb(42 42 232 / 0.12); }
+  to { background-color: rgb(42 42 232 / 0); }
+}
+.ag-ink { animation: ag-ink 1200ms var(--ag-in) both; border-radius: 4px; }
+
+/* ---- seal stepper ------------------------------------------------------------------------------ */
+.ag-check path {
+  stroke-dasharray: 22;
+  stroke-dashoffset: 22;
+  animation: ag-draw 320ms var(--ag-in) forwards;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes ag-draw { to { stroke-dashoffset: 0; } }
+.ag-dot-done {
+  animation: ag-fill 220ms var(--ag-in) both;
+  animation-delay: var(--d, 0ms);
+}
+@keyframes ag-fill {
+  from { background-color: transparent; border-color: var(--color-line-strong); }
+  to { background-color: var(--color-ok); border-color: var(--color-ok); }
+}
+/* The running step: a quiet ring that turns, not a pulse. */
+.ag-run {
+  border: 2px solid rgb(42 42 232 / 0.22);
+  border-top-color: var(--ag-blue);
+  animation: ag-turn 900ms linear infinite;
+}
+@keyframes ag-turn { to { transform: rotate(360deg); } }
+.ag-rail {
+  transform-origin: top;
+  transition: background-color 220ms var(--ag-in);
+}
+
+/* ---- content arrivals ------------------------------------------------------------------------- */
+@keyframes ag-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.ag-rise { animation: ag-rise 220ms var(--ag-in) both; animation-delay: var(--d, 0ms); }
+@keyframes ag-row-new {
+  0% { opacity: 0; transform: translateY(-8px); background-color: rgb(42 42 232 / 0.1); }
+  20% { opacity: 1; transform: none; }
+  100% { background-color: rgb(42 42 232 / 0); }
+}
+.ag-row-new { animation: ag-row-new 1200ms var(--ag-in) both; }
+
+/* ---- side sheet / bottom sheet ---------------------------------------------------------------- */
+.ag-scrim {
+  animation: ag-fade 320ms var(--ag-in) both;
+}
+@keyframes ag-fade { from { opacity: 0; } to { opacity: 1; } }
+.ag-sheet {
+  animation: ag-sheet-up 320ms var(--ag-in) both;
+}
+@keyframes ag-sheet-up { from { transform: translateY(24px); opacity: 0; } to { transform: none; opacity: 1; } }
+@media (min-width: 1024px) {
+  .ag-sheet { animation-name: ag-sheet-side; }
+  @keyframes ag-sheet-side { from { transform: translateX(32px); opacity: 0; } to { transform: none; opacity: 1; } }
+}
+
+/* Table rows (access log). */
+.ag-tr { transition: background-color 150ms var(--ag-in); cursor: pointer; }
+.ag-tr:hover { background: rgb(30 26 22 / 0.035); }
+.ag-tr[aria-selected='true'] { background: var(--color-blue-bg); }
+
+/* ---- deadline (breach) ------------------------------------------------------------------------ */
+.ag-meter {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--color-paper-2);
+  overflow: hidden;
+}
+.ag-meter > span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  transform-origin: left;
+  transition: transform 600ms var(--ag-in), background-color 220ms var(--ag-in);
+}
+
+/* ---- operator evidence room ------------------------------------------------------------------- */
+.ag-pick { transition: background-color 150ms var(--ag-in), box-shadow 150ms var(--ag-in); }
+.ag-pick[aria-checked='true'] { box-shadow: inset 0 0 0 2px var(--color-ink); background: var(--color-card); }
+.ag-pick:not([aria-checked='true']):hover { background: rgb(30 26 22 / 0.035); }
+@keyframes ag-verdict {
+  0% { opacity: 0; transform: scale(0.98); }
+  100% { opacity: 1; transform: none; }
+}
+.ag-verdict { animation: ag-verdict 320ms var(--ag-in) both; }
+@keyframes ag-shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.ag-verdict-bad { animation: ag-verdict 320ms var(--ag-in) both, ag-shake 240ms ease-in-out 360ms 1; }
+.ag-sql {
+  background: var(--color-ink);
+  color: var(--color-paper);
+  border-radius: 12px;
+}
+.ag-sql .k { color: #9bd9e0; }
+
+/* Technical proof disclosure. */
+.ag-proof > summary { list-style: none; cursor: pointer; }
+.ag-proof > summary::-webkit-details-marker { display: none; }
+.ag-proof[open] .ag-proof-chev { transform: rotate(90deg); }
+.ag-proof-chev { transition: transform 150ms var(--ag-in); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ag-ink, .ag-rise, .ag-row-new, .ag-scrim, .ag-sheet, .ag-verdict, .ag-verdict-bad, .ag-dot-done, .ag-run {
+    animation: none !important;
+  }
+  .ag-check path { animation: none !important; stroke-dashoffset: 0; }
+  .ag-meter > span, .ag-nav-link, .ag-input, .ag-chip, .ag-tr, .ag-pick { transition: none !important; }
+}
