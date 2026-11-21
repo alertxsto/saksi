@@ -39,7 +39,9 @@ const LOG_WINDOW = 10_000n
 /** ControllerRegistered / ControllerRevoked logs for this wallet (indexed `eoa`), deploy block to head. */
 async function readRegistryLogs(eoa: Address): Promise<{ registered: RegistryLogRef[]; revoked: RegistryLogRef[] }> {
   if (!publicClient || !registryAddress || deployBlock === undefined) throw new Error('The Sepolia registry is not configured.')
-  const head = await publicClient.getBlockNumber()
+  // One block short of head: a lagging RPC node may not serve logs for the block it just reported.
+  const tip = await publicClient.getBlockNumber()
+  const head = tip > 0n ? tip - 1n : tip
   const registered: RegistryLogRef[] = []
   const revoked: RegistryLogRef[] = []
   const ref = (log: { args: { controllerId: `0x${string}` }; blockNumber: bigint; logIndex: number }) => ({
@@ -111,8 +113,8 @@ export function ControllerWalletProvider({ children }: { children: ReactNode }) 
   const onSwitchNetwork = useCallback(() => void run(switchToSepolia, `Could not switch the wallet to ${CHAIN_NAME}.`), [run, switchToSepolia])
   const refetchLogs = logs.refetch
   const onRefresh = useCallback(
-    () => void run(async () => { await refetchLogs(); await refresh() }, 'Could not check the wallet again.'),
-    [run, refresh, refetchLogs],
+    () => void run(async () => { if (resolvable) await refetchLogs(); await refresh() }, 'Could not check the wallet again.'),
+    [run, refresh, refetchLogs, resolvable],
   )
   const onCopy = useCallback(
     (text: string) => {

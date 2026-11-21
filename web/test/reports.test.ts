@@ -9,6 +9,8 @@ import { pseudonym } from '../lib/server/crypto';
 import { aggregateControllers, registryChanges, type RegistryChange, type Scan } from '../lib/server/controller-register';
 import { chainEventId, createReport, reportInput, reviewInput, reviewReport, toRegulatorReport, type NewReport, type ReportStore } from '../lib/server/reports';
 import type { AccessRow } from '../lib/server/access';
+import { rememberedChain } from '../lib/client/seen-receipts';
+import type { ReceiptOpening } from '../lib/shared/types';
 import { GET, POST } from '../app/api/[...path]/route';
 
 // Synthetic values only: fictional ids, throwaway keys generated for this test file.
@@ -257,6 +259,26 @@ describe('controller register scan', () => {
 
     const second = scan(200n, first.at + 31_000);
     expect(await registryChanges(async () => second)).toBe(second);
+  });
+});
+
+describe('deleted receipt kept on this phone', () => {
+  const opening = (over: Partial<ReceiptOpening> = {}) => ({
+    eventId, controllerId, controllerName: 'Dinas Layanan Kota Contoh (fiktif)', subjectPseudonym, purposeText: purpose, purposeSalt: `0x${'01'.repeat(32)}`,
+    legalBasisKey: `0x${'d1'.repeat(32)}`, eventType: 3, evidence: {},
+    txHash, logIndex: 4, status: 'anchored', createdAt: '2026-11-21T12:29:00.000Z', ...over,
+  }) as ReceiptOpening;
+  const remember = (o: ReceiptOpening) => {
+    const items = new Map([['saksi:seen-receipts:v1', JSON.stringify({ code: 'K7M2QD', seen: { [o.eventId]: { opening: o, lastSeenAt: 1 } } })]]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => items.get(k) ?? null, setItem: () => {}, removeItem: () => {} });
+  };
+
+  test('gives the chain position to report it from', () => {
+    remember(opening());
+    expect(rememberedChain(eventId)).toEqual({ txHash, logIndex: 4 });
+    expect(rememberedChain(someoneElse)).toBeNull();
+    remember(opening({ txHash: null, logIndex: null }));
+    expect(rememberedChain(eventId)).toBeNull();
   });
 });
 

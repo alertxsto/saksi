@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import type { Hex } from 'viem'
 import type { AutoVerdicts, GhostReceipt } from '@/lib/data'
 import type { ReceiptOpening } from '@/lib/shared/types'
 
@@ -39,6 +40,12 @@ export function forgetSeenReceipts() {
 /** The copy of a receipt this browser last saw match the chain, if any. */
 export function rememberedReceipt(eventId: string): ReceiptOpening | null {
   return read()?.seen[eventId]?.opening ?? null
+}
+
+/** Where the chain holds a remembered receipt, for reporting it after the company deleted the row. */
+export function rememberedChain(eventId: string): { txHash: Hex; logIndex: number } | null {
+  const kept = rememberedReceipt(eventId)
+  return kept?.txHash && kept.logIndex !== null ? { txHash: kept.txHash, logIndex: kept.logIndex } : null
 }
 
 const sameIds = (a: GhostReceipt[], b: GhostReceipt[]) =>

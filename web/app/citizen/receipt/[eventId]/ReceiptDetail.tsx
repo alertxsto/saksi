@@ -19,7 +19,7 @@ import { useToast } from '@/components/ui/Toast'
 import { VerifyStage, type VerifyPhase } from '@/components/ui/VerifyResult'
 import { runCheck, useAutoVerify, useReceiptCheck } from '@/lib/client/receipt-checks'
 import { downloadReceiptFile, explain, findReceipt, shareProof, toCitizenError, type ExplainResponse } from '@/lib/data'
-import { rememberedReceipt } from '@/lib/client/seen-receipts'
+import { rememberedChain, rememberedReceipt } from '@/lib/client/seen-receipts'
 import { ReportAccess } from '@/components/citizen/ReportAccess'
 import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
@@ -44,12 +44,15 @@ export function ReceiptDetail() {
   if (q.isError || !q.data) {
     const onRetry = () => void q.refetch()
     const noSession = q.isError && toCitizenError(q.error).code === 'NO_SESSION'
+    // Gone from the company's store but remembered by this phone: it can still be reported from its chain position.
+    const chain = q.isError ? null : rememberedChain(eventId)
     return (
       <ReceiptMissingView
         error={q.isError && !noSession ? toCitizenError(q.error).message : null}
         noSession={noSession}
         retrying={q.isFetching}
         onRetry={onRetry}
+        report={chain ? <ReportAccess eventId={eventId} verdict="altered" chain={chain} /> : null}
       />
     )
   }
@@ -78,21 +81,26 @@ function Quiet({ glyph, title, body, action }: { glyph: 'clock' | 'eye' | 'cross
   )
 }
 
-/** Receipt not in this profile (error = null), no profile yet (noSession), or the load failed (error message + retry). */
+/**
+ * Receipt not in this profile (error = null), no profile yet (noSession), or the load failed (error message + retry).
+ * `report` is set for a receipt the company deleted that this phone still remembers with its chain position.
+ */
 export function ReceiptMissingView({
   error,
   noSession,
   retrying,
   onRetry,
+  report,
 }: {
   error: string | null
   noSession?: boolean
   retrying?: boolean
   onRetry: () => void
+  report?: ReactNode
 }) {
   return (
     <div className="flex flex-col gap-4">
-      {error || noSession ? <BackLink /> : null}
+      {error || noSession || report ? <BackLink /> : null}
       {error ? (
         <Quiet
           glyph="clock"
@@ -113,6 +121,15 @@ export function ReceiptMissingView({
             <Cta href="/citizen">Create profile</Cta>
           }
         />
+      ) : report ? (
+        <>
+          <Quiet
+            glyph="cross"
+            title="Deleted by the company"
+            body="This record is gone from the company’s side but still on the chain, so you can still report it."
+          />
+          {report}
+        </>
       ) : (
         // Same screen as the route's not-found.tsx (riset-ui/24 §3); rendered here because this is a client container.
         <NotFoundScreen kind="receipt" chrome="embedded" stack />

@@ -175,6 +175,11 @@ export function GhostRow({ ghost, now }: { ghost: GhostReceipt; now: number }) {
         <Link href={proofPath(o)} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
           View on-chain proof <IconArrowUpRight size={14} />
         </Link>
+        {o.txHash && o.logIndex !== null ? (
+          <Link href={`/citizen/receipt/${o.eventId}`} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
+            Report to the regulator <span aria-hidden="true">›</span>
+          </Link>
+        ) : null}
       </div>
     </article>
   )
