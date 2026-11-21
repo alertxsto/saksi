@@ -7,7 +7,7 @@ import { db } from '../../db/client';
 import { accessEvents as logs, controllers, subjects } from '../../db/schema';
 import { evidenceHash, legalBasisKey, purposeHash } from '../shared/commit';
 import { EVENT_TYPES, LEGAL_BASES, type ReceiptOpening } from '../shared/types';
-import { addresses, events, hash, receipt, rpc } from './chain';
+import { addresses, blockByHash, events, hash, receipt, rpc } from './chain';
 import { decrypt, encrypt, pseudonym, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
@@ -70,7 +70,8 @@ export async function confirmAccess(id: string) {
     } catch { return false; }
   }) : [];
   const update = and(eq(logs.id, id), eq(logs.status, 'submitted'), eq(logs.txHash, row.txHash));
-  const block = matches.length === 1 ? await rpc().getBlock({ blockHash: observed.blockHash }) : undefined;
+  const block = matches.length === 1 ? await blockByHash(observed.blockHash) : undefined;
+  if (block === null) return { status: 'submitted' };
   const expectedTime = block && decodeEventLog({ abi: [events[0]], data: matches[0].data, topics: matches[0].topics }).args.timestamp;
   if (!block || block.timestamp !== expectedTime) {
     const reason = observed.status === 'reverted' ? 'The transaction reverted.' : 'The journal event does not match the draft.';

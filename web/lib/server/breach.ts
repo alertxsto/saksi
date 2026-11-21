@@ -7,7 +7,7 @@ import { db } from '../../db/client';
 import { aiRuns, breachReports as reports, controllers } from '../../db/schema';
 import { affectedCountHash, reportHash } from '../shared/commit';
 import type { BreachRow } from '../shared/types';
-import { addresses, events, hash, receipt, rpc } from './chain';
+import { addresses, blockByHash, events, hash, receipt, rpc } from './chain';
 import { decrypt, encrypt, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
@@ -62,7 +62,8 @@ export async function confirmBreach(id: string) {
       return [{ event, index: log.logIndex }];
     } catch { return []; }
   }) : [];
-  const block = matching.length === 1 ? await rpc().getBlock({ blockHash: observed.blockHash }) : undefined;
+  const block = matching.length === 1 ? await blockByHash(observed.blockHash) : undefined;
+  if (block === null) return { status: 'submitted' };
   if (!block || block.timestamp !== matching[0].event.args.anchoredAt) {
     await db().update(reports).set({ status: 'failed' }).where(condition);
     return { status: 'failed', reason: observed.status === 'reverted' ? 'The transaction reverted.' : 'The breach event does not match the draft.' };

@@ -29,6 +29,13 @@ export function rpc() {
   if (!publicClient) throw new Error('Sepolia RPC is not configured.');
   return publicClient;
 }
+// Load-balanced RPCs can return a receipt before every backend has the block; treat that as "not yet".
+export async function blockByHash(blockHash: Hex) {
+  try { return await rpc().getBlock({ blockHash }); } catch (error) {
+    if (error instanceof Error && error.name === 'BlockNotFoundError') return null;
+    throw error;
+  }
+}
 export async function receipt(txHash: Hex) {
   rpc();
   return (await getReceiptRobust(txHash)).receipt;
