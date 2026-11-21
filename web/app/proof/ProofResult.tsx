@@ -5,6 +5,7 @@ import { useId, useState } from 'react'
 import { ProofTicket } from '@/components/proof/ProofTicket'
 import { ProofStepper } from '@/components/proof/ProofStepper'
 import { TechnicalProof } from '@/components/proof/TechnicalProof'
+import { hostOf } from '@/components/proof/ProofStepper'
 import { useProofCheck, type ProofCheck } from '@/components/proof/useProofCheck'
 import { IconClock, IconRefresh, IconShield } from '@/components/ui/icons'
 import { getRpcNodes, verifyOnNode, type RpcNode } from '@/lib/data'
@@ -69,7 +70,7 @@ function ProofSession({
   run: (attempt: number) => Promise<VerifyResult>
 }) {
   const check = useProofCheck({ run, autoStart })
-  const host = nodes.find((n) => n.id === node)?.label ?? 'a public Sepolia node'
+  const host = nodes.find((n) => n.id === node)?.label ?? (check.result?.rpc ? hostOf(check.result.rpc) : 'a public Sepolia node')
   const ticketCheck = toCheck(check)
   const result = check.phase === 'done' ? check.result : null
   const selectId = useId()
@@ -190,7 +191,7 @@ function Verdict({ check, host, canSwitch }: { check: ProofCheck; host: string; 
           Matches the sealed record. <span className="text-ink-2">Nothing changed since the ledger sealed it.</span>
         </p>
         <p className="mt-1.5 text-[13px] text-ink-3">
-          Checked in your browser in {secs(r.elapsedMs)} s, not by Saksi’s server · {host}
+          Checked in your browser in {secs(r.elapsedMs)} s, not by Saksi’s server · {(r.rpc && hostOf(r.rpc)) || host}
         </p>
       </div>
     )
@@ -206,7 +207,7 @@ function Verdict({ check, host, canSwitch }: { check: ProofCheck; host: string; 
           </span>
         </p>
         <p className="mt-1.5 text-[13px] text-ink-3">
-          Checked in your browser in {secs(r.elapsedMs)} s, not by Saksi’s server · {host}
+          Checked in your browser in {secs(r.elapsedMs)} s, not by Saksi’s server · {(r.rpc && hostOf(r.rpc)) || host}
         </p>
       </div>
     )

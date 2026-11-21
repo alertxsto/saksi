@@ -190,7 +190,7 @@ export function ProofHome({ initialQuery }: { initialQuery?: string } = {}) {
               placeholder="https://saksiku.web.id/proof/0x…#…"
               spellCheck={false}
               autoComplete="off"
-              className="h-12 min-w-0 flex-1 rounded-md border border-line-strong bg-paper px-3.5 font-mono text-[14px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-ink-3 focus:border-blue focus:shadow-[0_0_0_4px_var(--color-blue-bg)]"
+              className="h-12 w-full min-w-0 shrink-0 rounded-md border border-line-strong bg-paper sm:flex-1 px-3.5 font-mono text-[14px] text-ink outline-none transition-[border-color,box-shadow] duration-150 placeholder:text-ink-3 focus:border-blue focus:shadow-[0_0_0_4px_var(--color-blue-bg)]"
             />
             <button
               type="submit"
