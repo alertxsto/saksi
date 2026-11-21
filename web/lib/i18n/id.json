@@ -208,9 +208,9 @@
  "Biometric": "Biometrik",
  "Breach contract": "Kontrak kebocoran data",
  "Breach event was not available from the configured RPC.": "Peristiwa kebocoran data tidak tersedia dari RPC yang dikonfigurasi.",
- "Breach notice": "Pemberitahuan kebocoran data",
+ "Breach notice": "Kebocoran data",
  "Breach notice “": "Pemberitahuan kebocoran data “",
- "Breach notices": "Pemberitahuan kebocoran data",
+ "Breach notices": "Kebocoran data",
  "Breach notices at a glance": "Pemberitahuan kebocoran data sekilas",
  "Breach notices late": "Pemberitahuan kebocoran data terlambat",
  "Breach notices, citizen reports, agencies": "Pemberitahuan kebocoran data, laporan warga, instansi",
@@ -332,7 +332,7 @@
  "Contact": "Kontak",
  "Continue as": "Lanjutkan sebagai",
  "Contoh Lending Co. (fictional)": "Contoh Lending Co. (fiktif)",
- "Contract": "Kontrak",
+ "Contract": "Perjanjian",
  "Contract:": "Kontrak:",
  "Contract: ClaimedWindowExpired": "Kontrak: ClaimedWindowExpired",
  "Contracts": "Kontrak",
@@ -605,7 +605,7 @@
  "Last check kept": "Pemeriksaan terakhir disimpan",
  "Last seal": "Segel terakhir",
  "Late": "Terlambat",
- "Late breach notice": "Pemberitahuan kebocoran data terlambat",
+ "Late breach notice": "Pemberitahuan terlambat",
  "Late by": "Terlambat",
  "Late notice": "Pemberitahuan terlambat",
  "Latest receipts": "Bukti akses terbaru",
@@ -1973,5 +1973,7 @@
  "Within 3×24 h": "Dalam 3×24 jam",
  "Your data stays with you.": "Data Anda tetap bersama Anda.",
  "matches the chain.": "cocok dengan chain.",
- "your browser": "browser Anda"
+ "your browser": "browser Anda",
+ "Registered on Sepolia": "Terdaftar di Sepolia",
+ "purpose": "tujuan"
 }

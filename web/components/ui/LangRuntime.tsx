@@ -20,9 +20,58 @@ const origText = new Map<Text, string>()
 const shownText = new WeakMap<Text, string>()
 const origAttr = new Map<Element, Partial<Record<Attr, string>>>()
 
+// Strings built at runtime from data: whole-string patterns first, then relative times.
+const PATTERNS: [RegExp, string][] = [
+  [/^Recorded by (.+)’s system \((.+)\) · officer (.+)$/, 'Dicatat oleh sistem $1 ($2) · petugas $3'],
+  [/^Recorded by (.+)’s system \((.+)\)$/, 'Dicatat oleh sistem $1 ($2)'],
+  [/^On the public ledger · (.+)$/, 'Di ledger publik · $1'],
+  [/^Sealed on the public ledger (.+)$/, 'Disegel di ledger publik $1'],
+  [/^of (\d+)$/, 'dari $1'],
+  [/^(\d+) on time within 3×24 h · Pasal 46$/, '$1 tepat waktu dalam 3×24 jam · Pasal 46'],
+  [/^Citizen (.+) reported (.+)$/, 'Warga $1 melaporkan $2'],
+  [/^My phone found this record changed or deleted(.*)$/, 'Ponsel saya menemukan catatan ini diubah atau dihapus$1'],
+  [/^(.+) filed a breach notice late$/, '$1 mengirim pemberitahuan kebocoran terlambat'],
+  [/^(.+) filed a breach notice on time$/, '$1 mengirim pemberitahuan kebocoran tepat waktu'],
+  [/^(\d+) h past the 3×24 h limit(.*)$/, '$1 jam melewati batas 3×24 jam$2'],
+  [/^(\d+) entr(?:y|ies)$/, '$1 entri'],
+  [/^(\d+) receipts? sealed$/, '$1 bukti akses disegel'],
+  [/^(\d+) access(?:es)? · last (.+)$/, '$1 akses · terakhir $2'],
+  [/^All (\d+) match the sealed record$/, 'Semua ($1) cocok dengan catatan tersegel'],
+]
+const TIMES: [RegExp, string][] = [
+  [/\b(\d+) h ago\b/g, '$1 jam lalu'],
+  [/\b(\d+) min ago\b/g, '$1 mnt lalu'],
+  [/\b(\d+) d ago\b/g, '$1 hari lalu'],
+  [/\b(\d+) s ago\b/g, '$1 dtk lalu'],
+  [/\bjust now\b/g, 'baru saja'],
+  [/\bToday\b/g, 'Hari ini'],
+  [/\bYesterday\b/g, 'Kemarin'],
+]
+
+/** One string: dictionary, then patterns, then " · " / ", " segments (tags such as "Read · Identity · Contract"). */
+function translate(d: Dict, key: string): string | null {
+  const hit = d[key]
+  if (hit) return hit
+  for (const [re, to] of PATTERNS) if (re.test(key)) return key.replace(re, to)
+  for (const sep of [' · ', ', ']) {
+    if (!key.includes(sep)) continue
+    const parts = key.split(sep)
+    let any = false
+    const out = parts.map((p) => {
+      const t = translate(d, p)
+      if (t != null) any = true
+      return t ?? p
+    })
+    if (any) return out.join(sep)
+  }
+  let timed = key
+  for (const [re, to] of TIMES) timed = timed.replace(re, to)
+  return timed !== key ? timed : null
+}
+
 function lookup(d: Dict, raw: string) {
   if (!/[A-Za-z]/.test(raw)) return null
-  const hit = d[norm(raw)]
+  const hit = translate(d, norm(raw))
   if (!hit) return null
   const lead = raw.match(/^\s*/)?.[0] ?? ''
   const trail = raw.match(/\s*$/)?.[0] ?? ''
