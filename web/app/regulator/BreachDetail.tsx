@@ -193,12 +193,19 @@ export function BreachDetailSkeleton() {
 /** Loads one notice with getBreach(id) (or the /dev gallery's `load`) and shows loading / not found / error / detail. */
 export function BreachDetailLoader({ id, load }: { id: string; load?: (id: string) => Promise<BreachDetailView | null> }) {
   const instance = useId()
-  const q = useQuery({ queryKey: ['breach', id, load ? instance : 'live'], queryFn: () => (load ?? getBreach)(id), retry: false })
+  const q = useQuery({
+    queryKey: ['breach', id, load ? instance : 'live'],
+    queryFn: () => (load ?? getBreach)(id),
+    retry: false,
+    refetchInterval: load ? false : 10_000,
+    refetchIntervalInBackground: false,
+  })
 
   const onRetry = () => void q.refetch()
 
   if (q.isPending) return <BreachDetailSkeleton />
-  if (q.isError) {
+  // A failed poll keeps the notice already on screen.
+  if (q.isError && !q.data) {
     return (
       <Quiet
         glyph="eye"

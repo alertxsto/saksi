@@ -265,7 +265,7 @@ export const SOURCES = [
     publisher: 'RMOL, reporting Dirjen Dukcapil Teguh Setyabudi at Rakornas Dukcapil 2026',
     date: '2026-08-03',
     quote:
-      'Hingga 31 Desember 2025, tercatat ada 2.283 lembaga pengguna aktif, melampaui target nasional yang dipatok 1.300 lembaga ... sebanyak 7.419 lembaga telah memanfaatkan layanan data kependudukan',
+      'Hingga 31 Desember 2025, tercatat ada 2.283 lembaga pengguna aktif, melampaui target nasional yang dipatok 1.300 lembaga ... Jumlah tersebut terdiri atas 1.218 lembaga pusat dan 1.065 lembaga daerah dengan total akses mencapai 2,57 miliar hits. ... sebanyak 7.419 lembaga telah memanfaatkan layanan data kependudukan dengan total akses menyentuh 18,94 miliar hits.',
     note: 'Secondary outlet; the official Dukcapil release was not found.',
   },
   {
@@ -402,6 +402,18 @@ export const SOURCES = [
     quote:
       '78,7% responden sangat khawatir data pribadi mereka disalahgunakan oleh perusahaan, pemerintah, maupun pihak ketiga',
     note: 'The quote is the page’s figure as summarised by the fetch tool, not a single copied sentence. Predates UU PDP; online sample.',
+  },
+  {
+    id: 'uu-pdp-12',
+    claim:
+      'UU PDP Article 12 gives every data subject the right to sue and receive compensation when their personal data is processed in violation of the law. A sealed record is evidence for that claim.',
+    figure: 'Art. 12(1): right to sue and receive compensation; Art. 12(2): details by Government Regulation',
+    title: 'UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi, Pasal 12',
+    url: 'https://pasal.id/peraturan/uu/uu-no-27-tahun-2022/pasal-12',
+    publisher: 'Pasal.id (text of UU 27/2022)',
+    date: '2022-10-17',
+    quote:
+      'Subjek Data Pribadi berhak menggugat dan menerima ganti rugi atas pelanggaran pemrosesan Data Pribadi tentang dirinya sesuai dengan ketentuan peraturan perundang-undangan.',
   },
 ] as const satisfies readonly Source[]
 

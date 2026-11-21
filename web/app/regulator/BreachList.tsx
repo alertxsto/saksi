@@ -78,7 +78,16 @@ export function BreachList({
   loadDetail?: (id: string) => Promise<BreachDetailView | null>
 }) {
   const instance = useId()
-  const q = useQuery({ queryKey: ['breach-list', load ? instance : 'live'], queryFn: load ?? getBreachList, retry: false })
+  // Live: poll so a notice an agency just sealed shows up (the agency is told the regulator sees it now).
+  const q = useQuery({
+    queryKey: ['breach-list', load ? instance : 'live'],
+    queryFn: load ?? getBreachList,
+    retry: false,
+    refetchInterval: load ? false : 5000,
+    refetchIntervalInBackground: false,
+  })
+  // A failed poll keeps the notices already on screen; only a first load failure shows the error.
+  const failed = q.isError && !q.data
   const [sel, setSel] = useState<string | null>(null)
   const rows = q.data?.rows ?? []
   const stats = q.data?.stats
@@ -97,14 +106,14 @@ export function BreachList({
       </div>
 
       <section aria-label="Breach notices at a glance" className="grid grid-cols-3 gap-2.5 print:hidden sm:gap-3 lg:gap-4">
-        <Kpi label="Total" value={stats ? stats.total : null} hint="Sealed on the public ledger" hintOnPhone={false} unknown={q.isError} />
-        <Kpi label="On time" value={stats ? stats.onTime : null} hint="Within 3×24 h" hintOnPhone={false} unknown={q.isError} />
-        <Kpi label="Late" value={stats ? stats.late : null} tone={stats?.late ? 'pending' : 'ink'} hint="Recorded by the contract" hintOnPhone={false} unknown={q.isError} />
+        <Kpi label="Total" value={stats ? stats.total : null} hint="Sealed on the public ledger" hintOnPhone={false} unknown={failed} />
+        <Kpi label="On time" value={stats ? stats.onTime : null} hint="Within 3×24 h" hintOnPhone={false} unknown={failed} />
+        <Kpi label="Late" value={stats ? stats.late : null} tone={stats?.late ? 'pending' : 'ink'} hint="Recorded by the contract" hintOnPhone={false} unknown={failed} />
       </section>
 
       {q.isPending ? (
         <ListSkeleton />
-      ) : q.isError ? (
+      ) : failed ? (
         <Quiet
           glyph="eye"
           title="Couldn’t load notices"

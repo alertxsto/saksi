@@ -65,9 +65,13 @@ export const receiptsQuery = queryOptions({
     track(data.receipts)
     return data
   },
-  refetchInterval: (query) => (query.state.status === 'error' ? false : 3000),
+  // One failed poll must not stop polling: keep going (slower while failing) until the server answers again.
+  // Only a missing session stops it, since that needs the citizen to act.
+  refetchInterval: (query) =>
+    query.state.status !== 'error' ? 3000 : toCitizenError(query.state.error).code === 'NO_SESSION' ? false : 10_000,
   refetchIntervalInBackground: false,
-  retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 1,
+  retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 2,
+  retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
 })
 
 /**
@@ -219,13 +223,25 @@ function QuietStub({ side, children, className = '' }: { side: ReactNode; childr
   )
 }
 
-/** Offline: neutral (red is for tampering only). Receipts stay on screen; polling pauses. */
-export function OfflineBanner() {
+/**
+ * Offline: neutral (red is for tampering only). Receipts stay on screen; polling pauses. `retrying` is the
+ * same note when the device is online but a poll failed: the last receipts stay, polling keeps retrying.
+ */
+export function OfflineBanner({ retrying = false }: { retrying?: boolean }) {
   return (
     <div role="status">
       <QuietStub side={<IconWifiOff size={20} className="text-ink" />}>
-        <p className="text-[15px] font-semibold leading-snug text-ink">You&apos;re offline</p>
-        <p className="text-[14px] leading-snug text-ink-2">Receipts refresh when you&apos;re back.</p>
+        {retrying ? (
+          <>
+            <p className="text-[15px] font-semibold leading-snug text-ink">Can’t reach Saksi · retrying</p>
+            <p className="text-[14px] leading-snug text-ink-2">Showing the receipts you already have.</p>
+          </>
+        ) : (
+          <>
+            <p className="text-[15px] font-semibold leading-snug text-ink">You&apos;re offline</p>
+            <p className="text-[14px] leading-snug text-ink-2">Receipts refresh when you&apos;re back.</p>
+          </>
+        )}
       </QuietStub>
     </div>
   )
@@ -298,11 +314,14 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
     }
   }
   const onRetry = () => void q.refetch()
+  // A failed poll after receipts loaded keeps them on screen with an inline note; only a first load failure is an error screen.
+  const failed = q.isError && !q.data
 
   const list = (
     <ReceiptListView
       selectedId={selectedId}
-      state={q.isPending ? 'loading' : q.isError ? 'error' : receipts.length === 0 ? 'empty' : 'ready'}
+      state={q.isPending ? 'loading' : failed ? 'error' : receipts.length === 0 ? 'empty' : 'ready'}
+      stale={q.isError && !!q.data}
       receipts={receipts}
       code={code}
       now={now}
@@ -312,7 +331,7 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
       verdicts={verdicts}
       ghosts={ghosts}
       hiddenExtra={hiddenExtra}
-      error={q.isError ? toCitizenError(q.error).message : null}
+      error={failed ? toCitizenError(q.error).message : null}
       retrying={q.isFetching}
       onCopy={() => void onCopy()}
       onRetry={onRetry}
@@ -331,6 +350,7 @@ const EMPTY_RECEIPTS: ReceiptOpening[] = []
 
 export function ReceiptListView({
   state,
+  stale = false,
   receipts,
   code,
   now,
@@ -352,6 +372,8 @@ export function ReceiptListView({
   onMove,
 }: {
   state: ReceiptListState
+  /** The last poll failed but receipts are loaded: keep them and show "retrying" instead of an error screen. */
+  stale?: boolean
   receipts: ReceiptOpening[]
   code: string
   now: number
@@ -463,7 +485,7 @@ export function ReceiptListView({
 
       <TamperBanner altered={altered.length} deleted={lost.length + hiddenExtra} checked={checked} href={altered[0] ? `/citizen/receipt/${altered[0]}?check=1` : null} />
 
-      {!online ? <OfflineBanner /> : null}
+      {!online ? <OfflineBanner /> : stale ? <OfflineBanner retrying /> : null}
 
       {/* polite announcement for receipts that just arrived */}
       <p aria-live="polite" className="sr-only">

@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { BaseError, ContractFunctionRevertedError, keccak256, toHex } from 'viem'
 import { useToast } from '@/components/ui/Toast'
 import { txViewFromState } from '@/components/ui/TxStepper'
@@ -12,7 +12,7 @@ import { useHydrated } from '@/lib/hooks'
 import { breachAbi, breachAddress, publicClient } from '@/lib/shared/chain'
 import type { Pasal46Fields } from '@/lib/shared/types'
 import { useControllerWallet } from '../wallet'
-import { BreachView, fieldsComplete, type CheckState, type DraftState, type Edited } from './BreachView'
+import { AI_UNAVAILABLE, BreachView, fieldsComplete, type CheckState, type DraftState, type Edited } from './BreachView'
 
 const EMPTY_FIELDS: Pasal46Fields = { dataAffected: '', whenAndHow: '', actionsTaken: '', contact: '' }
 const WINDOW_SEC = 72 * 3600
@@ -105,20 +105,43 @@ export function BreachNotice() {
     }
   }
 
+  // Draft request counter: a stream whose id is no longer current (unmounted, reset, or superseded) is ignored.
+  const draftReq = useRef(0)
+  useEffect(() => () => void ++draftReq.current, [])
+
   const onDraft = async () => {
-    if (draft.status === 'loading') return
+    if (draft.status === 'loading' || locked) return
+    // Never redraft under a contract verdict or a seal: they are about the current text.
+    if (check.status !== 'idle' && check.status !== 'error') return
     const controllerId = wallet.controller?.id
     if (!controllerId) {
       setDraft((d) => ({ ...d, status: 'error', error: 'Connect your registered controller wallet first.' }))
       return
     }
+    const id = ++draftReq.current
+    const current = () => id === draftReq.current
+    // What the controller had before streaming, put back if this draft fails.
+    const before = fields
+    const restore = () => {
+      setFields(before)
+      setAiRunId(null)
+    }
     setDraft((d) => ({ ...d, status: 'loading', error: undefined }))
     try {
       // The four parts fill in while the model writes; the validated result replaces them at the end.
-      const out = await draftBreachStream(narrative, controllerId, (partial) => setFields({ ...EMPTY_FIELDS, ...partial }))
+      const out = await draftBreachStream(narrative, controllerId, (partial) => {
+        if (current()) setFields({ ...EMPTY_FIELDS, ...partial })
+      })
+      if (!current()) return
       if (out.outOfScope) {
-        setFields(null)
+        restore()
         setDraft({ status: 'error', meta: out.meta, error: DRAFT_OUT_OF_SCOPE })
+        return
+      }
+      // Template fallback with nothing in it: no AI wrote anything, so no "AI draft" boxes.
+      if (out.meta?.fallbackLevel === 'template' && !Object.values(out.fields).some((v) => v.trim())) {
+        restore()
+        setDraft({ status: 'error', meta: out.meta, error: AI_UNAVAILABLE })
         return
       }
       setFields(out.fields)
@@ -127,13 +150,15 @@ export function BreachNotice() {
       setDraft({ status: 'done', meta: out.meta })
       invalidate()
     } catch (e) {
+      if (!current()) return
+      restore()
       setDraft((d) => ({ ...d, status: 'error', error: (e as Error).message }))
     }
   }
 
   const onCheckWithContract = async () => {
     const inp = input()
-    if (!inp || !wallet.address || check.status === 'checking') return
+    if (!inp || !wallet.address || check.status === 'checking' || draft.status === 'loading') return
     setCheck({ status: 'checking' })
     try {
       const r = await checkWithContract(inp, wallet.address)
@@ -149,7 +174,8 @@ export function BreachNotice() {
   }
 
   const runSeal = async (m: 'on_time' | 'late') => {
-    if (busy) return
+    // Never seal half-streamed text.
+    if (busy || draft.status === 'loading') return
     // A pending late approval only needs the second step.
     if (m === 'late' && breach.state.step === 'late') {
       setMode('late')
@@ -176,6 +202,7 @@ export function BreachNotice() {
 
   const onReset = () => {
     if (busy || !breach.reset()) return
+    draftReq.current++ // drop a draft still streaming
     setNarrative('')
     setDraft({ status: 'idle' })
     setAiRunId(null)

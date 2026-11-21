@@ -176,6 +176,10 @@ export default function WhyPage() {
                 <p className="text-[14px] leading-[1.6] text-ink-3">
                   UU PDP already asks for the record: Pasal 31 (record all processing), Pasal 32 (the citizen may see it
                   within 3×24 h), Pasal 46 (breach notice within 3×24 h) and Pasal 12 (the right to sue).
+                  <Cite ids={['uu-pdp-31', 'uu-pdp-32', 'uu-pdp-46', 'uu-pdp-12']} />
+                </p>
+                <p className="text-[13px] leading-[1.6] text-ink-3">
+                  The four cases below are scenarios built on these laws and the public evidence listed under Sources.
                 </p>
               </div>
             </div>

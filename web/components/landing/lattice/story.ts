@@ -4,6 +4,10 @@
 import { C, CELLS, clamp01, easeOutBack, hash, N, PALETTES, win } from './core'
 import { delayMap, type Frame, morph, paint } from './morph'
 import { DID_FULL, DID_ROW, LINK, LINK_PITCH, PRINT, RECEIPT, type Shape, shapes, TICK } from './shapes'
+import { SAMPLE_BLOCK, SAMPLE_RECEIPT } from '../sample-receipt'
+
+// The public sample receipt's real tx, shortened (first 6 + last 4).
+const TX_SHORT = `${SAMPLE_RECEIPT.txHash!.slice(0, 6)}…${SAMPLE_RECEIPT.txHash!.slice(-4)}`
 
 export const BEATS = [
   { id: 'record', word: 'RECORD', vh: 115 },
@@ -185,15 +189,16 @@ function defs(): CalloutDef[] {
     { id: 'who', tag: 'WHO', value: 'Contoh Lending Co.', tone: 'ice', at: who, plateY: who[1], t: [0.49, 1.04, 1.42] },
     { id: 'did', tag: 'DID', value: DID_BEFORE, tone: 'ice', at: did, plateY: did[1], t: [0.58, 1.04, 1.42] },
     { id: 'why', tag: 'WHY', value: 'Debt collection', tone: 'ice', at: why, plateY: why[1], t: [0.67, 1.04, 1.42] },
-    { id: 'fp', tag: 'FINGERPRINT', value: '0x3fa2…9c1d', tone: 'ice', at: fp, plateY: fp[1], t: [1.3, 1.5, 1.62] },
-    { id: 'block', tag: 'BLOCK', value: '#12,181,964', tone: 'ice', at: [OURS_X, LINK.y0 + 0.5], plateY: LINK.y0 - 5.5, t: [1.86, 2.04, 2.3] },
-    { id: 'sealed', tag: 'SEALED', value: '21 Nov 14:03 WIB', tone: 'ok', at: [OURS_X, LINK.y0 + LINK.w - 0.5], plateY: LINK.y0 + LINK.w + 4.5, t: [1.91, 2.04, 2.3] },
+    { id: 'fp', tag: 'FINGERPRINT', value: TX_SHORT, tone: 'ice', at: fp, plateY: fp[1], t: [1.3, 1.5, 1.62] },
+    { id: 'block', tag: 'BLOCK', value: `#${SAMPLE_BLOCK.toLocaleString('en-US')}`, tone: 'ice', at: [OURS_X, LINK.y0 + 0.5], plateY: LINK.y0 - 5.5, t: [1.86, 2.04, 2.3] },
+    { id: 'sealed', tag: 'SEALED', value: '21 Nov 19:54 WIB', tone: 'ok', at: [OURS_X, LINK.y0 + LINK.w - 0.5], plateY: LINK.y0 + LINK.w + 4.5, t: [1.91, 2.04, 2.3] },
     { id: 'verified', tag: 'VERIFIED', value: 'By your phone', tone: 'ok', at: tick, plateY: tick[1], t: [2.42, 3.02, 3.14] },
-    { id: 'time', tag: 'MATCH', value: '1.8 S', tone: 'ok', at: ring, plateY: ring[1], t: [2.6, 3.02, 3.14], dot: true },
+    { id: 'time', tag: 'MATCH', value: 'In seconds', tone: 'ok', at: ring, plateY: ring[1], t: [2.6, 3.02, 3.14], dot: true },
     { id: 'edit', tag: 'DID', value: DID_BEFORE, tone: 'ice', at: C_ROW(DID_ROW), plateY: DID_ROW + 0.5, t: [3.3, 4.3, 4.4], live: true },
     { id: 'altered', tag: 'ALTERED', value: 'DID changed', tone: 'bad', at: C_ROW(DID_ROW), plateY: DID_ROW + 0.5, t: [4.42, 99, 99] },
-    { id: 'chain', tag: 'SEALED', value: '0x3fa2…9c1d', tone: 'ice', at: C_ROW(RECEIPT.rows[3]), plateY: RECEIPT.rows[3] + 0.5, t: [4.56, 99, 99] },
-    { id: 'now', tag: 'NOW', value: '0x7be0…41a6', tone: 'bad', at: C_ROW(RECEIPT.perf), plateY: RECEIPT.perf + 0.5, t: [4.68, 99, 99] },
+    { id: 'chain', tag: 'SEALED', value: TX_SHORT, tone: 'ice', at: C_ROW(RECEIPT.rows[3]), plateY: RECEIPT.rows[3] + 0.5, t: [4.56, 99, 99] },
+    // illustrative: the fingerprint of the edited database copy, which no longer matches the sealed one
+    { id: 'now', tag: 'DATABASE COPY', value: '0x7be0…41a6', tone: 'bad', at: C_ROW(RECEIPT.perf), plateY: RECEIPT.perf + 0.5, t: [4.68, 99, 99] },
   ]
 }
 export const CALLOUTS: readonly CalloutDef[] = defs()

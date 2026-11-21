@@ -166,7 +166,7 @@ export function DataActions({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[16px] font-medium leading-snug text-bad">Delete profile</span>
-          <span className="mt-0.5 block text-[14px] leading-snug text-ink-2">Receipts leave our database. Sealed fingerprints stay on the public ledger.</span>
+          <span className="mt-0.5 block text-[14px] leading-snug text-ink-2">Removes the profile and its link to your receipts. The ledger keeps only fingerprints nobody can tie to you.</span>
         </span>
       </button>
     </div>

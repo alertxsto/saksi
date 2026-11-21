@@ -43,7 +43,7 @@ export const FAQ: { q: string; a: string; cite?: readonly SourceId[] }[] = [
   },
   {
     q: 'What if a company never records an access?',
-    a: 'Then there is no receipt, and Saksi cannot invent one. We state that limit openly. What Saksi does is make recorded history impossible to quietly rewrite, and make a breach notice that never arrives show up as late.',
+    a: 'Then there is no receipt, and Saksi cannot invent one. We state that limit openly. What Saksi does is make recorded history impossible to quietly rewrite. The same goes for breach notices: the contract only judges notices that are sealed, as on time or late. A notice that is never sent leaves no record at all, so the regulator has to catch it from citizen reports or an audit.',
   },
   {
     q: 'How does the 72-hour rule (UU PDP Art. 46) work here?',

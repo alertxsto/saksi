@@ -85,13 +85,13 @@ export function ProfileView() {
 
   return (
     <ProfileScreenView
-      state={q.isPending ? 'loading' : noSession ? 'none' : q.isError ? 'error' : q.data ? 'ready' : 'none'}
+      state={q.isPending ? 'loading' : noSession ? 'none' : q.data ? 'ready' : q.isError ? 'error' : 'none'}
       profile={q.data?.profile ?? null}
       receipts={receipts}
       verdicts={verdicts}
       deleted={deleted}
       now={now}
-      error={q.isError && !noSession ? toCitizenError(q.error).message : null}
+      error={q.isError && !noSession && !q.data ? toCitizenError(q.error).message : null}
       confirm={!confirmOpen ? 'closed' : del.isPending ? 'deleting' : del.isError ? 'error' : 'open'}
       deleteError={del.isError ? toCitizenError(del.error).message : null}
       onCopy={() => void onCopy()}
@@ -314,8 +314,9 @@ function ConfirmDelete({
         Delete this profile?
       </h2>
       <p className="mt-2 text-[14px] leading-relaxed text-ink-2">
-        Your code <span className="font-mono text-ink">{code}</span> stops working and its receipts leave our database.
-        The sealed fingerprints stay on the public ledger. This cannot be undone.
+        Your code <span className="font-mono text-ink">{code}</span> stops working, and this profile and its link to your
+        receipts are removed. The receipts are unlinked, not erased: the public ledger keeps only fingerprints nobody can
+        tie back to you. This cannot be undone.
       </p>
       {state === 'error' ? (
         <p role="alert" className="mt-3 flex items-start gap-2 border-y border-line-strong py-2.5 text-[14px] text-ink-2">

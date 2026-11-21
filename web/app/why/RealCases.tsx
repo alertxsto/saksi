@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import type { CSSProperties, ReactNode } from 'react'
 import { ROLE_META, type Actor } from '@/components/entry/RoleChip'
+import { Cite } from '@/components/ui/Cite'
 import { IconArrow, IconCheck } from '@/components/ui/icons'
+import { sourceAnchor, type SourceId } from '@/lib/sources'
 import './why.css'
 
 type Case = {
@@ -11,6 +13,8 @@ type Case = {
   saksi: ReactNode
   actor: Actor
   try: { href: string; label: string }
+  /** Public evidence behind the scenario, listed in full in #sources below. */
+  cite: SourceId[]
 }
 
 const CASES: Case[] = [
@@ -28,6 +32,7 @@ const CASES: Case[] = [
     ),
     actor: 'citizen',
     try: { href: '/enter?as=citizen', label: 'Try it as the citizen' },
+    cite: ['dukcapil-7833-2026', 'dukcapil-hits-2025', 'ojk-complaints-2025', 'uu-pdp-32', 'uu-pdp-12'],
   },
   {
     title: 'Your medical record opened by staff who don’t treat you',
@@ -37,6 +42,7 @@ const CASES: Case[] = [
       'Your receipt names the hospital system, the officer reference and the stated purpose. A purpose that has nothing to do with your care stands out, and nobody can rewrite it later.',
     actor: 'agency',
     try: { href: '/enter?as=agency', label: 'Try it as the agency' },
+    cite: ['uu-pdp-31'],
   },
   {
     title: 'A breach covered up by deleting the logs',
@@ -46,6 +52,7 @@ const CASES: Case[] = [
       'Every access was sealed when it happened. Edit or delete the rows and every affected phone turns red: “Changed after sealing” or “Deleted by the agency”.',
     actor: 'agency',
     try: { href: '/operator', label: 'Try it: agency, then the evidence room' },
+    cite: ['djp-npwp-2024', 'dukcapil-337m-denial-2023', 'pdns-backup-2024'],
   },
   {
     title: 'The regulator audits without an on-site inspection',
@@ -55,6 +62,7 @@ const CASES: Case[] = [
       'The regulator reads the same sealed records. Agencies with a tampered record or a late breach notice are flagged before anyone visits.',
     actor: 'regulator',
     try: { href: '/enter?as=regulator', label: 'Try it as the regulator' },
+    cite: ['pdp-agency-2026', 'komdigi-monitoring-2025'],
   },
 ]
 
@@ -75,6 +83,7 @@ export function RealCases() {
                   <span className="inline-flex h-7 items-center rounded-pill border border-line px-2.5 text-[13px] text-ink-2">
                     {c.law}
                   </span>
+                  <span className="label ml-auto text-[11px] text-ink-3">Scenario</span>
                 </div>
                 <h3 className="mt-4 text-[22px] font-semibold leading-[1.18] tracking-[-0.02em] text-ink md:text-[24px]">{c.title}</h3>
                 <div className="mt-4 flex gap-3">
@@ -82,8 +91,15 @@ export function RealCases() {
                   <p className="text-[15px] leading-[1.55] text-ink-2">
                     <span className="font-medium text-ink">Today. </span>
                     {c.today}
+                    <Cite ids={c.cite} />
                   </p>
                 </div>
+                <a
+                  href={`#${sourceAnchor(c.cite[0])}`}
+                  className="mt-3 self-start pl-6 text-[13px] text-ink-3 underline-offset-4 transition-colors duration-150 hover:text-blue hover:underline"
+                >
+                  Evidence behind this scenario
+                </a>
               </div>
               <div className="wy-stub relative flex flex-col bg-card px-5 pb-5 pt-5 md:px-7 md:pb-6">
                 <div aria-hidden="true" className="wy-perf absolute inset-x-5 top-0 text-line-strong md:inset-x-7" />

@@ -1,5 +1,6 @@
 'use client'
 
+import Link from 'next/link'
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { CHAIN_NAME, DEPLOY_BLOCK } from '@/lib/env'
 import { DIVE_QUERY_JS } from '@/lib/motion/dive'
@@ -8,7 +9,7 @@ import { clamp, matches, range, subscribe } from '@/lib/motion/scroll'
 import { Cta } from './Cta'
 import { SealGL } from './SealGL'
 
-import { SAMPLE_RECEIPT } from './sample-receipt'
+import { SAMPLE_PROOF_HREF, SAMPLE_RECEIPT } from './sample-receipt'
 
 // The sample receipt's real transaction (sealed on Sepolia), not a made-up fingerprint.
 const FP = `${SAMPLE_RECEIPT.txHash!.slice(0, 10)}…${SAMPLE_RECEIPT.txHash!.slice(-8)}`
@@ -122,7 +123,7 @@ export function HeroDive() {
             <div className="absolute right-[max(24px,calc(50%-620px))] top-28 flex h-[calc(100%-200px)] flex-col items-end justify-between">
               {[
                 ['NOW', 'bg-ice'],
-                ['SEALED 14:03 WIB', 'bg-dot-2'],
+                ['SEALED 19:54 WIB', 'bg-dot-2'],
                 ['DATABASE COPY', 'bg-dot'],
               ].map(([l, c]) => (
                 <span key={l} className="label flex items-center gap-2 text-[12px] text-vault-ink-2">
@@ -176,10 +177,12 @@ export function HeroDive() {
               <li>No wallet for citizens</li>
               <li aria-hidden="true" className="h-4 w-px bg-line-strong max-sm:hidden" />
               <li className="flex items-center gap-2">
-                Fingerprint{' '}
-                <code ref={fpRef} className="font-mono normal-case tracking-normal text-blue">
-                  {FP}
-                </code>
+                Sample tx{' '}
+                <Link href={SAMPLE_PROOF_HREF} className="underline-offset-4 hover:underline">
+                  <code ref={fpRef} className="font-mono normal-case tracking-normal text-blue">
+                    {FP}
+                  </code>
+                </Link>
               </li>
             </ul>
           </div>

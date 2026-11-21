@@ -44,19 +44,28 @@ function check(i: number, j: number) {
   const d = Math.min(seg(i, j, 2.5, 7, 5.5, 10), seg(i, j, 5.5, 10, 11.2, 3.6))
   return d < 0.75 ? 1 : d < 1.35 ? 0.62 : 0
 }
+function cross(i: number, j: number) {
+  const d = Math.min(seg(i, j, 3, 3, 10, 10), seg(i, j, 10, 3, 3, 10))
+  return d < 0.75 ? 1 : d < 1.35 ? 0.62 : 0
+}
 const CELLS = Array.from({ length: N * N }, (_, k) => {
   const i = k % N
   const j = (k / N) | 0
-  return { i, j, a: receipt(i, j), b: check(i, j), d: (Math.hypot(i - C, j - C) / Math.hypot(C, C)) * 0.6 }
+  return { i, j, a: receipt(i, j), b: check(i, j), x: cross(i, j), d: (Math.hypot(i - C, j - C) / Math.hypot(C, C)) * 0.6 }
 })
 const INK = '#1E1A16'
 const OK = '#157F3D'
-const fillFor = (s: number, ok: boolean) => (ok ? OK : INK)
+const BAD = '#C8281E'
+
+/** The lattice only shows a check for a real MATCH: MISMATCH morphs to a red cross, anything else stays a receipt. */
+const targetFor = (status: Live['status']) =>
+  status === 'MATCH' ? { key: 'b' as const, fill: OK } : status === 'MISMATCH' ? { key: 'x' as const, fill: BAD } : { key: 'a' as const, fill: INK }
 
 /**
  * S7 "Don't trust us. Check it yourself." (15 S7 / #9): the page's one boxed object is a real input row.
- * At 55% visibility it auto-demos: the fingerprint scrambles in, Verify presses, the 14×14 lattice morphs
- * receipt → check with a green radial sweep, and the result + DotoValue timer appear. Below, the limits
+ * At 55% visibility it auto-demos: the fingerprint scrambles in, Verify presses, and once the real result is in
+ * the 14×14 lattice morphs receipt → green check (MATCH only; red cross on MISMATCH, receipt otherwise) and the
+ * result + DotoValue timer appear. Below, the limits
  * as two hairline lists whose rows turn ink-3 → ink as they cross the viewport.
  */
 type Live = { status: 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'ERROR'; secs: string }
@@ -81,60 +90,77 @@ export function Verifier() {
     const svg = svgRef.current
     const limits = limitsRef.current
     if (!box || !fp || !svg || !limits) return
+    const dots = Array.from(svg.querySelectorAll<SVGCircleElement>('circle'))
+    // m = 0 is the receipt, m = 1 the target shape for this result.
+    const paint = (m: number, to: ReturnType<typeof targetFor> = targetFor('ERROR')) => {
+      CELLS.forEach((c, k) => {
+        const t = Math.max(0, Math.min(1, (m - c.d) / 0.4))
+        const e = 1 - (1 - t) ** 3
+        const s = c.a + (c[to.key] - c.a) * e
+        dots[k].setAttribute('r', (0.44 * s).toFixed(3))
+        dots[k].setAttribute('fill', t > 0.5 ? to.fill : INK)
+      })
+    }
+    let alive = true
+    let runId = 0
     if (matches(REDUCED_QUERY)) {
-      // No animation, but the check itself is still real.
+      // No animation, but the check itself is still real; the lattice jumps to the result's shape.
+      const verifyNow = () => {
+        const id = ++runId
+        setLive(null)
+        paint(0)
+        void checkSample().then((r) => {
+          if (!alive || id !== runId) return
+          setLive(r)
+          paint(1, targetFor(r.status))
+        })
+      }
       const io = new IntersectionObserver(([e]) => {
         if (!e.isIntersecting) return
         io.disconnect()
-        void checkSample().then(setLive)
+        verifyNow()
       })
       io.observe(box)
-      runRef.current = () => {
-        setLive(null)
-        void checkSample().then(setLive)
+      runRef.current = verifyNow
+      return () => {
+        alive = false
+        io.disconnect()
       }
-      return () => io.disconnect()
     }
-    const dots = Array.from(svg.querySelectorAll<SVGCircleElement>('circle'))
     const timers: number[] = []
     const setPhase = (v: 'idle' | 'press' | 'done') => box.setAttribute('data-phase', v)
     let raf = 0
     let stopScr: (() => void) | null = null
 
-    const paint = (m: number) => {
-      CELLS.forEach((c, k) => {
-        const t = Math.max(0, Math.min(1, (m - c.d) / 0.4))
-        const e = 1 - (1 - t) ** 3
-        const s = c.a + (c.b - c.a) * e
-        dots[k].setAttribute('r', (0.44 * s).toFixed(3))
-        dots[k].setAttribute('fill', fillFor(s, t > 0.5))
-      })
-    }
     const run = () => {
+      const id = ++runId
       timers.forEach(clearTimeout)
       cancelAnimationFrame(raf)
       stopScr?.()
       paint(0)
       setPhase('idle')
       setLive(null)
-      // The real verification starts now and runs while the lattice animates; the result waits for it.
+      // The real verification starts now; the lattice only morphs once the real result is in.
       const pending = checkSample()
       stopScr = scramble(fp, SAMPLE_TX_SHORT, { stepMs: 26 })
       timers.push(
         window.setTimeout(() => setPhase('press'), 1000),
         window.setTimeout(() => {
-          const t0 = performance.now()
-          const step = (now: number) => {
-            const m = Math.min(1, (now - t0) / 900)
-            paint(m)
-            if (m < 1) raf = requestAnimationFrame(step)
-            else
-              void pending.then((r) => {
+          void pending.then((r) => {
+            if (!alive || id !== runId) return
+            const to = targetFor(r.status)
+            const t0 = performance.now()
+            const step = (now: number) => {
+              const m = Math.min(1, (now - t0) / 900)
+              paint(m, to)
+              if (m < 1) raf = requestAnimationFrame(step)
+              else {
                 setLive(r)
                 setPhase('done')
-              })
-          }
-          raf = requestAnimationFrame(step)
+              }
+            }
+            raf = requestAnimationFrame(step)
+          })
         }, 1180),
       )
     }
@@ -160,6 +186,7 @@ export function Verifier() {
       for (const r of rows) r.style.setProperty('--q', range(vh * 0.82, vh * 0.58, r.getBoundingClientRect().top).toFixed(3))
     })
     return () => {
+      alive = false
       io.disconnect()
       unsub()
       timers.forEach(clearTimeout)
@@ -200,7 +227,7 @@ export function Verifier() {
             <div className="mt-8 flex items-center gap-6 md:gap-8">
               <svg ref={svgRef} viewBox={`0 0 ${N} ${N}`} className="size-[132px] shrink-0 md:size-[168px]" aria-hidden="true">
                 {CELLS.map((c, k) => (
-                  <circle key={k} cx={c.i + 0.5} cy={c.j + 0.5} r={(0.44 * c.b).toFixed(3)} fill={fillFor(c.b, true)} />
+                  <circle key={k} cx={c.i + 0.5} cy={c.j + 0.5} r={(0.44 * c.a).toFixed(3)} fill={INK} />
                 ))}
               </svg>
               <div className="ver-result min-w-0" aria-live="polite">

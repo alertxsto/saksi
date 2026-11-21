@@ -90,7 +90,7 @@ export function SiteFooter({ base = "" }: { base?: string }) {
               />
             </div>
             <p className="label mt-4 text-center text-[12px] text-vault-ink-2">
-              Judges: scan to open {SITE.replace(/^https?:\/\//, "")}/citizen
+              Judges: scan to open {SITE.replace(/^https?:\/\//, "")}/enter?as=citizen
             </p>
           </QrFlash>
         </div>

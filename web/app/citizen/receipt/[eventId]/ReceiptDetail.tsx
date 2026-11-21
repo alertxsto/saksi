@@ -22,6 +22,7 @@ import { runCheck, useAutoVerify, useReceiptCheck } from '@/lib/client/receipt-c
 import { downloadReceiptFile, explain, findReceipt, shareProof, toCitizenError, type ExplainResponse } from '@/lib/data'
 import { rememberedChain, rememberedReceipt } from '@/lib/client/seen-receipts'
 import { ReportAccess } from '@/components/citizen/ReportAccess'
+import { OfflineBanner } from '@/app/citizen/CitizenHome'
 import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { contentKey, receiptHeadline, type ReceiptCheck } from '@/lib/receipt-state'
@@ -39,12 +40,18 @@ export function ReceiptDetail() {
   const q = useQuery({
     queryKey: ['receipt', eventId],
     queryFn: () => findReceipt(eventId),
-    refetchInterval: (query) => (query.state.status === 'error' ? false : 3000),
+    // One failed poll must not stop polling: keep retrying (slower) unless the session is gone.
+    refetchInterval: (query) =>
+      query.state.status !== 'error' ? 3000 : toCitizenError(query.state.error).code === 'NO_SESSION' ? false : 10_000,
     refetchIntervalInBackground: false,
+    retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 2,
+    retryDelay: (attempt) => Math.min(1000 * 2 ** attempt, 8000),
   })
 
   if (q.isPending) return <ReceiptDetailSkeleton />
-  if (q.isError || !q.data) {
+  // Loaded before, last poll failed: keep the receipt on screen with a quiet "retrying" note.
+  const stale = q.isError && !!q.data && toCitizenError(q.error).code !== 'NO_SESSION'
+  if (!stale && (q.isError || !q.data)) {
     const onRetry = () => void q.refetch()
     const noSession = q.isError && toCitizenError(q.error).code === 'NO_SESSION'
     // Gone from the company's store but remembered by this phone: it can still be reported from its chain position.
@@ -59,7 +66,16 @@ export function ReceiptDetail() {
       />
     )
   }
-  return <Detail opening={q.data} reload={async () => (await q.refetch()).data ?? null} />
+  return (
+    <>
+      {stale ? (
+        <div className="mb-4">
+          <OfflineBanner retrying />
+        </div>
+      ) : null}
+      <Detail opening={q.data!} reload={async () => (await q.refetch()).data ?? null} />
+    </>
+  )
 }
 
 function BackLink() {

@@ -21,6 +21,8 @@ export const PASAL46_FIELDS: { k: keyof Pasal46Fields; label: string; letter: st
 ]
 
 export type DraftState = { status: 'idle' | 'loading' | 'error' | 'done'; meta?: AiMeta; error?: string }
+/** Shown when the AI returned only the empty template fallback: the error already says what to do next. */
+export const AI_UNAVAILABLE = 'The AI is unavailable right now. Write the four parts yourself.'
 export type CheckState = { status: 'idle' | 'checking' | 'on_time' | 'late' | 'error'; deadlineSec?: number; error?: string }
 export type Edited = Partial<Record<keyof Pasal46Fields, boolean>>
 
@@ -115,6 +117,8 @@ export function BreachView({
   const usedH = detectedAtSec && nowSec ? Math.max(0, (nowSec - detectedAtSec) / H) : 0
   const sealed = tx.phase === 'confirmed'
   const started = tx.phase !== 'idle'
+  // A redraft would change the text the contract check or the seal is about: only allowed before either.
+  const canRedraft = !started && (check.status === 'idle' || check.status === 'error')
 
 
   // ---- seal panel: an inset group like the agency system's seal steps; the stamp marks the sealed verdict ----
@@ -160,7 +164,7 @@ export function BreachView({
       />
     )
     body = (
-      <Button variant="dark" size="lg" arrow full onClick={onAnchor} icon={<IconShield size={17} />}>
+      <Button variant="dark" size="lg" arrow full onClick={onAnchor} disabled={drafting} icon={<IconShield size={17} />}>
         Sign and seal the notice
       </Button>
     )
@@ -177,7 +181,7 @@ export function BreachView({
           The contract refuses an on-time notice for this detection time. You must still notify: the notice is sealed as late, permanently.{' '}
           <span className="text-ink">No signature was requested yet.</span>
         </p>
-        <Button variant="dark" size="lg" arrow full onClick={onRecordLate}>
+        <Button variant="dark" size="lg" arrow full onClick={onRecordLate} disabled={drafting}>
           Sign and seal as late
         </Button>
       </div>
@@ -206,7 +210,7 @@ export function BreachView({
           full
           loading={check.status === 'checking'}
           onClick={onCheckWithContract}
-          disabled={!ready || check.status === 'checking'}
+          disabled={!ready || drafting || check.status === 'checking'}
           icon={check.status === 'error' ? <IconRefresh size={16} /> : undefined}
         >
           {check.status === 'checking' ? 'Asking the contract…' : check.status === 'error' ? 'Try the check again' : 'Check with the contract'}
@@ -297,17 +301,25 @@ export function BreachView({
                 icon={<IconSpark size={16} className="text-ai-v" />}
                 loading={drafting}
                 onClick={onDraft}
-                disabled={narrative.trim().length < 10 || drafting}
+                disabled={narrative.trim().length < 10 || drafting || !canRedraft}
               >
                 {drafting ? 'Drafting…' : fields ? 'Redraft with AI' : 'Draft with AI'}
               </Button>
               {draft.meta ? <AiChip meta={draft.meta} /> : null}
-              {narrative.trim().length < 10 && !drafting ? <span className="text-[13px] text-ink-3">At least a sentence first.</span> : null}
+              {narrative.trim().length < 10 && !drafting ? (
+                <span className="text-[13px] text-ink-3">At least a sentence first.</span>
+              ) : !canRedraft && !started && !drafting && fields ? (
+                <span className="text-[13px] text-ink-3">Edit a part to redraft after the check.</span>
+              ) : null}
             </div>
             {draft.status === 'error' ? (
               <p className="ag-rise flex items-start gap-2.5 text-[14px] leading-relaxed text-pending" role="alert">
                 <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-pending" />
-                <span>{draft.error ?? 'The AI could not draft this.'} You can try again or write the four parts yourself.</span>
+                {draft.error === AI_UNAVAILABLE ? (
+                  <span>{AI_UNAVAILABLE}</span>
+                ) : (
+                  <span>{draft.error ?? 'The AI could not draft this.'} You can try again or write the four parts yourself.</span>
+                )}
               </p>
             ) : null}
           </section>
