@@ -139,8 +139,8 @@ export function Verifier() {
   return (
     <section id="verify" aria-labelledby="verify-title" className="relative scroll-mt-24 border-t border-line py-16 md:py-[104px]">
       <div className="frame px-3 md:px-8">
-        <div className="grid gap-12 lg:grid-cols-12 lg:gap-6">
-          <div className="lg:col-span-5">
+        <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-6">
+          <div className="min-w-0 lg:col-span-5">
             <Heading id="verify-title" lead="Don’t trust us." tail="Check it yourself." className="text-[34px] leading-[1.04] md:text-[56px]" />
             <p className="mt-6 max-w-[44ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[18px]">
               Paste a fingerprint or a transaction, or scan a receipt QR. Your browser reads the chain from a public node
@@ -151,7 +151,7 @@ export function Verifier() {
             </div>
           </div>
 
-          <div ref={boxRef} className="lg:col-span-6 lg:col-start-7 lg:pt-2" data-phase="done">
+          <div ref={boxRef} className="min-w-0 lg:col-span-6 lg:col-start-7 lg:pt-2" data-phase="done">
             <div className="ver-input flex h-16 items-center gap-3 rounded-md border border-line-strong bg-card pl-4 pr-2 transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.01]">
               <span className="label hidden text-[11px] text-ink-3 sm:inline">Fingerprint</span>
               <code ref={fpRef} className="min-w-0 flex-1 truncate font-mono text-[14px] text-ink">
