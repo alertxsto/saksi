@@ -2036,5 +2036,9 @@
  "No agency stands out. Every pattern is within the usual range.": "Tidak ada instansi yang menonjol. Semua pola masih dalam batas wajar.",
  "Priority is set by fixed rules from what Saksi witnessed. The AI only words the reason and the next step, and sees agency names and counts, never a citizen. A signal is a reason to look, not proof.": "Prioritas ditentukan oleh aturan tetap dari apa yang disaksikan Saksi. AI hanya merangkai alasan dan langkah berikutnya, dan hanya melihat nama instansi serta jumlah, tidak pernah data warga. Sinyal adalah alasan untuk memeriksa, bukan bukti.",
  "Watch could not reach the ledger, so tampering is not counted right now.": "Watch tidak bisa menjangkau ledger, jadi perubahan catatan belum dihitung saat ini.",
- "Too many requests. Wait a minute and try again.": "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi."
+ "Too many requests. Wait a minute and try again.": "Terlalu banyak permintaan. Tunggu sebentar lalu coba lagi.",
+ "Record status": "Status catatan",
+ "Seal": "Segel",
+ "Stored record": "Catatan tersimpan",
+ "No journal log": "Tidak ada log di jurnal"
 }

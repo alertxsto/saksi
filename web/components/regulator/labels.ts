@@ -10,6 +10,9 @@ export const FIELD_LABEL: Record<string, string> = {
   contract: 'Contract',
   row: 'Whole row',
   txHash: 'Chain transaction',
+  status: 'Record status',
+  seal: 'Seal',
+  opening: 'Stored record',
 }
 
 export const fieldLabel = (field: string | null | undefined) => (field ? (FIELD_LABEL[field] ?? field) : null)

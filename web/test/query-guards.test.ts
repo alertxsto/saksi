@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
+// The per-IP limits are covered in route-guards.test.ts; here they always allow.
+vi.mock('../lib/server/rate-limit', () => ({ consume: async () => true }));
 // A pg-proxy drizzle client records the SQL each service sends, without a database.
 const queries: { sql: string; params: unknown[] }[] = [];
 let answer: (sql: string) => unknown[][] = () => [];

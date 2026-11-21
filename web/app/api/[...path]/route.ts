@@ -20,6 +20,10 @@ type Context = { params: Promise<{ path: string[] }> };
 async function limitPrepare(request: Request) {
   if (!await consume(`prepare:${clientIp(request)}`, 20)) throw new HttpError(429, 'RATE_LIMITED', 'Too many drafts from this network. Wait a minute and try again.');
 }
+// Submit, confirm and Watch each make RPC calls; cap a network generously (a venue Wi-Fi shares one IP).
+async function limitChain(request: Request, kind: 'seal' | 'watch') {
+  if (!await consume(`${kind}:${clientIp(request)}`, kind === 'watch' ? 120 : 60)) throw new HttpError(429, 'RATE_LIMITED', 'Too many requests. Wait a minute and try again.');
+}
 // AI calls cost provider quota and draft is unauthenticated, so cap each network and every client together.
 const aiLimits = { draft: { perIp: 6, global: 60 }, explain: { perIp: 20, global: 120 } } as const;
 async function limitAi(request: Request, feature: keyof typeof aiLimits) {
@@ -50,16 +54,16 @@ async function route(request: Request, context: Context): Promise<Response> {
         await limitPrepare(request);
         return json(await prepareAccess(body), 201);
       }
-      case 'POST controller/access/submit': return json(await submitAccess(await input(request, submitInput)));
-      case 'POST controller/access/confirm': return json(await confirmAccess((await input(request, confirmInput)).id));
+      case 'POST controller/access/submit': { const body = await input(request, submitInput); await limitChain(request, 'seal'); return json(await submitAccess(body)); }
+      case 'POST controller/access/confirm': { const body = await input(request, confirmInput); await limitChain(request, 'seal'); return json(await confirmAccess(body.id)); }
       case 'GET controller/access/recent': return json(await recentAccess(validate(hash, url.searchParams.get('controllerId'))));
       case 'POST controller/breach/prepare': {
         const body = await input(request, prepareBreachInput);
         await limitPrepare(request);
         return json(await prepareBreach(body), 201);
       }
-      case 'POST controller/breach/submit': return json(await submitBreach(await input(request, submitInput)));
-      case 'POST controller/breach/confirm': return json(await confirmBreach((await input(request, confirmInput)).id));
+      case 'POST controller/breach/submit': { const body = await input(request, submitInput); await limitChain(request, 'seal'); return json(await submitBreach(body)); }
+      case 'POST controller/breach/confirm': { const body = await input(request, confirmInput); await limitChain(request, 'seal'); return json(await confirmBreach(body.id)); }
       case 'GET regulator/breaches': return json(await listBreaches());
       case 'GET regulator/reports': {
         // The admin address only labels who may sign; listing never depends on the chain answering.
@@ -79,6 +83,7 @@ async function route(request: Request, context: Context): Promise<Response> {
       }
       case 'GET stats': return json(await stageStats());
       case 'GET watch': {
+        await limitChain(request, 'watch');
         const controllerId = url.searchParams.get('controllerId');
         return json(await watch(controllerId === null ? undefined : validate(hash, controllerId)));
       }

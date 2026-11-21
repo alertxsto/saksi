@@ -1,5 +1,7 @@
 import { afterEach, describe, expect, test, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
+// The per-IP limits are covered in route-guards.test.ts; here they always allow.
+vi.mock('../lib/server/rate-limit', () => ({ consume: async () => true }));
 import { z } from 'zod';
 import { explainInput } from '../lib/server/ai';
 import { addresses, deployBlock, hash } from '../lib/server/chain';
@@ -7,7 +9,7 @@ import { configProblems } from '../lib/server/config';
 import { contradictsVerdict, EXPLAIN_TEMPLATE, EXPLAIN_TEMPLATE_ID, VERDICT, VERDICT_ID, withVerdict } from '../lib/server/explain-guard';
 import { clientIp, describeError, HttpError, secureCookies, validate } from '../lib/server/http';
 import { requireSubmitToken, submitToken } from '../lib/server/submit-token';
-import { isUnanchoredClaim } from '../lib/server/watch';
+import { isPhantomSeal, isUnanchoredClaim } from '../lib/server/watch';
 import { GET, POST } from '../app/api/[...path]/route';
 
 const id = '3f1c2a4e-8b7d-4c1a-9e2f-0a1b2c3d4e5f';
@@ -129,6 +131,12 @@ describe('Watch NOT_ANCHORED', () => {
     expect(isUnanchoredClaim({ status: 'submitted', txHash: txHash.toUpperCase().replace('0X', '0x'), createdAt: old }, new Set([txHash]), cutoff)).toBe(false);
     expect(isUnanchoredClaim({ status: 'submitted', txHash, createdAt: new Date() }, new Set(), cutoff)).toBe(false);
     expect(isUnanchoredClaim({ status: 'anchored', txHash, createdAt: old }, new Set(), cutoff)).toBe(false);
+    // An anchored row with no journal log behind it is a seal the chain never recorded.
+    expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 100 }, new Set(), 200)).toBe(true);
+    expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 100 }, new Set(['a']), 200)).toBe(false);
+    expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 201 }, new Set(), 200)).toBe(false);
+    expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: null }, new Set(), 200)).toBe(true);
+    expect(isPhantomSeal({ id: 'a', status: 'failed', blockNumber: 100 }, new Set(), 200)).toBe(false);
   });
 });
 

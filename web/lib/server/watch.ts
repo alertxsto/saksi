@@ -36,6 +36,12 @@ export function isUnanchoredClaim(row: { status: string; txHash: string | null; 
   return row.status === 'submitted' && row.txHash !== null && row.createdAt.getTime() < cutoff && !seenTransactions.has(row.txHash.toLowerCase());
 }
 
+// An anchored row that no journal log backs: the database claims a seal the chain never recorded (a made-up or
+// re-pointed row). Rows sealed in the newest block are skipped, since the scan stops one block behind the tip.
+export function isPhantomSeal(row: { id: string; status: string; blockNumber: number | null }, matched: ReadonlySet<string>, head: number) {
+  return row.status === 'anchored' && !matched.has(row.id) && (row.blockNumber === null || row.blockNumber <= head);
+}
+
 async function scan(controllerId?: Hex) {
   const client = rpc();
   if (await client.getChainId() !== 11155111) throw new Error('Expected Sepolia.');
@@ -88,17 +94,26 @@ export async function watch(controllerId?: Hex) {
     .map((record) => [key(record.row.txHash, record.row.logIndex), record]));
   const submitted = new Map(records.filter(({ row }) => row.status === 'submitted' && row.txHash !== null && row.logIndex === null)
     .map((record) => [`${record.row.txHash}:${record.row.controllerId}:${record.row.evidenceHash}`, record]));
+  // A wallet can seal an access whose submit never reached Saksi (closed tab): that row is still a pending draft with
+  // no transaction hash. Matching it by controller and evidence keeps a real, sealed access from reading as DELETED.
+  const drafts = new Map(records.filter(({ row }) => row.status === 'pending' && row.txHash === null)
+    .map((record) => [`${record.row.controllerId.toLowerCase()}:${record.row.evidenceHash.toLowerCase()}`, record]));
+  const matched = new Set<string>();
   const seenTransactions = new Set<string>();
   const names = new Map(orgs.map(({ id, name }) => [id, name]));
   const rows: WatchRow[] = logs.map((log) => {
     seenTransactions.add(log.transactionHash.toLowerCase());
     const record = byEvent.get(key(log.transactionHash, log.logIndex))
-      ?? submitted.get(`${log.transactionHash}:${log.args.controllerId}:${log.args.evidenceHash}`);
+      ?? submitted.get(`${log.transactionHash}:${log.args.controllerId}:${log.args.evidenceHash}`)
+      ?? drafts.get(`${log.args.controllerId.toLowerCase()}:${log.args.evidenceHash.toLowerCase()}`);
     const base = { txHash: log.transactionHash, logIndex: log.logIndex, blockNumber: Number(log.blockNumber) };
     if (!record) return { ...base, eventId: null, controllerName: names.get(log.args.controllerId) ?? log.args.controllerId, status: 'DELETED' };
     let difference: ReturnType<typeof compareOpening>;
     try { difference = compareOpening(readOpening(record.row, record.name), log.args); }
     catch { difference = { field: 'opening', dbValue: 'Unreadable', chainValue: 'Recorded commitment' }; }
+    // Marking a sealed row as failed hides it from the citizen while every field still matches: the chain says it happened.
+    if (!difference && record.row.status === 'failed') difference = { field: 'status', dbValue: 'failed', chainValue: 'anchored' };
+    matched.add(record.row.id);
     return { ...base, eventId: record.row.id, controllerName: record.name,
       ...(difference ? { status: 'ALTERED' as const, ...difference } : { status: 'MATCH' as const }) };
   });
@@ -107,6 +122,10 @@ export async function watch(controllerId?: Hex) {
     if (isUnanchoredClaim(row, seenTransactions, cutoff)) {
       rows.push({ eventId: row.id, txHash: row.txHash ? hash.parse(row.txHash) : emptyHash,
         logIndex: row.logIndex ?? -1, controllerName: name, status: 'NOT_ANCHORED' });
+    } else if (isPhantomSeal(row, matched, Number(head))) {
+      // A made-up row may carry a malformed hash; never let it take Watch down.
+      rows.push({ eventId: row.id, txHash: hash.safeParse(row.txHash).data ?? emptyHash, logIndex: row.logIndex ?? -1,
+        controllerName: name, status: 'NOT_ANCHORED', field: 'seal', dbValue: 'anchored', chainValue: 'No journal log' });
     }
   }
   rows.sort((a, b) => rank[a.status] - rank[b.status] || (b.blockNumber ?? 0) - (a.blockNumber ?? 0) || b.logIndex - a.logIndex);
