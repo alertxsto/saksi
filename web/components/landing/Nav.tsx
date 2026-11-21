@@ -113,10 +113,10 @@ export function Nav({ base = '' }: { base?: string }) {
         <Link href="/enter" className={`${LINK} ml-auto mr-1 hidden lg:flex`}>
           <OdoText>Sign in</OdoText>
         </Link>
-        <Cta href="/citizen" size="md" className="nav-cta max-lg:ml-auto max-lg:h-11 max-[379px]:hidden">
+        <Cta href="/enter" size="md" className="nav-cta max-lg:ml-auto max-lg:h-11 max-[379px]:hidden">
           Open the app
         </Cta>
-        <Cta href="/citizen" size="md" className="nav-cta ml-auto h-11! min-[380px]:hidden">
+        <Cta href="/enter" size="md" className="nav-cta ml-auto h-11! min-[380px]:hidden">
           Open the app
         </Cta>
         <button
@@ -163,7 +163,7 @@ export function Nav({ base = '' }: { base?: string }) {
             <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-12! w-full justify-center px-3!">
               Verify a receipt
             </Cta>
-            <Cta href="/citizen" size="md" className="nav-cta h-12! w-full justify-between">
+            <Cta href="/enter" size="md" className="nav-cta h-12! w-full justify-between">
               Open the app
             </Cta>
           </div>

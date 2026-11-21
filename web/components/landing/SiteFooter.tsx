@@ -22,11 +22,11 @@ const COLS = [
   {
     h: "Try it",
     links: [
-      ["/enter", "Sign in"],
-      ["/citizen", "Citizen app"],
-      ["/controller", "Controller console"],
-      ["/regulator/watch", "Regulator Watch"],
-      ["/proof", "Public verifier"],
+      ["/enter", "Open the app"],
+      ["/enter?as=citizen", "As a citizen"],
+      ["/enter?as=agency", "As an agency"],
+      ["/enter?as=regulator", "As the regulator"],
+      ["/proof", "Verify a receipt"],
     ],
   },
   {
@@ -71,12 +71,15 @@ export function SiteFooter({ base = "" }: { base?: string }) {
               access, the receipt arrives, and your phone checks it against the
               chain.
             </p>
-            <div className="mt-10 flex flex-wrap gap-3">
-              <Cta href="/citizen" variant="paper" className="max-sm:w-full max-sm:justify-center">
-                Open the citizen app
+            <div className="mt-10 flex flex-nowrap gap-2.5 sm:gap-3">
+              <Cta href="/enter" variant="paper" className="max-sm:px-4 max-sm:text-[15px]">
+                Open the app
               </Cta>
-              <Cta href="/proof" variant="ghost-vault" className="max-sm:w-full max-sm:justify-between">
+              <Cta href="/proof" variant="ghost-vault" className="max-sm:pl-4 max-sm:text-[15px] max-[419px]:hidden">
                 Verify a receipt
+              </Cta>
+              <Cta href="/proof" variant="ghost-vault" className="pl-4 text-[15px] min-[420px]:hidden">
+                Verify
               </Cta>
             </div>
           </div>
@@ -84,7 +87,7 @@ export function SiteFooter({ base = "" }: { base?: string }) {
             <RegMarks className="qr-mark bg-dot-2" size={8} />
             <div className="rounded-md bg-card p-4">
               <QrBlock
-                value={`${SITE}/citizen`}
+                value={`${SITE}/enter?as=citizen`}
                 label="QR code to open the Saksi citizen app"
               />
             </div>

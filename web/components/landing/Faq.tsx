@@ -75,7 +75,7 @@ export function Faq() {
           <div className="flex flex-col justify-between gap-8 lg:sticky lg:top-28 lg:h-[calc(100svh-208px)] lg:max-h-[560px]">
             <Heading id="faq-title" lead="Questions people ask." tail="Short answers." className="text-[34px] leading-[1.04] md:text-[56px]" />
             <div className="hidden lg:block">
-              <Cta href="/citizen">Open the citizen app</Cta>
+              <Cta href="/enter">Open the app</Cta>
             </div>
           </div>
         </div>

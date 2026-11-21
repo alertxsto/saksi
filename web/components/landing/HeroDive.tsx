@@ -156,12 +156,15 @@ export function HeroDive() {
               Every time a company touches your data, Saksi seals a fingerprint of that record on a public chain. Your
               phone can check it, so nobody, not even an insider, can quietly rewrite the story.
             </p>
-            <div className="m-in mt-8 flex flex-wrap gap-3" style={d(380)}>
-              <Cta href="/citizen" className="max-sm:w-full max-sm:justify-between">
+            <div className="m-in mt-8 flex flex-nowrap gap-2.5 sm:gap-3" style={d(380)}>
+              <Cta href="/enter" className="max-sm:pl-4 max-sm:text-[15px]">
                 Open the app
               </Cta>
-              <Cta href="/proof" variant="light" className="max-sm:w-full max-sm:justify-center">
+              <Cta href="/proof" variant="light" className="max-sm:px-4 max-sm:text-[15px] max-[379px]:hidden">
                 Verify a receipt
+              </Cta>
+              <Cta href="/proof" variant="light" className="px-4 text-[15px] min-[380px]:hidden">
+                Verify
               </Cta>
             </div>
             <ul className="m-in label mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-ink-2 max-sm:mt-8 max-sm:gap-x-5" style={d(480)}>
