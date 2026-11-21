@@ -16,6 +16,7 @@ export function RegulatorChrome({ children }: { children: ReactNode }) {
       <div className="contents print:hidden">
         <AppHeader
           role="Regulator"
+          area="regulator"
           nav={NAV}
           right={
             <Chip icon={<IconShield size={12} />} tone="ink">
@@ -24,20 +25,25 @@ export function RegulatorChrome({ children }: { children: ReactNode }) {
           }
         />
       </div>
-      <main id="main" className="pb-24 pt-8 md:pt-14">
-        <div className="frame px-3 md:px-8">{children}</div>
+      <main id="main" className="pb-24 pt-8 md:pt-12">
+        <div className="ws">{children}</div>
       </main>
     </>
   )
 }
 
-/** Public verifier shell: header without nav, the citizen tab bar on phones. */
+/** Public verifier shell: the shared header (area links + Switch role give /proof a way out), the citizen tab bar on phones. */
 export function ProofChrome({ children }: { children: ReactNode }) {
   return (
     <>
-      <AppHeader role="Public verifier" nav={[]} right={<span className="label text-[11px] text-ink-2">Runs in your browser · no login</span>} />
-      <main id="main" className="pb-[calc(5rem+env(safe-area-inset-bottom))] pt-8 md:pb-20 md:pt-14">
-        <div className="frame px-3 md:px-8">{children}</div>
+      <AppHeader
+        role="Public verifier"
+        area="proof"
+        nav={[]}
+        right={<span className="label text-[11px] text-ink-2">Runs in your browser · no login</span>}
+      />
+      <main id="main" className="pb-[calc(5rem+env(safe-area-inset-bottom))] pt-8 md:pb-20 md:pt-12">
+        <div className="ws">{children}</div>
       </main>
       <div className="md:hidden">
         <TabBar />

@@ -1078,3 +1078,25 @@ html.lenis, html.lenis body { height: auto; }
 .bc-ghost { background-image: linear-gradient(90deg, var(--color-pending) 50%, transparent 50%); opacity: 0.7; }
 .rg-hatch-bad { background: repeating-linear-gradient(135deg, var(--color-bad) 0 3px, color-mix(in oklab, var(--color-bad) 35%, transparent) 3px 6px); }
 .app-nav .nav-link[aria-current="page"] { color: var(--color-ink); }
+
+/* ── ENTRY + APP NAV ── (/enter, components/entry/**, components/ui/AppHeader.tsx). One workspace container for
+   the app header and the content under it: the logo, the tabs and the first column share one left edge. */
+.ws { width: 100%; max-width: 1376px; margin-inline: auto; padding-inline: 16px; }
+.ws.ws-bar { padding-inline: 8px; }
+@media (min-width: 768px) { .ws { padding-inline: 32px; } .ws.ws-bar { padding-inline: 16px; } }
+@media (min-width: 1024px) { .ws { padding-inline: 48px; } .ws.ws-bar { padding-inline: 32px; } }
+.app-nav[data-open] .nav-box { background: rgb(251 250 247 / 0.94); border-color: var(--color-line); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); }
+.app-nav[data-open] .nav-burger-bar:first-child { transform: translate(-50%, -50%) rotate(45deg); }
+.app-nav[data-open] .nav-burger-bar:last-child { transform: translate(-50%, -50%) rotate(-45deg); }
+.ws-tab { color: var(--color-ink-2); }
+.ws-tab:hover { color: var(--color-ink); }
+.ws-tab[aria-current="page"] { color: var(--color-ink); }
+.ws-tab::after {
+  content: ''; position: absolute; left: 12px; right: 12px; bottom: -1px; height: 2px; border-radius: 2px;
+  background: var(--color-ink); transform: scaleX(0); transition: transform 300ms var(--ease-out-expo);
+}
+.ws-tab[aria-current="page"]::after { transform: scaleX(1); }
+.app-nav .nav-sheet-link[aria-current="page"] { background: var(--color-paper-2); }
+@media (prefers-reduced-motion: reduce) { .ws-tab::after { transition: none; } }
+.en-panel { animation: blur-rise 640ms var(--ease-out-expo) both; animation-delay: calc(120ms + var(--i, 0) * 70ms); }
+@media (prefers-reduced-motion: reduce) { .en-panel { animation: none; } }

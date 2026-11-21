@@ -12,9 +12,9 @@ const NAV = [
 function Shell({ right, children }: { right?: ReactNode; children: ReactNode }) {
   return (
     <>
-      <AppHeader role="Controller" nav={NAV} right={right} />
-      <main id="main" className="px-4 pb-24 pt-10 md:px-6 md:pt-14">
-        <div className="mx-auto max-w-[1240px]">{children}</div>
+      <AppHeader role="Controller console" area="controller" nav={NAV} right={right} />
+      <main id="main" className="pb-24 pt-8 md:pt-12">
+        <div className="ws">{children}</div>
       </main>
       <ConsoleReveal />
     </>

@@ -110,7 +110,10 @@ export function Nav({ base = '' }: { base?: string }) {
             ),
           )}
         </nav>
-        <Cta href="/citizen" size="md" className="nav-cta ml-auto max-lg:h-11 max-[379px]:hidden">
+        <Link href="/enter" className={`${LINK} ml-auto mr-1 hidden lg:flex`}>
+          <OdoText>Sign in</OdoText>
+        </Link>
+        <Cta href="/citizen" size="md" className="nav-cta max-lg:ml-auto max-lg:h-11 max-[379px]:hidden">
           Open live demo
         </Cta>
         <Cta href="/citizen" size="md" className="nav-cta ml-auto h-11! min-[380px]:hidden">
@@ -145,9 +148,18 @@ export function Nav({ base = '' }: { base?: string }) {
                   </a>
                 </li>
               ))}
+              <li className="nav-sheet-row" style={{ '--i': LINKS.length } as CSSProperties}>
+                <Link
+                  href="/enter"
+                  onClick={() => setOpen(false)}
+                  className="nav-sheet-link flex min-h-14 items-center justify-center rounded-md text-[22px] font-medium tracking-[-0.02em] transition-colors duration-150"
+                >
+                  Sign in
+                </Link>
+              </li>
             </ul>
           </nav>
-          <div className="nav-sheet-row mt-2 grid grid-cols-2 gap-2" style={{ '--i': LINKS.length } as CSSProperties}>
+          <div className="nav-sheet-row mt-2 grid grid-cols-2 gap-2" style={{ '--i': LINKS.length + 1 } as CSSProperties}>
             <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-12! w-full justify-center px-3!">
               Verify a receipt
             </Cta>

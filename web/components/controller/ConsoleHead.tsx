@@ -20,10 +20,10 @@ export function ConsoleHead({ lead, tail, children, aside }: { lead: string; tai
 /** Mono meta line with hairline separators: HASH ONLY ON CHAIN | NO NAMES (landing hero footer style). */
 export function MetaLine({ items }: { items: ReactNode[] }) {
   return (
-    <p className="label flex flex-wrap items-center gap-x-3 gap-y-1.5 text-[11px] text-ink-2">
+    <p className="label flex flex-col gap-1.5 text-[11px] text-ink-2 sm:flex-row sm:flex-wrap sm:items-center sm:gap-x-3">
       {items.map((it, i) => (
         <span key={i} className="flex items-center gap-3">
-          {i ? <span aria-hidden="true" className="h-3 w-px bg-line-strong" /> : null}
+          {i ? <span aria-hidden="true" className="hidden h-3 w-px bg-line-strong sm:block" /> : null}
           {it}
         </span>
       ))}
