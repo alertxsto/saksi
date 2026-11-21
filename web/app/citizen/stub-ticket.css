@@ -82,3 +82,28 @@
   .st-ticket { -webkit-mask: none; mask: none; border: 1px solid #bfb8aa; }
   .st-shadow, .st-shadow-bad { filter: none; }
 }
+
+/* ---- detail ticket: two stacked halves, each masked at the join, so the notch follows the hero's real
+   height (long agency names wrap) without measuring anything. ---------------------------------------- */
+.st-half-top {
+  --r: 12px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 100%, #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% 100%, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at 0 100%, #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% 100%, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+.st-half-bottom {
+  --r: 12px;
+  margin-top: -1px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 0, #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% 0, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at 0 0, #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% 0, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+@media print {
+  .st-half-top, .st-half-bottom { -webkit-mask: none; mask: none; }
+}

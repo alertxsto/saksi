@@ -4,13 +4,14 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { Avatar, IconChevron, WaitingForChain } from '@/components/citizen/ReceiptRows'
+import { IconChevron, initials } from '@/components/citizen/ReceiptRows'
+import { ChainReadout, VerdictStamp, type StampKind } from '@/components/citizen/VerdictStamp'
 import { ReceiptFacts, ReceiptStatusPill } from '@/components/citizen-workspace/ReceiptFacts'
 import { AiPanel } from '@/components/ui/AiPanel'
 import { Act } from '@/components/citizen/Act'
 import { Cta } from '@/components/landing/Cta'
 import { NotFoundScreen } from '@/components/system/NotFoundScreen'
-import { IconDownload, IconQuestion, IconRefresh, IconShare, IconSpark, IconX } from '@/components/ui/icons'
+import { IconClock, IconDownload, IconQuestion, IconRefresh, IconShare, IconSpark, IconX } from '@/components/ui/icons'
 import { DotIcon } from '@/components/ui/DotIcon'
 import { Limits } from '@/components/ui/Limits'
 import { ReceiptDetailSkeleton } from '@/components/ui/Skeleton'
@@ -23,7 +24,8 @@ import { rememberedChain, rememberedReceipt } from '@/lib/client/seen-receipts'
 import { ReportAccess } from '@/components/citizen/ReportAccess'
 import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
-import { contentKey, receiptHeadline, verdictNote, type ReceiptCheck } from '@/lib/receipt-state'
+import { contentKey, receiptHeadline, type ReceiptCheck } from '@/lib/receipt-state'
+import '@/app/citizen/stub-ticket.css'
 import type { ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
 /**
@@ -70,7 +72,7 @@ function BackLink() {
 
 function Quiet({ glyph, title, body, action }: { glyph: 'clock' | 'eye' | 'cross'; title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="anim-rise flex flex-col items-start gap-3 border-y border-line py-6">
+    <div className="anim-rise flex flex-col items-start gap-3 rounded-xl border border-line bg-card p-5">
       <DotIcon name={glyph} size={40} className="text-ink-3" />
       <div>
         <p className="text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">{title}</p>
@@ -115,7 +117,7 @@ export function ReceiptMissingView({
       ) : noSession ? (
         <Quiet
           glyph="eye"
-          title="No demo profile in this browser"
+          title="No profile in this browser"
           body="Receipts belong to a profile. Create a synthetic profile first, then open your receipts from the list."
           action={
             <Cta href="/citizen">Create profile</Cta>
@@ -123,11 +125,7 @@ export function ReceiptMissingView({
         />
       ) : report ? (
         <>
-          <Quiet
-            glyph="cross"
-            title="Deleted by the company"
-            body="This record is gone from the company’s side but still on the chain, so you can still report it."
-          />
+          <DeletedTicket />
           {report}
         </>
       ) : (
@@ -136,6 +134,49 @@ export function ReceiptMissingView({
       )}
       <TabBar />
     </div>
+  )
+}
+
+/**
+ * A receipt the company deleted: the ticket outline is still here (dashed, it is an absence), the body is gone.
+ * Red only for the tamper fact itself.
+ */
+function DeletedTicket() {
+  return (
+    <section aria-labelledby="deleted-title" className="st-rise flex flex-col gap-4 rounded-xl border-2 border-dashed border-line-strong bg-paper-2/50 p-5">
+      <div className="flex items-start justify-between gap-3">
+        <DotIcon name="cross" size={36} className="text-bad" />
+        <span className="inline-flex h-7 shrink-0 items-center gap-1 rounded-pill bg-bad-bg px-2.5 text-[13px] font-medium text-bad">
+          <IconX size={12} strokeWidth={2.6} aria-hidden="true" /> Deleted
+        </span>
+      </div>
+      <div>
+        <h1 id="deleted-title" className="text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink">
+          Deleted by the company
+        </h1>
+        <p className="mt-2 text-[15px] leading-[1.55] text-ink-2">
+          This record is gone from the company’s side but <span className="font-medium text-ink">still sealed on the chain</span>, so you can
+          still report it.
+        </p>
+      </div>
+    </section>
+  )
+}
+
+/** Amber: the company logged the access and its fingerprint is being sealed. Never red. */
+function WaitingForChain() {
+  return (
+    <section aria-label="Waiting for the chain" className="flex gap-3 rounded-lg border border-pending/30 bg-pending-bg p-4">
+      <span aria-hidden="true" className="cz-blink-soft flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-pending/12 text-pending">
+        <IconClock size={19} />
+      </span>
+      <div className="min-w-0">
+        <p className="text-[16px] font-medium leading-snug text-pending">Sealing…</p>
+        <p className="mt-0.5 text-[14px] leading-relaxed text-ink-2">
+          The company logged this access. Its fingerprint is going on chain now; your phone can check it in a moment.
+        </p>
+      </div>
+    </section>
   )
 }
 
@@ -294,12 +335,12 @@ function checkFromVerify(verify: DetailVerifyState): ReceiptCheck {
   return { phase: 'idle' }
 }
 
-const NOTE_TONE: Record<string, string> = {
-  MATCH: 'text-ok',
-  ALTERED: 'text-bad',
-  NOT_FOUND: 'text-unknown',
-  CHECKING: 'text-blue',
-}
+/** Short verb for the ticket's big type, and what follows it. */
+const VERB = ['Read', 'Updated', 'Exported', 'Shared'] as const
+const TAIL = ['your data', 'your data', 'your data', 'your data with a third party'] as const
+
+const WIB_TIME = (iso: string) =>
+  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' })
 
 /** C3–C4: ledger receipt + verify + AI. Purely presentational. */
 /** Quiet text action under the main buttons (Save receipt, Share proof…). */
@@ -349,41 +390,79 @@ export function ReceiptDetailView({
   renderReport?: (altered: boolean) => ReactNode
   demoSwitcher?: ReactNode
 }) {
-  // One verdict drives the headline, the badge and the ledger rows, so they never disagree.
+  // One verdict drives the headline, the stamp, the badge and the ledger rows, so they never disagree.
   const check = checkProp ?? checkFromVerify(verify)
   const head = receiptHeadline(opening, check)
-  const note = verdictNote(head.kind)
   const verified = check.phase === 'done' || (verify.phase === 'done' && !!verify.result)
   const altered = head.kind === 'ALTERED'
   const sealing = opening.status === 'pending' || opening.status === 'submitted'
+  const result = check.phase === 'done' && check.result.status !== 'NOT_FOUND' ? check.result : null
+  const stamp: StampKind | null = head.kind === 'MATCH' ? 'ok' : altered ? 'bad' : head.kind === 'CHECKING' || verify.phase === 'running' ? 'checking' : null
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-5">
       <BackLink />
 
-      {/* Hero (riset-ui/35 detail §2–3): who + what + when, then the one status. */}
-      <div className="flex flex-col items-start gap-4">
-        <Avatar name={opening.controllerName} size={56} tone={altered ? 'bad' : 'neutral'} />
-        <div>
-          <h1 className="text-balance text-[24px] font-semibold leading-[1.2] tracking-[-0.02em] text-ink">
-            {head.who} <span className={head.source === 'chain' ? 'text-bad' : undefined}>{head.act}.</span>
-          </h1>
-          <p className="mt-1.5 text-[14px] leading-snug text-ink-2">
-            {formatWIB(opening.createdAt)} · {opening.purposeText}
-            {now ? <span className="text-ink-3"> · {timeAgo(opening.createdAt, now)}</span> : null}
-          </p>
-        </div>
-        <ReceiptStatusPill kind={head.kind} />
-        {head.claimed ? (
-          <p className="-mt-1 text-[14px] leading-snug text-bad">
-            The chain sealed this. The database now says: <span className="line-through decoration-[1.5px]">{head.claimed}</span>
-          </p>
-        ) : null}
+      {/* The receipt as one ticket (riset-ui/36 A): who, the verb as big type, the status; tear line; the facts. */}
+      <div className={`relative ${altered ? 'st-shadow-bad' : 'st-shadow'}`}>
+        <article aria-labelledby="receipt-title">
+          <div className="st-half-top relative rounded-t-xl bg-card px-5 pb-6 pt-5">
+            <div className={`flex flex-col gap-4 ${stamp ? 'pr-[92px]' : ''}`}>
+              <div className="flex min-w-0 items-center gap-3">
+                <span
+                  aria-hidden="true"
+                  className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full text-[15px] font-semibold ${altered ? 'bg-bad-bg text-bad' : 'bg-paper-2 text-ink'}`}
+                >
+                  {initials(opening.controllerName)}
+                </span>
+                <span className="min-w-0">
+                  <span className="line-clamp-2 break-words text-[15px] font-semibold leading-tight text-ink">{head.who}</span>
+                  <span className="mt-0.5 block text-[13px] text-ink-2">
+                    Opened your data · {WIB_TIME(opening.createdAt)}
+                  </span>
+                </span>
+              </div>
+              <h1 id="receipt-title" className="min-w-0">
+                <span className="sr-only">{head.who} </span>
+                <span
+                  className={`block text-[clamp(40px,12vw,56px)] font-semibold leading-[0.92] tracking-[-0.045em] @5xl:text-[60px] ${head.source === 'chain' ? 'text-bad' : 'text-ink'}`}
+                >
+                  {VERB[head.eventType] ?? 'Used'}
+                </span>
+                <span className="mt-1.5 block text-balance text-[19px] font-normal leading-tight tracking-[-0.01em] text-ink-2">
+                  {TAIL[head.eventType] ?? 'your data'}.
+                </span>
+              </h1>
+            </div>
+            {stamp ? (
+              <div className="absolute right-3 top-3">
+                <VerdictStamp kind={stamp} seconds={result ? result.elapsedMs / 1000 : undefined} size={108} />
+              </div>
+            ) : null}
+            <p className="mt-3 text-[14px] leading-snug text-ink-2">
+              {formatWIB(opening.createdAt)} · {opening.purposeText}
+              {now ? <span> · {timeAgo(opening.createdAt, now)}</span> : null}
+            </p>
+            <div className="mt-4">
+              <ReceiptStatusPill kind={head.kind} />
+            </div>
+            {head.claimed ? (
+              <p className="mt-3 text-[14px] leading-snug text-bad">
+                The chain sealed this. The database now says: <span className="line-through decoration-[1.5px]">{head.claimed}</span>
+              </p>
+            ) : null}
+            <span aria-hidden="true" className="st-perf absolute bottom-0 left-5 right-5 text-line-strong" />
+          </div>
+          <section aria-label="Receipt details" className="st-half-bottom rounded-b-xl bg-card py-1.5">
+            <ReceiptFacts opening={opening} check={check} inset />
+          </section>
+        </article>
       </div>
 
-      <section aria-label="Receipt details" className="flex flex-col gap-2">
-        <h2 className="px-1 text-[15px] font-semibold text-ink">Details</h2>
-        <ReceiptFacts opening={opening} check={check} />
-      </section>
+      {result ? (
+        <div aria-live="polite">
+          <ChainReadout result={result} />
+        </div>
+      ) : null}
 
       {sealing && verify.phase === 'idle' ? <WaitingForChain /> : null}
 
@@ -397,6 +476,8 @@ export function ReceiptDetailView({
         onVerify={onVerify}
         onKeepEvidence={onKeepEvidence}
         onAskAi={onExplain}
+        variant="ticket"
+        verifyLabel={check.phase === 'done' ? 'Check on chain again' : 'Verify on chain'}
       />
 
       <div className="flex flex-col gap-2.5">
@@ -412,7 +493,7 @@ export function ReceiptDetailView({
             >
               Explain with AI
             </Act>
-            {!verified ? <p className="text-center text-[13px] text-ink-3">Check on chain first. AI explains the verdict.</p> : null}
+            {!verified ? <p className="text-center text-[13px] text-ink-2">Check on chain first. AI explains the verdict.</p> : null}
           </>
         ) : null}
 

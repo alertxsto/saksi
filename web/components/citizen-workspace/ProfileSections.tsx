@@ -165,7 +165,7 @@ export function DataActions({
           <IconTrash size={17} />
         </span>
         <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-medium leading-snug text-bad">Delete demo profile</span>
+          <span className="block text-[16px] font-medium leading-snug text-bad">Delete profile</span>
           <span className="mt-0.5 block text-[14px] leading-snug text-ink-2">Receipts leave our database. Sealed fingerprints stay on chain.</span>
         </span>
       </button>

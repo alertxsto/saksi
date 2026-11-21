@@ -9,7 +9,7 @@ import { EVENT_LABELS, EVENT_TYPES, type EventTypeName } from '@/lib/shared/type
 import { basisLabel, eventVerb, rpcLabel, shortHex } from '@/lib/format'
 import { Act } from '@/components/citizen/Act'
 import { DotoValue } from './DotoValue'
-import { IconAlert, IconArrow, IconCheck, IconDownload, IconLock, IconRefresh, IconShield, IconSpark } from './icons'
+import { IconAlert, IconArrow, IconCheck, IconClock, IconDownload, IconLock, IconRefresh, IconShield, IconSpark } from './icons'
 
 type Field = VerifyResultT['mismatches'][number]['field']
 
@@ -81,7 +81,7 @@ function VaultPanel({
       <div className="relative z-[1] flex items-center gap-3 px-3 pt-3">
         <VerdictSeal tone={tone} scan={scan} className="w-[128px] shrink-0" />
         <div className="min-w-0 flex-1 pr-1">
-          <p className={`label text-[12px] font-medium ${labelClass}`}>{label}</p>
+          <p className={`text-[14px] font-medium ${labelClass}`}>{label}</p>
           <div className="cz-secs mt-2 text-[52px] leading-[0.85] text-vault-ink">{time}</div>
         </div>
       </div>
@@ -94,7 +94,7 @@ function VaultPanel({
 function ByLine({ verb, ms, device, tone }: { verb: string; ms: number; device: string; tone: 'ok' | 'bad' | 'unknown' }) {
   const c = tone === 'ok' ? 'text-ok-v' : tone === 'bad' ? 'text-bad-v' : 'text-vault-ink-2'
   return (
-    <p className={`label flex items-start gap-2 border-t border-vault-line pt-3 text-[11px] leading-[1.5] ${c}`}>
+    <p className={`flex items-start gap-2 border-t border-vault-line pt-3 text-[13px] leading-[1.5] ${c}`}>
       <IconShield size={14} strokeWidth={2} className="mt-px shrink-0" />
       <span>
         {verb} by {device} in {secs(ms)} s · not by Saksi&apos;s server
@@ -117,8 +117,36 @@ function useElapsed(startedAt: number, frozen?: number): number {
 
 const STEPS = ['Fetch the sealed transaction', 'Read the sealed event', 'Compare 5 fields with the database']
 
-export function VerifyRunning({ startedAt, elapsedMs }: { startedAt: number; elapsedMs?: number }) {
+/** 'panel' (default): the vault slab (/proof, regulator). 'ticket': quiet paper block under the citizen receipt ticket, whose stamp carries the verdict. */
+export type VerifyVariant = 'panel' | 'ticket'
+
+export function VerifyRunning({ startedAt, elapsedMs, variant = 'panel' }: { startedAt: number; elapsedMs?: number; variant?: VerifyVariant }) {
   const elapsed = useElapsed(startedAt, elapsedMs)
+  if (variant === 'ticket') {
+    return (
+      <div aria-busy="true" className="rounded-lg border border-line bg-card px-4 pb-2 pt-3.5">
+        <div className="flex items-center justify-between gap-3">
+          <p className="text-[16px] font-medium text-ink">Your phone is asking the chain</p>
+          <p className="tnum shrink-0 text-ink">
+            <span className="doto text-[26px]">{secs(elapsed)}</span> <span className="text-[14px] text-ink-2">s</span>
+          </p>
+        </div>
+        <ol className="mt-2 flex flex-col text-[14px]">
+          {STEPS.map((s, i) => {
+            const done = elapsed > (i + 1) * 520
+            const active = !done && elapsed > i * 520
+            return (
+              <li key={s} className={`flex min-h-10 items-center gap-2.5 border-t border-line/70 transition-colors duration-300 ${done ? 'text-ink' : active ? 'text-blue' : 'text-ink-2'}`}>
+                <span aria-hidden="true" className={`h-1.5 w-1.5 shrink-0 rounded-full ${done ? 'bg-ink' : active ? 'cz-blink bg-blue' : 'bg-line-strong'}`} />
+                {s}
+                {done ? <IconCheck size={14} strokeWidth={2.4} className="ml-auto text-ink" /> : null}
+              </li>
+            )
+          })}
+        </ol>
+      </div>
+    )
+  }
   return (
     <div aria-busy="true">
       <VaultPanel
@@ -149,7 +177,7 @@ export function VerifyRunning({ startedAt, elapsedMs }: { startedAt: number; ela
             )
           })}
         </ol>
-        <p className="label mt-3 text-[11px] text-vault-ink-2">Your phone is asking the chain itself</p>
+        <p className="mt-3 text-[13px] text-vault-ink-2">Your phone is asking the chain itself</p>
       </VaultPanel>
     </div>
   )
@@ -167,7 +195,7 @@ function Compare({ result, opening }: { result: VerifyResultT; opening: ReceiptO
   const same = FIELD_ORDER.filter((f) => !changed.has(f))
   return (
     <div className="flex flex-col">
-      <p className="label border-b border-ink/80 pb-2 text-[11px] text-ink-2">
+      <p className="border-b border-line-strong pb-2 text-[13px] text-ink-2">
         Comparing the database now with what was sealed
         {result.blockNumber ? ` at block ${Number(result.blockNumber).toLocaleString('en-US')}` : ''}
       </p>
@@ -178,18 +206,18 @@ function Compare({ result, opening }: { result: VerifyResultT; opening: ReceiptO
             <div key={f} className="cz-cmp border-b border-line py-3.5" style={{ '--i': i } as CSSProperties}>
               <dt className="flex items-center gap-2 text-[14px] font-medium text-ink">
                 {FIELD_LABEL[f]}
-                <span className="label rounded-[6px] bg-bad px-1.5 py-px text-[10px] leading-[1.6] text-white">Changed</span>
+                <span className="rounded-[6px] bg-bad px-1.5 py-px text-[12px] font-medium leading-[1.5] text-white">Changed</span>
               </dt>
               <dd className="mt-2 flex flex-col gap-1.5 font-mono text-[13px] leading-snug break-words">
                 <span className="cz-struck relative rounded-sm bg-bad-bg px-2.5 py-2">
-                  <span className="label block text-[10px] text-bad">Database says</span>
+                  <span className="block font-sans text-[12px] font-medium text-bad">Database says</span>
                   <span className="mt-0.5 block text-bad line-through decoration-bad/80 decoration-[1.5px]">
                     <span className="sr-only">Database says: </span>
                     {human(m.db)}
                   </span>
                 </span>
                 <span className="rounded-sm bg-ok-bg px-2.5 py-2">
-                  <span className="label flex items-center gap-1 text-[10px] text-ok">
+                  <span className="flex items-center gap-1 font-sans text-[12px] font-medium text-ok">
                     <IconLock size={11} strokeWidth={2.4} /> Chain sealed
                   </span>
                   <span className="mt-0.5 block font-semibold text-ok">
@@ -214,7 +242,7 @@ function Compare({ result, opening }: { result: VerifyResultT; opening: ReceiptO
           <dl className="pb-3">
             {same.map((f) => (
               <div key={f} className="flex items-baseline justify-between gap-3 py-1 font-mono text-[12px]">
-                <dt className="label text-[11px] text-ink-2">{FIELD_LABEL[f]}</dt>
+                <dt className="font-sans text-[13px] text-ink-2">{FIELD_LABEL[f]}</dt>
                 <dd className="min-w-0 truncate text-right text-ink-2">{dbValue(f, opening)}</dd>
               </div>
             ))}
@@ -232,6 +260,7 @@ export function VerifyResult({
   onKeepEvidence,
   onAskAi,
   device = 'your phone',
+  variant = 'panel',
 }: {
   result: VerifyResultT
   opening: ReceiptOpening
@@ -242,7 +271,9 @@ export function VerifyResult({
   onAskAi?: () => void
   /** Who checked: "your phone" (citizen) or "your browser" (/proof). */
   device?: string
+  variant?: VerifyVariant
 }) {
+  if (variant === 'ticket') return <TicketResult result={result} opening={opening} onRetry={onRetry} onKeepEvidence={onKeepEvidence} onAskAi={onAskAi} />
   if (result.status === 'MATCH') {
     return (
       <section aria-labelledby="vr-title" className="anim-rise flex flex-col gap-4">
@@ -256,11 +287,11 @@ export function VerifyResult({
         <dl className="grid grid-cols-3 border-y border-line font-mono text-[12px]">
           {[
             ['Block', result.blockNumber ? Number(result.blockNumber).toLocaleString('en-US') : '—'],
-            ['Confirms', result.confirmations?.toLocaleString('en-US') ?? '—'],
+            ['Confirmations', result.confirmations?.toLocaleString('en-US') ?? '—'],
             ['Node', rpcLabel(result.rpc), result.rpc],
           ].map(([k, v, full], i) => (
             <div key={k} className={`min-w-0 py-2.5 ${i ? 'border-l border-line pl-3' : ''}`}>
-              <dt className="label text-[11px] text-ink-2">{k}</dt>
+              <dt className="font-sans text-[12px] text-ink-2">{k}</dt>
               <dd className="tnum mt-1 truncate text-ink" title={full ?? v}>
                 {v}
               </dd>
@@ -296,7 +327,7 @@ export function VerifyResult({
                 Ask AI what this means
               </Act>
             ) : null}
-            <p className="label text-center text-[11px] text-ink-2">AI explains · it never decides. The verdict is above.</p>
+            <p className="text-center text-[13px] text-ink-2">AI explains, it never decides. The verdict is above.</p>
           </div>
         ) : null}
       </section>
@@ -324,6 +355,75 @@ export function VerifyResult({
   )
 }
 
+/**
+ * Citizen receipt (variant 'ticket'): the stamp and the readout above already say MATCH, so MATCH adds nothing
+ * visible here. ALTERED keeps the per-field comparison and the evidence actions; NOT FOUND is a grey note, never red.
+ */
+function TicketResult({
+  result,
+  opening,
+  onRetry,
+  onKeepEvidence,
+  onAskAi,
+}: {
+  result: VerifyResultT
+  opening: ReceiptOpening
+  onRetry?: () => void
+  onKeepEvidence?: () => void
+  onAskAi?: () => void
+}) {
+  if (result.status === 'MATCH') return <p className="sr-only">This record matches the chain. Checked by your phone in {secs(result.elapsedMs)} seconds.</p>
+  if (result.status === 'MISMATCH') {
+    const n = result.mismatches.length
+    return (
+      <section aria-labelledby="vr-title" className="cz-verdict-bad flex flex-col gap-4">
+        <div>
+          <h2 id="vr-title" className="text-balance text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink">
+            This record was <span className="text-bad">changed after sealing.</span>
+          </h2>
+          <p className="mt-1.5 text-[15px] leading-[1.55] text-ink-2">
+            The company&apos;s database no longer matches what the chain sealed.{' '}
+            <span className="text-ink">{n === 1 ? 'One field was' : `${n} fields were`} edited.</span>
+          </p>
+        </div>
+        <Compare result={result} opening={opening} />
+        {onKeepEvidence || onAskAi ? (
+          <div className="flex flex-col gap-2.5 pt-1">
+            {onKeepEvidence ? <Act full icon={<IconDownload size={17} />} onClick={onKeepEvidence}>Keep as evidence</Act> : null}
+            {onAskAi ? (
+              <Act variant="light" full icon={<IconSpark size={16} className="text-ai" />} onClick={onAskAi}>
+                Ask AI what this means
+              </Act>
+            ) : null}
+            <p className="text-center text-[13px] text-ink-2">AI explains, it never decides. The verdict is the stamp.</p>
+          </div>
+        ) : null}
+      </section>
+    )
+  }
+  return (
+    <section aria-labelledby="vr-title" className="anim-rise flex flex-col gap-3 rounded-lg border border-line bg-unknown-bg/70 p-4">
+      <div className="flex items-start gap-3">
+        <IconClock size={18} className="mt-0.5 shrink-0 text-unknown" />
+        <div className="min-w-0">
+          <h2 id="vr-title" className="text-[17px] font-semibold leading-snug text-ink">
+            Not found on this node yet
+          </h2>
+          <p className="mt-1 text-[15px] leading-[1.55] text-ink-2">
+            <span className="text-ink">This is not proof of tampering.</span> The node{' '}
+            <span className="break-all font-mono text-[13px] text-ink">{rpcLabel(result.rpc)}</span> may be slow, or the transaction may still be mining.
+          </p>
+        </div>
+      </div>
+      {onRetry ? (
+        <Act variant="light" full icon={<IconRefresh size={16} />} onClick={onRetry}>
+          Try another node
+        </Act>
+      ) : null}
+    </section>
+  )
+}
+
 export type VerifyPhase = 'idle' | 'running' | 'done' | 'error'
 
 /** Presentational verify block: button → running timer → result. All state comes from props. */
@@ -339,6 +439,8 @@ export function VerifyStage({
   onKeepEvidence,
   onAskAi,
   device,
+  variant = 'panel',
+  verifyLabel = 'Verify on chain',
 }: {
   phase: VerifyPhase
   opening: ReceiptOpening
@@ -353,22 +455,25 @@ export function VerifyStage({
   onKeepEvidence?: () => void
   onAskAi?: () => void
   device?: string
+  variant?: VerifyVariant
+  /** Primary button text ("Check on chain again" once a background check already ran). */
+  verifyLabel?: string
 }) {
   const retry = onRetry ?? onVerify
   return (
     <div className="flex flex-col gap-3">
       {phase === 'idle' || phase === 'error' ? (
         <Act full icon={<IconShield size={17} />} onClick={onVerify}>
-          Verify on chain
+          {verifyLabel}
         </Act>
       ) : null}
       <div aria-live="polite" aria-atomic="true">
-        {phase === 'running' ? <VerifyRunning startedAt={startedAt} elapsedMs={elapsedMs} /> : null}
+        {phase === 'running' ? <VerifyRunning startedAt={startedAt} elapsedMs={elapsedMs} variant={variant} /> : null}
         {phase === 'done' && result ? (
-          <VerifyResult result={result} opening={opening} onRetry={retry} onKeepEvidence={onKeepEvidence} onAskAi={onAskAi} device={device} />
+          <VerifyResult result={result} opening={opening} onRetry={retry} onKeepEvidence={onKeepEvidence} onAskAi={onAskAi} device={device} variant={variant} />
         ) : null}
         {phase === 'error' ? (
-          <p role="alert" className="flex items-start gap-2.5 border-y border-line py-3 text-[14px] leading-relaxed text-ink-2">
+          <p role="alert" className={`flex items-start gap-2.5 text-[14px] leading-relaxed text-ink-2 ${variant === 'ticket' ? 'rounded-lg border border-line bg-card p-4' : 'border-y border-line py-3'}`}>
             <IconAlert size={16} className="mt-0.5 shrink-0 text-ink-2" />
             <span>
               {error ?? 'Verification failed. Check your connection.'} <span className="text-ink">Nothing was decided.</span>
@@ -380,7 +485,7 @@ export function VerifyStage({
         <button
           type="button"
           onClick={retry}
-          className="label flex min-h-11 items-center justify-center gap-2 text-ink-2 hover:text-blue"
+          className="flex min-h-11 items-center justify-center gap-2 text-[14px] font-medium text-ink-2 hover:text-blue"
         >
           <IconRefresh size={14} /> Verify again
         </button>

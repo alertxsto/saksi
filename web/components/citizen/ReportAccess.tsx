@@ -217,7 +217,7 @@ export function ReportAccess({
           className="w-full resize-none rounded-lg border border-line bg-card px-4 py-3 text-[16px] leading-relaxed text-ink placeholder:text-ink-3 focus:border-ink focus:outline-none"
         />
         <span className="flex justify-between gap-3 px-1 text-[13px] text-ink-3">
-          <span>The regulator page is public in this demo. Leave out personal details.</span>
+          <span>Regulator reports are visible on the public regulator page. Leave out personal details.</span>
           <span className="shrink-0 tnum">
             {note.length}/{REPORT_NOTE_MAX}
           </span>
