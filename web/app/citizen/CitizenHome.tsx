@@ -248,7 +248,7 @@ function ReceiptList() {
     const kind = verdictKind(checkOf(store.checks, r))
     if (kind) verdicts[r.eventId] = VERDICT[kind]
   }
-  const ghosts = useGhostReceipts(q.data?.profile.code ?? '', receipts, q.isSuccess)
+  const ghosts = useGhostReceipts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
 
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
   if (q.isError && toCitizenError(q.error).code === 'NO_SESSION') return <Onboarding />
