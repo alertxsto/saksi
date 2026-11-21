@@ -159,7 +159,7 @@ export function Verifier() {
               </code>
               <span
                 aria-hidden="true"
-                className="ver-btn flex h-12 items-center rounded-sm bg-ink px-4 text-[14px] font-medium text-paper transition-[transform,background-color] duration-150"
+                className="ver-btn flex h-12 shrink-0 items-center whitespace-nowrap rounded-sm bg-ink px-4 text-[14px] font-medium text-paper transition-[transform,background-color] duration-150"
               >
                 Verify
               </span>
