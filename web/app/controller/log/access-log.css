@@ -1,0 +1,22 @@
+/* Access log receipt sheet (riset-ui/37 §5): 320ms enter cubic-bezier(.2,.8,.2,1), leave cubic-bezier(.4,0,1,1).
+   Bottom sheet below 1024px, side sheet from the right at 1024px and up. */
+@keyframes al-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes al-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes al-up-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes al-up-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes al-side-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes al-side-out { from { transform: none; } to { transform: translateX(100%); } }
+
+.al-scrim { animation: al-fade-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+.al-sheet { animation: al-up-in 320ms cubic-bezier(0.2, 0.8, 0.2, 1) both; }
+[data-leaving] > .al-scrim { animation: al-fade-out 200ms cubic-bezier(0.4, 0, 1, 1) both; }
+[data-leaving] > .al-sheet { animation: al-up-out 200ms cubic-bezier(0.4, 0, 1, 1) both; }
+
+@media (min-width: 1024px) {
+  .al-sheet { animation-name: al-side-in; }
+  [data-leaving] > .al-sheet { animation-name: al-side-out; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .al-scrim, .al-sheet, [data-leaving] > .al-scrim, [data-leaving] > .al-sheet { animation: none !important; }
+}
