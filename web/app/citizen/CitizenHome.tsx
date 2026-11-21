@@ -1,14 +1,16 @@
 'use client'
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, type ReactNode } from 'react'
+import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
 import { ReceiptsSplit } from '@/components/citizen-workspace/Split'
 import { RiseHeading } from '@/components/citizen/motion'
+import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
+import { passStatus } from '@/components/citizen/passStatus'
 import { GhostRow, IconChevron, ReceiptRow, TamperBanner } from '@/components/citizen/ReceiptRows'
 import { LiveDot } from '@/components/ui/Chip'
 import { DotIcon, type DotIconName } from '@/components/ui/DotIcon'
-import { IconAlert, IconClock, IconCopy, IconEye, IconLock, IconRefresh, IconShield, IconSpinner, IconWifiOff } from '@/components/ui/icons'
+import { IconAlert, IconCheck, IconClock, IconEye, IconLock, IconRefresh, IconShield, IconSpinner, IconWifiOff, IconX } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
@@ -29,6 +31,7 @@ import { timeBucket } from '@/lib/format'
 import { useNow, useOnline } from '@/lib/hooks'
 import { verdictKind } from '@/lib/receipt-state'
 import type { ReceiptOpening } from '@/lib/shared/types'
+import './stub-list.css'
 
 // First time each receipt id was seen in this tab. Lives outside React so render stays pure.
 const firstSeen = new Map<string, number>()
@@ -124,33 +127,47 @@ export function OnboardingView({
   const limited = status === 'error' && error?.code === 'RATE_LIMITED'
   return (
     // No tab bar here: cancel the shell's tab-bar padding so the sticky button bar sits flush at the bottom.
-    // Laptop: two columns (story + action left, the vault right), vertically centred in the workspace.
+    // Laptop: two columns (story + action left, the blank pass right), vertically centred in the workspace.
     <div className="-mb-[calc(5rem+env(safe-area-inset-bottom))] flex flex-1 flex-col @5xl:mx-auto @5xl:mb-0 @5xl:grid @5xl:w-full @5xl:max-w-[1120px] @5xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @5xl:grid-rows-[1fr_auto_auto_auto_auto_1fr] @5xl:gap-x-16 @5xl:px-10 @5xl:py-12">
-      <div className="vault grain relative overflow-hidden rounded-xl border border-vault-line bg-vault @5xl:col-start-2 @5xl:row-[1/-1] @5xl:flex @5xl:aspect-[5/6] @5xl:self-center @5xl:items-center @5xl:justify-center">
-        <div className="relative z-[1] mx-auto w-[62%] max-w-[240px] py-1 @5xl:max-w-[380px]" aria-hidden="true">
-          <VaultSeal grid={false} />
+      {/* The pass you are about to get: a blank vault ticket, the seal on top, an empty code on the tear-off. */}
+      <div aria-hidden="true" className="sl-shadow sl-rise @5xl:col-start-2 @5xl:row-[1/-1] @5xl:self-center">
+        <div className="sl-ticket grain relative overflow-hidden rounded-t-xl bg-vault" style={{ '--notch': '100%' } as CSSProperties}>
+          <div className="relative z-[1] mx-auto w-[52%] max-w-[200px] py-5 @5xl:w-[62%] @5xl:max-w-[320px] @5xl:py-12">
+            <VaultSeal grid={false} />
+          </div>
         </div>
-        <p className="label absolute bottom-3 left-3.5 z-[1] flex items-center gap-1.5 text-[11px] text-vault-ink-2">
-          <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ice" /> Sealed on chain
-        </p>
+        <div className="sl-ticket grain relative flex items-end justify-between gap-4 overflow-hidden rounded-b-xl bg-vault px-5 pb-5 pt-4" style={{ '--notch': '0%' } as CSSProperties}>
+          <span className="sl-perf absolute left-5 right-5 top-0 z-[1] text-vault-ink-2/50" />
+          <span className="relative z-[1] min-w-0">
+            <span className="block text-[13px] text-vault-ink-2">Your code</span>
+            <span className="doto mt-1 block text-[30px] tracking-[0.06em] text-vault-ink-2/60">······</span>
+          </span>
+          <span className="relative z-[1] flex shrink-0 items-center gap-1.5 pb-1 text-[13px] text-vault-ink-2">
+            <span className="h-1.5 w-1.5 rounded-full bg-ice" /> Sealed on chain
+          </span>
+        </div>
       </div>
 
       <RiseHeading as="h1" lead="See who opened" tail="your data." className="mt-7 text-[34px] leading-[1.04] @5xl:col-start-1 @5xl:row-start-2 @5xl:mt-0 @5xl:text-[56px]" />
       <p className="mt-3 text-[16px] @5xl:col-start-1 @5xl:row-start-3 @5xl:mt-5 @5xl:max-w-[46ch] @5xl:text-[17px] leading-[1.6] tracking-[0.01em] text-ink-2">
-        A demo profile with no name, no ID number and no wallet. Every time a company opens your data you get a
+        A synthetic profile with no name, no ID number and no wallet. Every time a company opens your data you get a
         receipt you can check yourself.
       </p>
 
-      <ul data-stagger="" className="mt-6 flex flex-col border-t border-line @5xl:col-start-1 @5xl:row-start-4 @5xl:mt-8">
+      {/* How it works, as three small stubs: the glyph on the torn-off side, the step on the body. */}
+      <ul data-stagger="" className="mt-6 flex flex-col gap-2 @5xl:col-start-1 @5xl:row-start-4 @5xl:mt-8 @5xl:max-w-[460px]">
         {HOW.map(([g, k, v]) => (
-          <li key={k} className="flex items-center gap-3.5 border-b border-line py-3">
-            <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-vault text-ice">
-              <DotIcon name={g} size={20} />
-            </span>
-            <span className="min-w-0">
-              <span className="block text-[15px] font-medium leading-snug text-ink">{k}</span>
-              <span className="block text-[13px] text-ink-2">{v}</span>
-            </span>
+          <li key={k} className="sl-shadow-sm">
+            <div className="sl-stub relative flex min-h-[64px] items-stretch rounded-[16px] bg-card" style={{ '--cut': '60px' } as CSSProperties}>
+              <span aria-hidden="true" className="flex w-[60px] shrink-0 items-center justify-center text-ink">
+                <DotIcon name={g} size={22} />
+              </span>
+              <span aria-hidden="true" className="sl-perf-v absolute bottom-3 left-[59px] top-3 text-line-strong" />
+              <span className="flex min-w-0 flex-col justify-center py-3 pl-4 pr-4">
+                <span className="block text-[15px] font-semibold leading-snug text-ink">{k}</span>
+                <span className="block text-[13px] leading-snug text-ink-2">{v}</span>
+              </span>
+            </div>
           </li>
         ))}
       </ul>
@@ -159,7 +176,7 @@ export function OnboardingView({
       {/* Sticky so a judge who just scanned the QR sees the one button without scrolling, even on short phones. */}
       <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-paper/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md @5xl:static @5xl:col-start-1 @5xl:row-start-5 @5xl:mx-0 @5xl:max-w-[400px] @5xl:self-start @5xl:border-0 @5xl:bg-transparent @5xl:px-0 @5xl:pb-0 @5xl:pt-8 @5xl:backdrop-blur-none">
         {status === 'error' && error ? (
-          <div role="alert" className="anim-rise mb-3 flex items-start gap-2.5 border-y border-line-strong py-3 text-[14px] text-ink-2">
+          <div role="alert" className="anim-rise mb-3 flex items-start gap-2.5 rounded-[14px] bg-card px-3.5 py-3 text-[14px] text-ink-2 shadow-[0_0_0_1px_var(--color-line)]">
             {limited ? <IconClock size={17} className="mt-0.5 shrink-0 text-ink" /> : <IconAlert size={17} className="mt-0.5 shrink-0 text-ink" />}
             <span>
               <strong className="block font-semibold text-ink">
@@ -172,7 +189,7 @@ export function OnboardingView({
         <Act full loading={loading} disabled={loading} onClick={onCreateProfile}>
           {loading ? 'Creating profile…' : status === 'error' ? 'Try again' : 'Create synthetic profile'}
         </Act>
-        <p className="label mt-3 text-center text-[11px] text-ink-2 @5xl:text-left">Takes 1 second · delete it anytime</p>
+        <p className="mt-3 text-center text-[13px] text-ink-2 @5xl:text-left">Takes 1 second · delete it anytime</p>
       </div>
     </div>
   )
@@ -182,41 +199,55 @@ export function OnboardingView({
 // C2 — receipts list (+ C2e states, + the red moment: banner, altered rows, deleted ghosts)
 // ---------------------------------------------------------------------------------------------
 
+/**
+ * Stub shell for the quiet states (empty, error, offline, loading): the same ticket as a receipt row, with
+ * a glyph on the torn-off side instead of the time. Never red (red is tampering only).
+ */
+function QuietStub({ side, children, className = '' }: { side: ReactNode; children: ReactNode; className?: string }) {
+  return (
+    <div className={`sl-shadow-sm ${className}`}>
+      <div className="sl-stub relative flex min-h-[72px] items-stretch rounded-[16px] bg-card">
+        <span aria-hidden="true" className="flex w-[74px] shrink-0 items-center justify-center text-ink-3">
+          {side}
+        </span>
+        <span aria-hidden="true" className="sl-perf-v absolute bottom-3 left-[73px] top-3 text-line-strong" />
+        <div className="flex min-w-0 flex-1 flex-col justify-center py-3.5 pl-4 pr-4">{children}</div>
+      </div>
+    </div>
+  )
+}
+
 /** Offline: neutral (red is for tampering only). Receipts stay on screen; polling pauses. */
 export function OfflineBanner() {
   return (
-    <p role="status" className="flex items-start gap-2.5 rounded-lg border border-line bg-card px-4 py-3 text-[14px] leading-relaxed text-ink-2">
-      <IconWifiOff size={17} className="mt-0.5 shrink-0 text-ink" />
-      <span>
-        <strong className="font-semibold text-ink">You&apos;re offline.</strong> Receipts refresh when you&apos;re back.
-      </span>
-    </p>
+    <div role="status">
+      <QuietStub side={<IconWifiOff size={20} className="text-ink" />}>
+        <p className="text-[15px] font-semibold leading-snug text-ink">You&apos;re offline</p>
+        <p className="text-[14px] leading-snug text-ink-2">Receipts refresh when you&apos;re back.</p>
+      </QuietStub>
+    </div>
   )
 }
 
 function RowSkeleton() {
   return (
-    <div className="flex min-h-16 items-center gap-3 px-4" aria-hidden="true">
-      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
-      <div className="cz-row-main flex flex-1 flex-col gap-2 py-4">
+    <QuietStub side={<Skeleton className="h-8 w-10 rounded-md" />}>
+      <span className="flex flex-col gap-2" aria-hidden="true">
         <Skeleton className="h-3.5 w-2/3" />
         <Skeleton className="h-3 w-1/2" />
-      </div>
-    </div>
+      </span>
+    </QuietStub>
   )
 }
 
-/** Quiet state in an inset card: dot glyph (empty states keep the dot family), line, body, optional action. */
+/** Quiet state as a stub: dot glyph on the torn-off side (empty states keep the dot family), line, body, action. */
 function Quiet({ glyph, title, body, action }: { glyph: DotIconName; title: string; body: ReactNode; action?: ReactNode }) {
   return (
-    <div className="anim-rise flex flex-col items-start gap-3 rounded-lg border border-line bg-card p-5">
-      <DotIcon name={glyph} size={36} className="text-ink-3" />
-      <div>
-        <p className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-ink">{title}</p>
-        <div className="mt-1 text-[15px] leading-[1.55] text-ink-2">{body}</div>
-      </div>
-      {action}
-    </div>
+    <QuietStub side={<DotIcon name={glyph} size={30} />} className="anim-rise">
+      <p className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-ink">{title}</p>
+      <div className="mt-1 text-[15px] leading-[1.55] text-ink-2">{body}</div>
+      {action ? <div className="mt-3">{action}</div> : null}
+    </QuietStub>
   )
 }
 
@@ -316,24 +347,27 @@ export function ReceiptListView({
   code: string
   now: number
   online: boolean
-  /** Polling is active: shows "Watching · every 3 s" with a pulsing dot (static under reduced motion). */
+  /** Polling is active: the pass shows "Live" with a pulsing dot (static under reduced motion). */
   watching: boolean
-  /** eventIds that arrived in the last 10 s: slide-in, blue rail, scrambled "NEW · JUST ARRIVED". */
+  /** eventIds that arrived in the last 10 s: slide-in and a blue dot. */
   freshIds: string[]
-  /** Auto-verify result per eventId. 'altered' turns that row red (one flash + shake) and raises the banner. */
+  /** Auto-verify result per eventId. 'altered' turns that row red (one flash) and raises the banner. */
   verdicts?: AutoVerdicts
-  /** Receipts this phone saw before that the database no longer returns: grey + red DELETED ghost cards. */
+  /** Receipts this phone saw before that the database no longer returns: torn red DELETED stubs. */
   ghosts?: GhostReceipt[]
   /** Sealed receipts found on chain for this profile that the company no longer shows and this phone has no copy of. */
   hiddenExtra?: number
   error?: string | null
   retrying?: boolean
   demoHint?: boolean
-  /** Laptop master–detail: the receipt open in the pane (highlighted row). */
+  /** Laptop master–detail: the receipt open in the pane (ink-filled stub). */
   selectedId?: string
   onCopy: () => void
   onRetry: () => void
 }) {
+  // Laptop-only filter by event type (riset-ui/36 graft from C). Phones never see the pills, so non-matching
+  // rows are hidden with a container query only: a phone always shows every receipt.
+  const [filter, setFilter] = useState<number | 'all'>('all')
   const fresh = receipts.filter((r) => freshIds.includes(r.eventId))
   const anchored = receipts.filter((r) => r.status === 'anchored').length
   const altered = alteredIds(verdicts, receipts)
@@ -345,21 +379,32 @@ export function ReceiptListView({
   }).length
   const matched = receipts.filter((r) => verdicts?.[r.eventId] === 'match').length
   const sealing = receipts.filter((r) => r.status === 'pending' || r.status === 'submitted').length
-  const tamper = altered.length + lost.length + hiddenExtra > 0
+  const tampered = altered.length + lost.length + hiddenExtra
+  const pass = passStatus({ state, total: receipts.length, matched, checking, anchored, sealing, tampered, watching })
+  const types = TYPE_FILTERS.map(([t, label]) => [t, label, receipts.filter((r) => r.eventType === t).length] as const).filter(([, , n]) => n > 0)
+  const active = filter !== 'all' && types.some(([t]) => t === filter) ? filter : 'all'
+  const shownOnLaptop = (r: ReceiptOpening) => active === 'all' || r.eventType === active
 
   return (
     <div className="flex flex-col gap-6">
-      {/* Large title + the code as a small chip (copy on tap). The laptop sidebar also carries the code. */}
-      <header className="flex items-center justify-between gap-3">
-        <h1 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink">Receipts</h1>
-        <CodeChip code={code} onCopy={onCopy} />
+      <header>
+        <h1 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink">Receipts</h1>
+        {/* Laptop: the pass lives in the sidebar, so the verdict is one line under the title. */}
+        <p className="mt-2 hidden items-center gap-2 text-[14px] leading-snug text-ink-2 @5xl:flex">
+          <PassGlyph verdict={pass.verdict} />
+          <span className={`min-w-0 ${pass.verdict === 'tamper' ? 'font-medium text-bad' : ''}`}>
+            {pass.title}
+            {state === 'ready' && pass.verdict !== 'tamper' ? (watching ? ' · live' : ' · paused') : ''}
+          </span>
+        </p>
       </header>
 
-      {/* Status card first: the answer to "is my data OK?". Tamper keeps the existing red banner. */}
+      {/* Phone: the Citizen Pass first, the answer to "is my data OK?", with the code on the tear-off. */}
+      <div className="sl-rise @5xl:hidden">
+        <CitizenPass code={code} verdict={pass.verdict} title={pass.title} subtitle={pass.subtitle} size="full" onCopy={code ? onCopy : undefined} />
+      </div>
+
       <TamperBanner altered={altered.length} deleted={lost.length + hiddenExtra} checked={checked} href={altered[0] ? `/citizen/receipt/${altered[0]}?check=1` : null} />
-      {!tamper && state === 'ready' ? (
-        <StatusCard total={receipts.length} matched={matched} checking={checking} anchored={anchored} sealing={sealing} watching={watching} />
-      ) : null}
 
       {!online ? <OfflineBanner /> : null}
 
@@ -376,16 +421,27 @@ export function ReceiptListView({
       </p>
 
       {lost.length ? (
-        <section aria-label="Deleted records" className="flex flex-col gap-2.5">
-          <h2 className="text-[15px] font-semibold text-ink">Missing from the database</h2>
+        <section aria-labelledby="bucket-deleted" className="flex flex-col gap-2.5">
+          <h2 id="bucket-deleted" className="px-1 text-[15px] font-semibold text-ink">
+            Missing from the database
+          </h2>
           {lost.map((g) => (
             <GhostRow key={g.opening.eventId} ghost={g} now={now} />
           ))}
         </section>
       ) : null}
 
+      {state === 'ready' && types.length > 1 ? (
+        <div role="group" aria-label="Filter receipts by what the company did" className="-mx-1 -my-1 hidden gap-1.5 overflow-x-auto px-1 py-1 [scrollbar-width:none] @5xl:flex">
+          <FilterPill label="All" count={receipts.length} on={active === 'all'} onClick={() => setFilter('all')} />
+          {types.map(([t, label, n]) => (
+            <FilterPill key={t} label={label} count={n} on={active === t} onClick={() => setFilter(t)} />
+          ))}
+        </div>
+      ) : null}
+
       {state === 'loading' ? (
-        <div className="cz-group overflow-hidden rounded-lg border border-line bg-card" aria-label="Loading receipts">
+        <div className="flex flex-col gap-2.5" aria-label="Loading receipts">
           <RowSkeleton />
           <RowSkeleton />
           <RowSkeleton />
@@ -408,7 +464,7 @@ export function ReceiptListView({
           body={
             <>
               Show your code to a company to try it. Receipts appear here within seconds.
-              <span className="mt-3 flex items-center gap-2 text-[14px] text-ink-3">
+              <span className="mt-2.5 flex items-center gap-2 text-[14px] text-ink-3">
                 {watching ? <LiveDot tone="blue" /> : null}
                 {watching ? 'Watching for new receipts' : 'Paused'}
               </span>
@@ -420,19 +476,21 @@ export function ReceiptListView({
           {BUCKETS.map((b) => {
             const items = receipts.filter((r) => (now ? timeBucket(r.createdAt, now) : 'EARLIER') === b)
             if (items.length === 0) return null
+            const laptopCount = items.filter(shownOnLaptop).length
             return (
-              <section key={b} aria-labelledby={`bucket-${b}`}>
-                <div className="flex items-baseline justify-between px-1 pb-2">
+              <section key={b} aria-labelledby={`bucket-${b}`} className={laptopCount === 0 ? '@5xl:hidden' : ''}>
+                <div className="flex items-baseline justify-between px-1 pb-2.5">
                   <h2 id={`bucket-${b}`} className="text-[15px] font-semibold text-ink">
                     {BUCKET_LABEL[b]}
                   </h2>
-                  <span className="tnum text-[13px] text-ink-3">
-                    {items.length} {items.length === 1 ? 'receipt' : 'receipts'}
+                  <span className="tnum text-[13px] text-ink-2">
+                    <span className="@5xl:hidden">{receiptCount(items.length)}</span>
+                    <span className="hidden @5xl:inline">{receiptCount(laptopCount)}</span>
                   </span>
                 </div>
-                <ul className="cz-group overflow-hidden rounded-lg border border-line bg-card">
+                <ul className="flex flex-col gap-2.5">
                   {items.map((r) => (
-                    <li key={r.eventId}>
+                    <li key={r.eventId} className={shownOnLaptop(r) ? '' : '@5xl:hidden'}>
                       <ReceiptRow opening={r} now={now} isNew={freshIds.includes(r.eventId)} verdict={verdicts?.[r.eventId]} selected={r.eventId === selectedId} />
                     </li>
                   ))}
@@ -444,19 +502,18 @@ export function ReceiptListView({
       )}
 
       {demoHint ? (
-        <p className="flex items-center gap-2 text-[14px] text-ink-3">
-          <IconEye size={14} /> Demo: a company opens your data in a few seconds…
+        <p className="flex items-center gap-2 px-1 text-[14px] text-ink-3">
+          <IconEye size={14} /> A company will open your data in a few seconds…
         </p>
       ) : null}
 
-      <details className="group rounded-lg border border-line bg-card">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-[15px] font-medium text-ink [&::-webkit-details-marker]:hidden">
-          <span className="flex items-center gap-2.5">
-            <IconLock size={15} className="text-ink-2" /> What a receipt proves
-          </span>
-          <IconChevron size={16} className="text-ink-3 transition-transform duration-200 group-open:rotate-90" />
+      {/* Footer link: what a receipt proves, opened in place. */}
+      <details className="group -mt-1 px-1">
+        <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 text-[14px] font-medium text-ink-2 transition-colors duration-150 hover:text-ink [&::-webkit-details-marker]:hidden">
+          <IconLock size={14} /> What a receipt proves
+          <IconChevron size={14} className="text-ink-3 transition-transform duration-200 group-open:rotate-90" />
         </summary>
-        <div className="border-t border-line px-4 pb-4 pt-3 text-[14px] leading-relaxed text-ink-2">
+        <div className="max-w-[52ch] pb-2 pt-1 text-[14px] leading-relaxed text-ink-2">
           <p>
             Each receipt is a fingerprint sealed on a public chain. If anyone edits the record later, your phone sees it
             and this screen turns red.
@@ -474,72 +531,38 @@ export function ReceiptListView({
 }
 
 const BUCKET_LABEL = { NOW: 'Just now', TODAY: 'Today', EARLIER: 'Earlier' } as const
+const TYPE_FILTERS: ReadonlyArray<readonly [number, string]> = [
+  [0, 'Read'],
+  [1, 'Updated'],
+  [2, 'Exported'],
+  [3, 'Shared'],
+]
+const receiptCount = (n: number) => `${n} ${n === 1 ? 'receipt' : 'receipts'}`
 
-/** The code as a small mono chip; tap copies. Hidden on the laptop, where the sidebar shows it. */
-function CodeChip({ code, onCopy }: { code: string; onCopy: () => void }) {
+/** Laptop filter pill (riset-ui/36, from C): "Read 4". Ink when on. */
+function FilterPill({ label, count, on, onClick }: { label: string; count: number; on: boolean; onClick: () => void }) {
   return (
     <button
       type="button"
-      onClick={onCopy}
-      disabled={!code}
-      aria-label={code ? `Copy your code ${code.split('').join(' ')}` : 'Loading code'}
-      className="flex h-9 shrink-0 items-center gap-2 rounded-pill border border-line bg-card pl-3.5 pr-3 font-mono text-[14px] font-medium tracking-[0.06em] text-ink transition-colors duration-150 hover:border-line-strong disabled:opacity-50 @5xl:hidden"
+      aria-pressed={on}
+      onClick={onClick}
+      className={`flex h-8 shrink-0 items-center gap-1.5 rounded-pill px-3 text-[13px] font-medium transition-colors duration-150 ${
+        on ? 'bg-ink text-paper' : 'bg-card text-ink shadow-[0_0_0_1px_var(--color-line)] hover:shadow-[0_0_0_1px_var(--color-line-strong)]'
+      }`}
     >
-      {code || '······'}
-      <IconCopy size={14} className="text-ink-3" />
+      {label}
+      <span className={`tnum font-normal ${on ? 'text-paper/70' : 'text-ink-2'}`}>{count}</span>
     </button>
   )
 }
 
-/** Status card (riset-ui/35 home §2): one sentence about the whole profile, never red (red is the TamperBanner). */
-function StatusCard({
-  total,
-  matched,
-  checking,
-  anchored,
-  sealing,
-  watching,
-}: {
-  total: number
-  matched: number
-  checking: number
-  anchored: number
-  sealing: number
-  watching: boolean
-}) {
-  const all = matched > 0 && matched === anchored && checking === 0
-  const title = checking
-    ? `Checking ${checking} ${checking === 1 ? 'receipt' : 'receipts'} against the chain`
-    : all
-      ? `${anchored === total ? (total === 1 ? 'Your receipt matches' : `All ${total} receipts match`) : `${matched} of ${total} receipts match`} the chain`
-      : matched
-        ? `${matched} of ${anchored} sealed receipts match the chain`
-        : sealing
-          ? `${sealing} ${sealing === 1 ? 'receipt is' : 'receipts are'} being sealed`
-          : `${total} ${total === 1 ? 'receipt' : 'receipts'} on record`
-  const sub = checking
-    ? 'Your phone is checking, not our server.'
-    : matched
-      ? 'Checked by your phone, not by Saksi’s server.'
-      : 'Your phone checks each one once it is sealed.'
+/** Small verdict mark for the laptop status line. Red only for tampering. */
+function PassGlyph({ verdict }: { verdict: PassVerdict }) {
+  if (verdict === 'checking') return <IconSpinner size={16} className="shrink-0 text-ink-3" />
+  const tone = verdict === 'ok' ? 'bg-ok-bg text-ok' : verdict === 'tamper' ? 'bg-bad-bg text-bad' : 'bg-paper-2 text-ink-3'
   return (
-    <section aria-label="Receipts status" className="flex items-center gap-3.5 rounded-lg border border-line bg-card p-4">
-      <span
-        aria-hidden="true"
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
-          checking ? 'bg-paper-2 text-ink-2' : matched ? 'bg-ok-bg text-ok' : sealing ? 'bg-pending-bg text-pending' : 'bg-paper-2 text-ink-2'
-        }`}
-      >
-        {checking ? <IconSpinner size={18} /> : <IconShield size={20} strokeWidth={2} />}
-      </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-[16px] font-medium leading-snug text-ink">{title}</p>
-        <p className="mt-0.5 text-[14px] leading-snug text-ink-2">{sub}</p>
-        <p className="mt-1.5 flex items-center gap-2 text-[13px] text-ink-3">
-          {watching ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
-          {watching ? 'Live · refreshes every 3 s' : 'Paused'}
-        </p>
-      </div>
-    </section>
+    <span aria-hidden="true" className={`flex h-[18px] w-[18px] shrink-0 items-center justify-center rounded-full ${tone}`}>
+      {verdict === 'ok' ? <IconCheck size={10} strokeWidth={2.8} /> : verdict === 'tamper' ? <IconX size={10} strokeWidth={2.8} /> : <IconShield size={10} strokeWidth={2.4} />}
+    </span>
   )
 }
