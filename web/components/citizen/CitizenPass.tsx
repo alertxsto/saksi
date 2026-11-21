@@ -2,11 +2,12 @@
 
 import type { CSSProperties } from 'react'
 import { QRCodeSVG } from 'qrcode.react'
-import { IconCopy, IconSpinner, IconX } from '@/components/ui/icons'
+import { IconCheck, IconCopy, IconSpinner, IconX } from '@/components/ui/icons'
 import { VaultSeal, type SealTone } from '@/components/ui/VaultSeal'
 import { SITE_URL } from '@/lib/env'
 import { controllerLinkForCode } from '@/lib/format'
 import '@/app/citizen/stub-ticket.css'
+import '@/app/citizen/witness.css'
 
 export type PassVerdict = 'ok' | 'checking' | 'tamper' | 'empty'
 
@@ -15,7 +16,7 @@ export type CitizenPassProps = {
   code: string
   /** Drives the seal colour and the status pill. Red appears only for 'tamper'. */
   verdict: PassVerdict
-  /** One sentence about the whole profile, e.g. "All 4 receipts match the chain". */
+  /** One sentence about the whole profile, e.g. "All 4 receipts match the sealed record". */
   title: string
   subtitle?: string
   /** 'full': home and profile (title, subtitle, code, QR, hint). 'compact': laptop sidebar. */
@@ -39,15 +40,16 @@ function Pill({ verdict }: { verdict: PassVerdict }) {
         <IconX size={12} strokeWidth={2.6} aria-hidden="true" /> Changed
       </span>
     )
-  if (verdict === 'empty')
+  // No ticker language (riset-ui/37 §2): a still "Witnessed" mark, never a pulsing Live dot.
+  if (verdict === 'ok')
     return (
-      <span className="flex h-7 shrink-0 items-center gap-1.5 rounded-pill bg-vault-2 px-2.5 text-[13px] text-vault-ink-2">
-        <span aria-hidden="true" className="h-1.5 w-1.5 rounded-full bg-ice" /> Waiting
+      <span className="flex h-7 shrink-0 items-center gap-1.5 rounded-pill bg-vault-2 px-2.5 text-[13px] text-vault-ink">
+        <IconCheck size={12} strokeWidth={2.6} aria-hidden="true" className="text-ok-v" /> Witnessed
       </span>
     )
   return (
-    <span className="flex h-7 shrink-0 items-center gap-1.5 rounded-pill bg-vault-2 px-2.5 text-[13px] text-vault-ink">
-      <span aria-hidden="true" className="st-live h-1.5 w-1.5 rounded-full bg-ok-v" /> Live
+    <span className="flex h-7 shrink-0 items-center gap-1.5 rounded-pill bg-vault-2 px-2.5 text-[13px] text-vault-ink-2">
+      Witness ready
     </span>
   )
 }
@@ -59,13 +61,14 @@ function Pill({ verdict }: { verdict: PassVerdict }) {
  */
 export function CitizenPass({ code, verdict, title, subtitle, size, onCopy }: CitizenPassProps) {
   const compact = size === 'compact'
-  const notch = compact ? 128 : 184
+  const notch = compact ? 128 : 196
   const tamper = verdict === 'tamper'
   return (
     <div className="st-shadow">
       <section
         aria-label="Your receipts status"
-        className={`st-ticket relative overflow-hidden rounded-xl bg-vault text-vault-ink ${tamper ? 'ring-1 ring-inset ring-bad-v/40' : ''}`}
+        data-verdict={verdict}
+        className={`wt-pass st-ticket relative overflow-hidden rounded-xl bg-vault text-vault-ink ${tamper ? 'ring-1 ring-inset ring-bad-v/40' : 'ring-0 ring-inset ring-transparent'}`}
         style={{ '--notch': `${notch}px` } as CSSProperties}
       >
         <div className={`relative z-[1] flex flex-col ${compact ? 'p-4' : 'p-5'}`} style={{ height: notch }}>
@@ -100,7 +103,7 @@ export function CitizenPass({ code, verdict, title, subtitle, size, onCopy }: Ci
               </span>
               <span className={`doto mt-1.5 tracking-[0.06em] text-vault-ink ${compact ? 'text-[22px]' : 'text-[34px]'}`}>{code || '······'}</span>
             </button>
-            {compact ? null : <p className="mt-1.5 text-[13px] leading-snug text-vault-ink-2">Show it to a company. Every access comes back here as a receipt.</p>}
+            {compact ? null : <p className="mt-1.5 text-[13px] leading-snug text-vault-ink-2">Show it to an agency. Every access comes back here, witnessed.</p>}
           </div>
           {code ? (
             <div className="shrink-0 rounded-[10px] bg-card p-1.5">

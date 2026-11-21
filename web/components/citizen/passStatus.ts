@@ -20,46 +20,52 @@ export function passShortTitle(c: PassCounts): string {
   if (c.state === 'error') return 'Receipts didn’t load'
   if (c.state === 'empty' || c.total === 0) return 'No receipts yet'
   if (c.checking > 0) return `Checking ${c.checking} ${c.checking === 1 ? 'receipt' : 'receipts'}`
-  if (c.matched > 0) return c.matched === c.total ? `All ${c.total} match the chain` : `${c.matched} of ${c.total} match the chain`
+  if (c.matched > 0) return c.matched === c.total ? `All ${c.total} match the sealed record` : `${c.matched} of ${c.total} match the seal`
   if (c.sealing > 0) return `${c.sealing} being sealed`
   return `${c.total} on record`
 }
 
-/** The one sentence on the Citizen Pass (riset-ui/35 home §2 status, now on the pass). */
+/** What Saksi does for you, in one line (riset-ui/37 §1): shown under the verdict on the pass. */
+const WITNESS = 'Saksi witnesses every access to your data.'
+
+/**
+ * The one sentence on the Citizen Pass, in witness voice (riset-ui/37 §2): "matches the sealed record",
+ * "changed after sealing". Freshness is "checked just now", never a ticker.
+ */
 export function passStatus(c: PassCounts): { verdict: PassVerdict; title: string; subtitle: string } {
-  const live = c.watching ? '' : 'Paused · '
+  const paused = c.watching ? '' : ' Paused while offline.'
   if (c.tampered > 0)
     return {
       verdict: 'tamper',
-      title: `${c.tampered} ${c.tampered === 1 ? 'record no longer matches' : 'records no longer match'} the chain`,
-      subtitle: 'Your phone caught it, not Saksi’s server.',
+      title: `${c.tampered} ${c.tampered === 1 ? 'record was' : 'records were'} changed after sealing`,
+      subtitle: 'Your phone caught it against the sealed record, not Saksi’s server.',
     }
-  if (c.state === 'loading') return { verdict: 'checking', title: 'Loading your receipts', subtitle: 'Fetching what companies logged.' }
-  if (c.state === 'error') return { verdict: 'empty', title: 'Receipts didn’t load', subtitle: 'Your sealed receipts are safe on chain.' }
+  if (c.state === 'loading') return { verdict: 'checking', title: 'Loading your receipts', subtitle: WITNESS }
+  if (c.state === 'error') return { verdict: 'empty', title: 'Receipts didn’t load', subtitle: 'Every seal is still safe on the public ledger.' }
   if (c.state === 'empty' || c.total === 0)
-    return { verdict: 'empty', title: 'No one has opened your data yet', subtitle: `${live}Receipts appear here within seconds.` }
+    return { verdict: 'empty', title: 'No agency has opened your data yet', subtitle: `${WITNESS} Receipts arrive here within seconds.${paused}` }
   if (c.checking > 0)
     return {
       verdict: 'checking',
-      title: `Checking ${c.checking} ${c.checking === 1 ? 'receipt' : 'receipts'} against the chain`,
-      subtitle: `${live}Your phone is checking, not our server.`,
+      title: `Your phone is checking ${c.checking} ${c.checking === 1 ? 'receipt' : 'receipts'}`,
+      subtitle: `${WITNESS} Your phone compares each one with its seal.${paused}`,
     }
   if (c.matched > 0) {
     const all = c.matched === c.anchored
     const title = all
       ? c.anchored === c.total
         ? c.total === 1
-          ? 'Your receipt matches the chain'
-          : `All ${c.total} receipts match the chain`
-        : `${c.matched} of ${c.total} receipts match the chain`
-      : `${c.matched} of ${c.anchored} sealed receipts match the chain`
-    return { verdict: 'ok', title, subtitle: `${live}Checked by your phone, not by Saksi’s server.` }
+          ? 'Your receipt matches the sealed record'
+          : `All ${c.total} receipts match the sealed record`
+        : `${c.matched} of ${c.total} receipts match the sealed record`
+      : `${c.matched} of ${c.anchored} sealed receipts match the record`
+    return { verdict: 'ok', title, subtitle: `${WITNESS} Your phone checked each one just now.${paused}` }
   }
   if (c.sealing > 0)
     return {
       verdict: 'empty',
       title: `${c.sealing} ${c.sealing === 1 ? 'receipt is' : 'receipts are'} being sealed`,
-      subtitle: `${live}Your phone checks each one once it is sealed.`,
+      subtitle: `${WITNESS} Your phone checks each one once it is sealed.${paused}`,
     }
-  return { verdict: 'empty', title: `${c.total} ${c.total === 1 ? 'receipt' : 'receipts'} on record`, subtitle: `${live}Your phone checks each one once it is sealed.` }
+  return { verdict: 'empty', title: `${c.total} ${c.total === 1 ? 'receipt' : 'receipts'} on record`, subtitle: `${WITNESS} Your phone checks each one once it is sealed.${paused}` }
 }

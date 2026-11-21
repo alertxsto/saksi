@@ -26,6 +26,7 @@ import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { contentKey, receiptHeadline, type ReceiptCheck } from '@/lib/receipt-state'
 import '@/app/citizen/stub-ticket.css'
+import '@/app/citizen/witness.css'
 import type { ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
 /**
@@ -152,10 +153,10 @@ function DeletedTicket() {
       </div>
       <div>
         <h1 id="deleted-title" className="text-[28px] font-semibold leading-[1.1] tracking-[-0.03em] text-ink">
-          Deleted by the company
+          Deleted by the agency
         </h1>
         <p className="mt-2 text-[15px] leading-[1.55] text-ink-2">
-          This record is gone from the company’s side but <span className="font-medium text-ink">still sealed on the chain</span>, so you can
+          This record is gone from the agency’s side but <span className="font-medium text-ink">still sealed on the public ledger</span>, so you can
           still report it.
         </p>
       </div>
@@ -173,7 +174,7 @@ function WaitingForChain() {
       <div className="min-w-0">
         <p className="text-[16px] font-medium leading-snug text-pending">Sealing…</p>
         <p className="mt-0.5 text-[14px] leading-relaxed text-ink-2">
-          The company logged this access. Its fingerprint is going on chain now; your phone can check it in a moment.
+          The agency logged this access. Saksi is sealing it on the public ledger now; your phone checks it in a moment.
         </p>
       </div>
     </section>
@@ -251,7 +252,7 @@ function Detail({ opening, reload }: { opening: ReceiptOpening; reload: () => Pr
       // The database row was edited, so save the copy this phone saw match the chain when there is one.
       const sealed = rememberedReceipt(opening.eventId)
       await downloadReceiptFile(sealed ?? opening)
-      toast(sealed ? 'Saved. This file still matches the chain.' : 'Saved. The chain still holds the sealed fingerprint.')
+      toast(sealed ? 'Saved. This file still matches the sealed record.' : 'Saved. The public ledger still holds the seal.')
     } catch {
       toast('Download failed', 'info')
     }
@@ -339,8 +340,29 @@ function checkFromVerify(verify: DetailVerifyState): ReceiptCheck {
 const VERB = ['Read', 'Updated', 'Exported', 'Shared'] as const
 const TAIL = ['your data', 'your data', 'your data', 'your data with a third party'] as const
 
-const WIB_TIME = (iso: string) =>
-  new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' })
+/** "22 Nov 00:25" in WIB, for the notarial header. */
+const SEAL_DATE = (iso: string) => {
+  const d = new Date(iso)
+  const day = d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: 'Asia/Jakarta' })
+  return `${day} ${WIB_TIME(iso)}`
+}
+/** "22 NOV 26": the dated line inside the stamp. */
+const STAMP_DATE = (t: number) =>
+  new Date(t).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit', timeZone: 'Asia/Jakarta' })
+
+/** How the access reached Saksi: "Recorded by RSUD Contoh's system (SIMRS) · officer op-7q2m". */
+function recordedBy(o: ReceiptOpening): string | null {
+  const ev = (o.evidence ?? {}) as { system?: unknown; operatorRef?: unknown }
+  const system = typeof ev.system === 'string' && ev.system ? ev.system : null
+  const officer = typeof ev.operatorRef === 'string' && ev.operatorRef ? ev.operatorRef : null
+  if (!system && !officer) return null
+  const who = o.controllerName.replace(/ \((fictional|fiktif)\)$/i, '')
+  return `Recorded by ${who}’s system${system ? ` (${system})` : ''}${officer ? ` · officer ${officer}` : ''}`
+}
+
+function WIB_TIME(iso: string) {
+  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: 'Asia/Jakarta' })
+}
 
 /** C3–C4: ledger receipt + verify + AI. Purely presentational. */
 /** Quiet text action under the main buttons (Save receipt, Share proof…). */
@@ -398,6 +420,8 @@ export function ReceiptDetailView({
   const sealing = opening.status === 'pending' || opening.status === 'submitted'
   const result = check.phase === 'done' && check.result.status !== 'NOT_FOUND' ? check.result : null
   const stamp: StampKind | null = head.kind === 'MATCH' ? 'ok' : altered ? 'bad' : head.kind === 'CHECKING' || verify.phase === 'running' ? 'checking' : null
+  const recorded = recordedBy(opening)
+  const checkedAt = check.phase === 'done' && check.at ? check.at : null
   return (
     <div className="flex flex-col gap-5">
       <BackLink />
@@ -408,6 +432,20 @@ export function ReceiptDetailView({
         <div className={`relative ${altered ? 'st-shadow-bad' : 'st-shadow'}`}>
           <article aria-labelledby="receipt-title">
           <div className="st-half-top relative rounded-t-xl bg-card px-5 pb-6 pt-5">
+            {/* Notarial header: who witnessed it and when it was sealed, in plain words (riset-ui/37 §2). */}
+            <p className={`mb-4 border-b border-line/70 pb-3 text-[13px] leading-snug ${stamp ? 'pr-[92px]' : ''}`}>
+              <span className="font-semibold text-ink">Witnessed by Saksi</span>
+              <span className="text-ink-2">
+                {' · '}
+                {opening.status === 'anchored' ? (
+                  <>Sealed on the public ledger {SEAL_DATE(opening.createdAt)}</>
+                ) : opening.status === 'failed' ? (
+                  'Not sealed'
+                ) : (
+                  <span className="text-pending">Sealing on the public ledger…</span>
+                )}
+              </span>
+            </p>
             <div className={`flex flex-col gap-4 ${stamp ? 'pr-[92px]' : ''}`}>
               <div className="flex min-w-0 items-center gap-3">
                 <span
@@ -437,19 +475,20 @@ export function ReceiptDetailView({
             </div>
             {stamp ? (
               <div className="absolute right-3 top-3">
-                <VerdictStamp kind={stamp} seconds={result ? result.elapsedMs / 1000 : undefined} size={108} />
+                <VerdictStamp kind={stamp} date={STAMP_DATE(checkedAt ?? (now || Date.parse(opening.createdAt)))} size={108} />
               </div>
             ) : null}
             <p className="mt-3 text-[14px] leading-snug text-ink-2">
               {formatWIB(opening.createdAt)} · {opening.purposeText}
               {now ? <span> · {timeAgo(opening.createdAt, now)}</span> : null}
             </p>
+            {recorded ? <p className="mt-1 text-[13px] leading-snug text-ink-3">{recorded}</p> : null}
             <div className="mt-4">
               <ReceiptStatusPill kind={head.kind} />
             </div>
             {head.claimed ? (
               <p className="mt-3 text-[14px] leading-snug text-bad">
-                The chain sealed this. The database now says: <span className="line-through decoration-[1.5px]">{head.claimed}</span>
+                Saksi sealed this. The agency’s database now says: <span className="line-through decoration-[1.5px]">{head.claimed}</span>
               </p>
             ) : null}
             <span aria-hidden="true" className="st-perf absolute bottom-0 left-5 right-5 text-line-strong" />
@@ -463,7 +502,7 @@ export function ReceiptDetailView({
 
       {result ? (
         <div aria-live="polite">
-          <ChainReadout result={result} />
+          <ChainReadout result={result} freshness={checkedAt && now ? timeAgo(new Date(Math.min(checkedAt, now)).toISOString(), now) : 'just now'} />
         </div>
       ) : null}
 
@@ -480,7 +519,7 @@ export function ReceiptDetailView({
         onKeepEvidence={onKeepEvidence}
         onAskAi={onExplain}
         variant="ticket"
-        verifyLabel={check.phase === 'done' ? 'Check on chain again' : 'Verify on chain'}
+        verifyLabel={check.phase === 'done' ? 'Check the seal again' : 'Check the seal'}
       />
 
       <div className="flex flex-col gap-2.5">
@@ -496,7 +535,7 @@ export function ReceiptDetailView({
             >
               Explain with AI
             </Act>
-            {!verified ? <p className="text-center text-[13px] text-ink-2">Check on chain first. AI explains the verdict.</p> : null}
+            {!verified ? <p className="text-center text-[13px] text-ink-2">Check the seal first. AI explains the verdict.</p> : null}
           </>
         ) : null}
 

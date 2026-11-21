@@ -3,7 +3,7 @@
 // Laptop workspace states, one per URL (?s=…), rendered full-screen in the real CitizenShell so a
 // screenshot at 1440 / 1280 / 1024 shows exactly what a laptop sees (390 shows the phone layout).
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { CitizenShell } from '@/app/citizen/CitizenShell'
 import { OnboardingView, ReceiptListView } from '@/app/citizen/CitizenHome'
 import { ProfileScreenView, type ConfirmState } from '@/app/citizen/profile/ProfileView'
@@ -41,20 +41,82 @@ const EVENT_ALTERED: VerifyResult = { status: 'MISMATCH', mismatches: [{ field: 
 const done = (result: VerifyResult): ReceiptCheck => ({ phase: 'done', result, at: NOW })
 
 const noop = () => {}
+const NAME = 'Irawanti Usada'
+
+/**
+ * Motion states wait for a trigger so screenshots can be taken at fixed offsets: dispatch
+ * `window.dispatchEvent(new Event('saksi:trigger'))` (or press T). Before it, the "before" state renders.
+ */
+function useTrigger(): boolean {
+  const [on, setOn] = useState(false)
+  useEffect(() => {
+    const go = () => setOn(true)
+    const key = (e: KeyboardEvent) => {
+      if (e.key === 't' || e.key === 'T') go()
+    }
+    window.addEventListener('saksi:trigger', go)
+    window.addEventListener('keydown', key)
+    return () => {
+      window.removeEventListener('saksi:trigger', go)
+      window.removeEventListener('keydown', key)
+    }
+  }, [])
+  return on
+}
+
+/** A new receipt arrives at the top of the list (slide down 8px + fade + blue wash). */
+function ArriveDemo() {
+  const on = useTrigger()
+  const [first, ...rest] = ALL
+  const fresh: ReceiptOpening = { ...first, createdAt: new Date(NOW - 2_000).toISOString() }
+  const receipts = on ? [fresh, ...rest] : rest
+  return <ReceiptsSplit focus="list" list={<List receipts={receipts} freshIds={on ? [first.eventId] : []} />} pane={<SelectReceiptPane />} />
+}
+
+/** The phone's check flips one receipt to ALTERED: the row turns red and shakes, the pass flips to tamper. */
+function TamperDemo({ phone }: { phone?: boolean }) {
+  const on = useTrigger()
+  return (
+    <ReceiptsSplit
+      focus="list"
+      list={<List receipts={on ? WITH_TAMPER : ALL} verdicts={on ? ALTERED_V : MATCHED} />}
+      pane={<SelectReceiptPane />}
+      key={phone ? 'p' : 'l'}
+    />
+  )
+}
+function TamperSidebar() {
+  const on = useTrigger()
+  return <Sidebar path="/citizen" pass={on ? PASS_TAMPER : PASS_OK} />
+}
+
+/** Laptop keyboard: up/down move the selection; the pane cross-fades. */
+function KeyboardDemo() {
+  const [id, setId] = useState(ALL[1].eventId)
+  const opening = ALL.find((r) => r.eventId === id) ?? ALL[1]
+  return (
+    <ReceiptsSplit
+      focus="pane"
+      paneKey={id}
+      list={<List selectedId={id} onMove={setId} />}
+      pane={<Detail opening={opening} verify={{ phase: 'done', result: MATCH }} check={done(MATCH)} />}
+    />
+  )
+}
 
 
 type PassLine = { verdict: PassVerdict; title: string }
-const PASS_OK: PassLine = { verdict: 'ok', title: `All ${ALL.length} match the chain` }
+const PASS_OK: PassLine = { verdict: 'ok', title: `All ${ALL.length} match the sealed record` }
 const PASS_CHECKING: PassLine = { verdict: 'checking', title: 'Checking 2 receipts' }
 const PASS_TAMPER: PassLine = { verdict: 'tamper', title: 'Tampering found' }
 const PASS_EMPTY: PassLine = { verdict: 'empty', title: 'No receipts yet' }
 
 function Sidebar({ path, code = CODE, watch = 'watching', count = ALL.length, pass = PASS_OK }: { path: string; code?: string; watch?: SidebarWatch; count?: number; pass?: PassLine }) {
-  return <WorkspaceSidebarView path={path} code={code} watch={watch} count={count} verdict={pass.verdict} title={pass.title} onCopy={noop} />
+  return <WorkspaceSidebarView path={path} code={code} watch={watch} count={count} verdict={pass.verdict} title={pass.title} onCopy={noop} name={NAME} />
 }
 
 function List(props: Partial<Parameters<typeof ReceiptListView>[0]>) {
-  return <ReceiptListView state="ready" receipts={ALL} code={CODE} now={NOW} online watching freshIds={[]} verdicts={MATCHED} onCopy={noop} onRetry={noop} {...props} />
+  return <ReceiptListView state="ready" receipts={ALL} code={CODE} now={NOW} online watching freshIds={[]} verdicts={MATCHED} onCopy={noop} onRetry={noop} name={NAME} {...props} />
 }
 
 function Detail({ opening, verify, check }: { opening: ReceiptOpening; verify: DetailVerifyState; check?: ReceiptCheck }) {
@@ -79,7 +141,7 @@ function Profile({ receipts = ALL, verdicts = MATCHED, confirm = 'closed' }: { r
   return (
     <ProfileScreenView
       state="ready"
-      profile={{ code: CODE, displayName: 'Synthetic citizen K7M' }}
+      profile={{ code: CODE, displayName: NAME }}
       receipts={receipts}
       verdicts={verdicts}
       now={NOW}
@@ -159,6 +221,18 @@ function screen(s: WorkspaceState): { path: string; body: ReactNode; sidebar?: R
       return { path: '/citizen/profile', sidebar: <Sidebar path="/citizen/profile" count={0} pass={PASS_EMPTY} />, body: <Profile receipts={[]} verdicts={{}} /> }
     case 'profile-confirm':
       return { path: '/citizen/profile', body: <Profile confirm="open" /> }
+    case 'firstrun':
+      return { path: '/citizen', body: <ReceiptsSplit focus="list" list={<List sheet="welcome" />} pane={<SelectReceiptPane />} /> }
+    case 'how':
+      return { path: '/citizen', body: <ReceiptsSplit focus="list" list={<List sheet="how" />} pane={<SelectReceiptPane />} /> }
+    case 'arrive':
+      return { path: '/citizen', body: <ArriveDemo /> }
+    case 'tamper-live':
+      return { path: '/citizen', sidebar: <TamperSidebar />, body: <TamperDemo /> }
+    case 'keyboard':
+      return { path: '/citizen/receipt/x', body: <KeyboardDemo /> }
+    case 'filtered':
+      return { path: '/citizen', body: <FilteredDemo /> }
   }
 }
 
@@ -191,5 +265,22 @@ export function CitizenWorkspaceGallery({ state }: { state: WorkspaceState | nul
     )
   }
   const { path, body, sidebar } = screen(state)
-  return <CitizenShell sidebar={sidebar ?? <Sidebar path={path} />}>{body}</CitizenShell>
+  return (
+    <CitizenShell name={NAME} sidebar={sidebar ?? <Sidebar path={path} />}>
+      {body}
+    </CitizenShell>
+  )
+}
+
+/** Filter pills: clicks the "Shared" pill after the trigger so the list fade can be filmed. */
+function FilteredDemo() {
+  const on = useTrigger()
+  useEffect(() => {
+    if (!on) return
+    const pill = Array.from(document.querySelectorAll<HTMLButtonElement>('[aria-label="Filter receipts by what the agency did"] button')).find((b) =>
+      b.textContent?.startsWith('Shared'),
+    )
+    pill?.click()
+  }, [on])
+  return <ReceiptsSplit focus="list" list={<List />} pane={<SelectReceiptPane />} />
 }

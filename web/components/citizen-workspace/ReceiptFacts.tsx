@@ -1,7 +1,9 @@
 import type { ReactNode } from 'react'
+import Link from 'next/link'
 import { FingerprintChip } from '@/components/ui/FingerprintChip'
-import { IconCheck, IconClock, IconSpinner, IconX } from '@/components/ui/icons'
-import { basisLabel, eventVerb, formatWIB } from '@/lib/format'
+import { IconArrowUpRight, IconCheck, IconClock, IconSpinner, IconX } from '@/components/ui/icons'
+import { basisLabel, eventVerb, formatWIB, proofPath } from '@/lib/format'
+import '@/app/citizen/witness.css'
 import { alteredFields, controllerAltered, IDLE, sealedEventType, type ReceiptCheck, type ReceiptStateKind } from '@/lib/receipt-state'
 import { DATA_CATEGORY_LABELS, type DataCategory, type ReceiptOpening } from '@/lib/shared/types'
 
@@ -14,7 +16,7 @@ function Changed({ db, chain }: { db: string; chain?: string }) {
   return (
     <span className="flex flex-col items-end gap-0.5 text-right">
       <span className="text-bad line-through decoration-[1.5px]">{db}</span>
-      <span className={`text-[13px] font-medium ${chain ? 'text-ok' : 'text-bad'}`}>{chain ? `Chain sealed: ${chain}` : 'Changed after sealing'}</span>
+      <span className={`text-[13px] font-medium ${chain ? 'text-ok' : 'text-bad'}`}>{chain ? `Sealed as: ${chain}` : 'Changed after sealing'}</span>
     </span>
   )
 }
@@ -39,7 +41,8 @@ export function ReceiptFacts({
   const ev = opening.evidence as { system?: unknown; dataCategories?: unknown }
   const system = typeof ev.system === 'string' ? ev.system : null
   const categories = Array.isArray(ev.dataCategories) ? ev.dataCategories.filter((c): c is string => typeof c === 'string') : []
-  const block = check.phase === 'done' && check.result.blockNumber ? check.result.blockNumber : null
+  const result = check.phase === 'done' ? check.result : null
+  const block = result?.blockNumber ? result.blockNumber : null
 
   const facts: Fact[] = [
     {
@@ -64,35 +67,77 @@ export function ReceiptFacts({
     const text = [named, system].filter(Boolean).join(' · ')
     facts.push({ k: 'Data used', v: altered.has('evidence') ? <Changed db={text} /> : text, altered: altered.has('evidence') })
   }
-  facts.push({ k: 'Sealed', v: opening.status === 'anchored' ? formatWIB(opening.createdAt) : <span className="text-pending">Sealing on chain…</span> })
-  if (block) facts.push({ k: 'Block', v: <span className="tnum font-mono text-[13px]">{block.toLocaleString('en-US')}</span> })
-  facts.push({ k: 'Fingerprint', v: <FingerprintChip value={opening.txHash} /> })
+  facts.push({
+    k: 'Sealed',
+    v:
+      opening.status === 'anchored' ? (
+        `On the public ledger · ${formatWIB(opening.createdAt)}`
+      ) : opening.status === 'failed' ? (
+        <span className="text-ink-3">Not sealed</span>
+      ) : (
+        <span className="text-pending">Sealing on the public ledger…</span>
+      ),
+  })
 
+  // Chain data is secondary (riset-ui/37 §2): block, fingerprint and confirmations sit in a collapsed group.
+  const tech: Fact[] = [{ k: 'Fingerprint', v: <FingerprintChip value={opening.txHash} /> }]
+  if (block) tech.push({ k: 'Block', v: <span className="tnum font-mono text-[13px]">{Number(block).toLocaleString('en-US')}</span> })
+  if (result?.confirmations !== undefined)
+    tech.push({ k: 'Confirmations', v: <span className="tnum font-mono text-[13px]">{result.confirmations.toLocaleString('en-US')}</span> })
+  if (result) tech.push({ k: 'Check took', v: <span className="tnum font-mono text-[13px]">{(result.elapsedMs / 1000).toFixed(2)} s</span> })
+  if (result?.rpc) tech.push({ k: 'Node', v: <span className="break-all font-mono text-[13px]">{result.rpc}</span> })
+  if (opening.logIndex !== null && opening.txHash) tech.push({ k: 'Log index', v: <span className="tnum font-mono text-[13px]">{opening.logIndex}</span> })
+
+  const pad = inset ? 'px-5' : 'px-4'
+  const rule = inset ? 'border-t border-line/70' : 'border-t border-line'
   return (
-    <dl className={inset ? '' : 'overflow-hidden rounded-lg border border-line bg-card'}>
-      {facts.map((f, i) => (
-        <div
-          key={f.k}
-          className={`flex min-h-12 items-center gap-4 py-2.5 ${inset ? 'px-5' : 'px-4'} ${i ? (inset ? 'border-t border-line/70' : 'border-t border-line') : ''} ${f.altered ? 'bg-bad-bg/60' : ''}`}
-        >
-          <dt className={`flex shrink-0 items-center gap-1.5 text-[14px] ${f.altered ? 'font-medium text-bad' : 'text-ink-2'}`}>
-            {f.altered ? <IconX size={12} strokeWidth={2.6} aria-hidden="true" /> : null}
-            {f.k}
-            {f.altered ? <span className="sr-only"> (altered)</span> : null}
-          </dt>
-          <dd className="ml-auto min-w-0 break-words text-right text-[15px] text-ink">{f.v}</dd>
+    <div className={inset ? '' : 'overflow-hidden rounded-lg border border-line bg-card'}>
+      <dl>
+        {facts.map((f, i) => (
+          <div key={f.k} className={`flex min-h-12 items-center gap-4 py-2.5 ${pad} ${i ? rule : ''} ${f.altered ? 'bg-bad-bg/60' : ''}`}>
+            <dt className={`flex shrink-0 items-center gap-1.5 text-[14px] ${f.altered ? 'font-medium text-bad' : 'text-ink-2'}`}>
+              {f.altered ? <IconX size={12} strokeWidth={2.6} aria-hidden="true" /> : null}
+              {f.k}
+              {f.altered ? <span className="sr-only"> (altered)</span> : null}
+            </dt>
+            <dd className="ml-auto min-w-0 break-words text-right text-[15px] text-ink">{f.v}</dd>
+          </div>
+        ))}
+      </dl>
+      <details className={`wt-proof ${rule}`}>
+        <summary className={`flex min-h-12 cursor-pointer items-center gap-2 py-2.5 ${pad} text-[14px] text-ink-2 transition-colors duration-150 hover:text-ink`}>
+          <svg aria-hidden="true" className="wt-chev shrink-0 text-ink-3" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <path d="m9 6 6 6-6 6" />
+          </svg>
+          Technical proof
+          <span className="ml-auto text-[13px] text-ink-3">For auditors</span>
+        </summary>
+        <div className="pb-2">
+          <dl>
+            {tech.map((f) => (
+              <div key={f.k} className={`flex min-h-10 items-center gap-4 py-1.5 ${pad}`}>
+                <dt className="shrink-0 text-[13px] text-ink-3">{f.k}</dt>
+                <dd className="ml-auto min-w-0 break-words text-right text-[13px] text-ink">{f.v}</dd>
+              </div>
+            ))}
+          </dl>
+          {opening.txHash ? (
+            <Link href={proofPath(opening)} className={`flex min-h-10 w-fit items-center gap-1.5 ${pad} text-[13px] font-medium text-ink-2 hover:text-blue`}>
+              Re-check this seal at /proof <IconArrowUpRight size={13} />
+            </Link>
+          ) : null}
         </div>
-      ))}
-    </dl>
+      </details>
+    </div>
   )
 }
 
 const STATUS: Record<ReceiptStateKind, { text: string; cls: string; icon: ReactNode }> = {
-  MATCH: { text: 'Matches the chain', cls: 'bg-ok-bg text-ok', icon: <IconCheck size={14} strokeWidth={2.6} /> },
+  MATCH: { text: 'Matches the sealed record', cls: 'bg-ok-bg text-ok', icon: <IconCheck size={14} strokeWidth={2.6} /> },
   ALTERED: { text: 'Changed after sealing', cls: 'bg-bad-bg text-bad', icon: <IconX size={13} strokeWidth={2.6} /> },
   ON_CHAIN: { text: 'Sealing…', cls: 'bg-pending-bg text-pending', icon: <IconClock size={14} /> },
-  CHECKING: { text: 'Checking the chain…', cls: 'bg-paper-2 text-ink-2', icon: <IconSpinner size={13} /> },
-  NOT_FOUND: { text: 'Not found on this node yet', cls: 'bg-unknown-bg text-unknown', icon: <IconClock size={14} /> },
+  CHECKING: { text: 'Your phone is checking…', cls: 'bg-paper-2 text-ink-2', icon: <IconSpinner size={13} /> },
+  NOT_FOUND: { text: 'Seal not found on this node yet', cls: 'bg-unknown-bg text-unknown', icon: <IconClock size={14} /> },
   RECORDED: { text: 'Recorded · not checked yet', cls: 'bg-paper-2 text-ink-2', icon: <IconClock size={14} /> },
   FAILED: { text: 'Not sealed', cls: 'bg-unknown-bg text-unknown', icon: <IconClock size={14} /> },
 }

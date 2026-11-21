@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Suspense, type ComponentType } from 'react'
-import { LiveDot } from '@/components/ui/Chip'
+import { CitizenSidebarIdentity } from '@/components/citizen/CitizenIdentity'
 import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
 import { passShortTitle, passStatus } from '@/components/citizen/passStatus'
 import { IconArrowUpRight, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
@@ -38,7 +38,10 @@ export function WorkspaceSidebarView({
   verdict = 'empty',
   title,
   onCopy,
+  name,
 }: {
+  /** Synthetic citizen's name in the footer; read from the receipts cache when left out. */
+  name?: string
   path: string
   code: string
   /** Receipts in this profile (badge on Receipts); undefined while unknown. */
@@ -53,14 +56,17 @@ export function WorkspaceSidebarView({
   return (
     <aside
       aria-label="Citizen workspace"
-      className="no-print hidden w-[220px] shrink-0 flex-col border-r border-line bg-paper-2/55 @5xl:sticky @5xl:top-0 @5xl:flex @5xl:h-dvh"
+      className="no-print hidden w-[232px] shrink-0 flex-col border-r border-line bg-paper-2/55 @5xl:sticky @5xl:top-0 @5xl:flex @5xl:h-dvh"
     >
       <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
         <Link href="/" aria-label="Saksi home" className="flex min-h-10 items-center gap-2.5 rounded-sm">
           <LogoMark />
           <span className="text-[19px] font-semibold tracking-[-0.04em] text-ink">saksi</span>
         </Link>
-        <span className="border-l border-line pl-2.5 text-[13px] text-ink-2">Citizen</span>
+        <span className="flex items-center gap-1.5 border-l border-line pl-2.5 text-[13px] text-ink-2">
+          <span aria-hidden="true" className="h-3.5 w-1 rounded-full bg-ink" />
+          Citizen
+        </span>
       </div>
 
       <nav aria-label="Citizen" className="px-3 pt-4">
@@ -93,10 +99,7 @@ export function WorkspaceSidebarView({
 
       <div className="px-3 pb-4">
         {code ? (
-          <>
-            <CitizenPass code={code} verdict={verdict} title={title ?? WATCH_TEXT[watch]} size="compact" onCopy={onCopy} />
-            <WatchLine watch={watch} />
-          </>
+          <CitizenPass code={code} verdict={verdict} title={title ?? WATCH_TEXT[watch]} size="compact" onCopy={onCopy} />
         ) : (
           <div className="rounded-[16px] bg-card px-3.5 py-3 shadow-[0_0_0_1px_var(--color-line)]">
             <p className="text-[14px] font-medium text-ink">{watch === 'loading' ? 'Loading profile…' : 'No profile yet'}</p>
@@ -105,28 +108,26 @@ export function WorkspaceSidebarView({
             </p>
           </div>
         )}
-        <p className="mt-1 px-1 text-[12px] text-ink-3">Synthetic profile</p>
+        {/* Freshness in plain words, never a ticker (riset-ui/37 §2). */}
+        {code && watch !== 'watching' ? (
+          <p role="status" className="mt-2 px-1 text-[12px] text-ink-3">
+            {WATCH_TEXT[watch]}
+          </p>
+        ) : null}
+        <div className="mt-3 border-t border-line pt-3">
+          <CitizenSidebarIdentity name={name} />
+        </div>
       </div>
     </aside>
   )
 }
 
 const WATCH_TEXT: Record<SidebarWatch, string> = {
-  watching: 'Live · every 3 s',
-  offline: 'Offline · paused',
-  paused: 'Paused',
-  none: 'Paused',
+  watching: 'Checked just now',
+  offline: 'Offline · checks paused',
+  paused: 'Checks paused',
+  none: 'Checks paused',
   loading: 'Loading…',
-}
-
-/** The watch state under the pass, one quiet line. */
-function WatchLine({ watch }: { watch: SidebarWatch }) {
-  return (
-    <p role="status" className="mt-2.5 flex items-center gap-2 px-1 text-[12px] text-ink-3">
-      {watch === 'watching' ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
-      {WATCH_TEXT[watch]}
-    </p>
-  )
 }
 
 /**

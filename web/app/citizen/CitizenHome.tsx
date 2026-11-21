@@ -1,14 +1,15 @@
 'use client'
 
 import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { useMemo, useState, type CSSProperties, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
 import { ReceiptsSplit } from '@/components/citizen-workspace/Split'
 import { RiseHeading } from '@/components/citizen/motion'
 import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
 import { passStatus } from '@/components/citizen/passStatus'
 import { GhostRow, IconChevron, ReceiptRow, TamperBanner } from '@/components/citizen/ReceiptRows'
-import { LiveDot } from '@/components/ui/Chip'
+import { HowSaksiWitnesses, IdentitySheet, useFirstRun } from '@/components/citizen/WitnessSheet'
 import { DotIcon, type DotIconName } from '@/components/ui/DotIcon'
 import { IconAlert, IconCheck, IconClock, IconEye, IconLock, IconRefresh, IconShield, IconSpinner, IconWifiOff, IconX } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
@@ -32,6 +33,7 @@ import { useNow, useOnline } from '@/lib/hooks'
 import { verdictKind } from '@/lib/receipt-state'
 import type { ReceiptOpening } from '@/lib/shared/types'
 import './stub-list.css'
+import './witness.css'
 
 // First time each receipt id was seen in this tab. Lives outside React so render stays pure.
 const firstSeen = new Map<string, number>()
@@ -109,9 +111,9 @@ function Onboarding() {
 export type OnboardingStatus = 'idle' | 'loading' | 'error'
 
 const HOW: Array<[DotIconName, string, string]> = [
-  ['eye', 'A company opens your data', 'They log it against your code'],
-  ['shield', 'You get a sealed receipt', 'Its fingerprint goes on a public chain'],
-  ['check', 'Your phone checks it', 'Not our server, not the company'],
+  ['eye', 'An agency records the access', 'Who, why and under which legal basis'],
+  ['shield', 'Saksi seals it on a public ledger', 'A neutral witness; Saksi never holds your data'],
+  ['check', 'Your phone checks it', 'So nobody can quietly change it later'],
 ]
 
 export function OnboardingView({
@@ -143,7 +145,7 @@ export function OnboardingView({
             <span className="doto mt-1 block text-[30px] tracking-[0.06em] text-vault-ink-2/60">······</span>
           </span>
           <span className="relative z-[1] flex shrink-0 items-center gap-1.5 pb-1 text-[13px] text-vault-ink-2">
-            <span className="h-1.5 w-1.5 rounded-full bg-ice" /> Sealed on chain
+            Witnessed by Saksi
           </span>
         </div>
       </div>
@@ -258,6 +260,7 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
   const online = useOnline()
   const now = useNow()
   const { toast } = useToast()
+  const router = useRouter()
 
   const q = useQuery(receiptsQuery)
 
@@ -314,9 +317,12 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
       retrying={q.isFetching}
       onCopy={() => void onCopy()}
       onRetry={onRetry}
+      name={q.data?.profile.displayName}
+      autoWelcome
+      onMove={(id) => router.push(`/citizen/receipt/${encodeURIComponent(id)}`, { scroll: false })}
     />
   )
-  return pane === undefined ? list : <ReceiptsSplit focus={focus} list={list} pane={pane} />
+  return pane === undefined ? list : <ReceiptsSplit focus={focus} list={list} pane={pane} paneKey={selectedId} />
 }
 
 export type ReceiptListState = 'loading' | 'error' | 'empty' | 'ready'
@@ -341,6 +347,10 @@ export function ReceiptListView({
   selectedId,
   onCopy,
   onRetry,
+  name,
+  sheet: forcedSheet,
+  autoWelcome = false,
+  onMove,
 }: {
   state: ReceiptListState
   receipts: ReceiptOpening[]
@@ -364,7 +374,23 @@ export function ReceiptListView({
   selectedId?: string
   onCopy: () => void
   onRetry: () => void
+  /** Synthetic citizen's name, for the one-time identity sheet. */
+  name?: string
+  /** Gallery: force a sheet open. */
+  sheet?: 'welcome' | 'how'
+  /** Show the identity sheet once per session code in this browser (localStorage). */
+  autoWelcome?: boolean
+  /** Laptop up/down: open this receipt in the pane. Without it the keys do nothing. */
+  onMove?: (eventId: string) => void
 }) {
+  const [firstRun, dismissFirstRun] = useFirstRun(code, autoWelcome && !!name && (state === 'ready' || state === 'empty'))
+  const [howOpen, setHowOpen] = useState(forcedSheet === 'how')
+  const [welcomeForced, setWelcomeForced] = useState(forcedSheet === 'welcome')
+  const welcomeOpen = (firstRun || welcomeForced) && !howOpen
+  const closeWelcome = () => {
+    setWelcomeForced(false)
+    dismissFirstRun()
+  }
   // Laptop-only filter by event type (riset-ui/36 graft from C). Phones never see the pills, so non-matching
   // rows are hidden with a container query only: a phone always shows every receipt.
   const [filter, setFilter] = useState<number | 'all'>('all')
@@ -385,6 +411,39 @@ export function ReceiptListView({
   const active = filter !== 'all' && types.some(([t]) => t === filter) ? filter : 'all'
   const shownOnLaptop = (r: ReceiptOpening) => active === 'all' || r.eventType === active
 
+  // Laptop up/down (and j/k) move the selection through the visible receipts, in list order (Linear / Mail).
+  const order = useRef<string[]>([])
+  const selectedRef = useRef(selectedId)
+  useEffect(() => {
+    order.current =
+      state === 'ready' && now
+        ? BUCKETS.flatMap((b) => receipts.filter((r) => timeBucket(r.createdAt, now) === b && (active === 'all' || r.eventType === active)).map((r) => r.eventId))
+        : []
+    selectedRef.current = selectedId
+  })
+  useEffect(() => {
+    if (!onMove) return
+    const onKey = (e: KeyboardEvent) => {
+      if (e.metaKey || e.ctrlKey || e.altKey || e.defaultPrevented) return
+      const down = e.key === 'ArrowDown' || e.key === 'j'
+      const up = e.key === 'ArrowUp' || e.key === 'k'
+      if (!down && !up) return
+      const t = e.target as HTMLElement | null
+      if (t && (t.closest('input,textarea,select,[contenteditable="true"],dialog[open]') || t.isContentEditable)) return
+      if (!window.matchMedia('(min-width: 1024px)').matches) return
+      const ids = order.current
+      if (!ids.length) return
+      const at = selectedRef.current ? ids.indexOf(selectedRef.current) : -1
+      const next = at < 0 ? ids[down ? 0 : ids.length - 1] : ids[Math.min(ids.length - 1, Math.max(0, at + (down ? 1 : -1)))]
+      if (!next || next === selectedRef.current) return
+      e.preventDefault()
+      onMove(next)
+      document.querySelector(`[data-event-id="${CSS.escape(next)}"]`)?.scrollIntoView({ block: 'nearest' })
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [onMove])
+
   return (
     <div className="flex flex-col gap-6">
       <header>
@@ -394,7 +453,7 @@ export function ReceiptListView({
           <PassGlyph verdict={pass.verdict} />
           <span className={`min-w-0 ${pass.verdict === 'tamper' ? 'font-medium text-bad' : ''}`}>
             {pass.title}
-            {state === 'ready' && pass.verdict !== 'tamper' ? (watching ? ' · live' : ' · paused') : ''}
+            {state === 'ready' && pass.verdict !== 'tamper' ? <span className="text-ink-3"> · {watching ? 'checked just now' : 'paused'}</span> : null}
           </span>
         </p>
       </header>
@@ -416,7 +475,7 @@ export function ReceiptListView({
       <p aria-live="assertive" className="sr-only">
         {receipts
           .filter((r) => altered.includes(r.eventId))
-          .map((r) => `Receipt from ${r.controllerName} was altered: it no longer matches the chain.`)
+          .map((r) => `Receipt from ${r.controllerName} was altered: it no longer matches the sealed record.`)
           .join(' ')}
       </p>
 
@@ -432,7 +491,7 @@ export function ReceiptListView({
       ) : null}
 
       {state === 'ready' && types.length > 1 ? (
-        <div role="group" aria-label="Filter receipts by what the company did" className="-mx-1 -my-1 hidden gap-1.5 overflow-x-auto px-1 py-1 [scrollbar-width:none] @5xl:flex">
+        <div role="group" aria-label="Filter receipts by what the agency did" className="-mx-1 -my-1 hidden gap-1.5 overflow-x-auto px-1 py-1 [scrollbar-width:none] @5xl:flex">
           <FilterPill label="All" count={receipts.length} on={active === 'all'} onClick={() => setFilter('all')} />
           {types.map(([t, label, n]) => (
             <FilterPill key={t} label={label} count={n} on={active === t} onClick={() => setFilter(t)} />
@@ -460,19 +519,16 @@ export function ReceiptListView({
       ) : state === 'empty' ? (
         <Quiet
           glyph="eye"
-          title="No one has opened your data yet"
+          title="No agency has opened your data yet"
           body={
             <>
-              Show your code to a company to try it. Receipts appear here within seconds.
-              <span className="mt-2.5 flex items-center gap-2 text-[14px] text-ink-3">
-                {watching ? <LiveDot tone="blue" /> : null}
-                {watching ? 'Watching for new receipts' : 'Paused'}
-              </span>
+              Show your code to an agency. When they open your record, Saksi witnesses it and the receipt lands here.
+              <span className="mt-2.5 block text-[14px] text-ink-3">{watching ? 'Saksi is watching for new receipts' : 'Paused'}</span>
             </>
           }
         />
       ) : (
-        <div className="flex flex-col gap-6">
+        <div key={String(active)} className={`flex flex-col gap-6 ${active === 'all' ? '' : 'wt-fade'}`}>
           {BUCKETS.map((b) => {
             const items = receipts.filter((r) => (now ? timeBucket(r.createdAt, now) : 'EARLIER') === b)
             if (items.length === 0) return null
@@ -507,23 +563,29 @@ export function ReceiptListView({
         </p>
       ) : null}
 
-      {/* Footer link: what a receipt proves, opened in place. */}
-      <details className="group -mt-1 px-1">
-        <summary className="flex min-h-11 w-fit cursor-pointer list-none items-center gap-2 text-[14px] font-medium text-ink-2 transition-colors duration-150 hover:text-ink [&::-webkit-details-marker]:hidden">
-          <IconLock size={14} /> What a receipt proves
-          <IconChevron size={14} className="text-ink-3 transition-transform duration-200 group-open:rotate-90" />
-        </summary>
-        <div className="max-w-[52ch] pb-2 pt-1 text-[14px] leading-relaxed text-ink-2">
-          <p>
-            Each receipt is a fingerprint sealed on a public chain. If anyone edits the record later, your phone sees it
-            and this screen turns red.
-          </p>
-          <p className="mt-2">
-            A green check means your phone compared the record with the chain and it matches. Only a fingerprint goes on
-            chain, never your name.
-          </p>
-        </div>
-      </details>
+      {/* Footer link: the quiet explainer of what Saksi does (sheet). */}
+      <button
+        type="button"
+        onClick={() => setHowOpen(true)}
+        className="-mt-1 flex min-h-11 w-fit items-center gap-2 px-1 text-[14px] font-medium text-ink-2 transition-colors duration-150 hover:text-ink"
+      >
+        <IconLock size={14} /> How Saksi witnesses
+        <IconChevron size={14} className="text-ink-3" />
+      </button>
+
+      <HowSaksiWitnesses open={howOpen} onClose={() => setHowOpen(false)} />
+      {name && code ? (
+        <IdentitySheet
+          open={welcomeOpen}
+          name={name}
+          code={code}
+          onClose={closeWelcome}
+          onShowHow={() => {
+            closeWelcome()
+            setHowOpen(true)
+          }}
+        />
+      ) : null}
 
       <TabBar />
     </div>

@@ -6,15 +6,16 @@ import '@/app/citizen/stub-ticket.css'
 
 export type StampKind = 'checking' | 'ok' | 'bad'
 
+// Witness language (riset-ui/37 §2): the stamp is Saksi's notarial mark, not a chain readout.
 const RING: Record<StampKind, string> = {
-  ok: 'MATCHES THE CHAIN · CHECKED BY YOUR PHONE ·',
-  bad: 'CHANGED AFTER SEALING · CHECKED BY YOUR PHONE ·',
-  checking: 'CHECKING THE CHAIN · CHECKING THE CHAIN ·',
+  ok: 'WITNESSED BY SAKSI · MATCHES THE SEAL ·',
+  bad: 'CHANGED AFTER SEALING · SAKSI WITNESS ·',
+  checking: 'YOUR PHONE IS CHECKING · CHECKING ·',
 }
 const LABEL: Record<StampKind, string> = {
-  ok: 'Stamped: matches the chain, checked by your phone',
-  bad: 'Stamped: changed after sealing, checked by your phone',
-  checking: 'Checking the chain',
+  ok: 'Stamped: witnessed by Saksi, matches the sealed record',
+  bad: 'Stamped: changed after sealing, caught by your phone',
+  checking: 'Your phone is checking the sealed record',
 }
 
 /**
@@ -22,7 +23,19 @@ const LABEL: Record<StampKind, string> = {
  * green MATCH, red ALTERED (lands, then one shake), a breathing dashed ring while the phone checks.
  * NOT FOUND and pending get no stamp. Reduced motion: the stamp is simply there.
  */
-export function VerdictStamp({ kind, seconds, size = 112 }: { kind: StampKind; seconds?: number; size?: number }) {
+export function VerdictStamp({
+  kind,
+  seconds,
+  date,
+  size = 112,
+}: {
+  kind: StampKind
+  /** Kept for callers that still pass it; shown only when no `date` is given. */
+  seconds?: number
+  /** Date line in the centre, like a notary's dated stamp ("22 NOV 26"). Preferred over seconds. */
+  date?: string
+  size?: number
+}) {
   const id = useId().replace(/:/g, '')
   const r = 58
   const t = r - 10
@@ -40,7 +53,7 @@ export function VerdictStamp({ kind, seconds, size = 112 }: { kind: StampKind; s
           <circle cx="66" cy="66" r={r} fill="none" stroke="currentColor" strokeWidth="2.6" opacity="0.92" />
         )}
         <circle cx="66" cy="66" r={r - 18} fill="none" stroke="currentColor" strokeWidth="1.2" opacity={kind === 'checking' ? 0.5 : 0.75} />
-        <text fill="currentColor" fontSize={kind === 'bad' ? 8.4 : 9.4} fontWeight="700" letterSpacing={kind === 'bad' ? 0.9 : 1.1} fontFamily="var(--font-geist-mono)" opacity={kind === 'checking' ? 0.7 : 1}>
+        <text fill="currentColor" fontSize={9} fontWeight="700" letterSpacing={1} fontFamily="var(--font-geist-mono)" opacity={kind === 'checking' ? 0.7 : 1}>
           <textPath href={`#ring-${id}`}>{RING[kind]}</textPath>
         </text>
         {kind === 'ok' ? (
@@ -54,9 +67,9 @@ export function VerdictStamp({ kind, seconds, size = 112 }: { kind: StampKind; s
             <circle cx="76" cy="66" r="2.6" />
           </g>
         )}
-        {seconds !== undefined && kind !== 'checking' ? (
-          <text x="66" y="92" textAnchor="middle" fill="currentColor" fontSize="9.5" fontWeight="600" fontFamily="var(--font-geist-mono)">
-            {seconds.toFixed(2)} S
+        {(date || seconds !== undefined) && kind !== 'checking' ? (
+          <text x="66" y="92" textAnchor="middle" fill="currentColor" fontSize="9" fontWeight="700" letterSpacing="0.6" fontFamily="var(--font-geist-mono)">
+            {date ? date.toUpperCase() : `${(seconds ?? 0).toFixed(2)} S`}
           </text>
         ) : null}
       </svg>
@@ -65,30 +78,37 @@ export function VerdictStamp({ kind, seconds, size = 112 }: { kind: StampKind; s
 }
 
 /**
- * Three numbers under the ticket once the phone has a verdict (graft from direction B): seconds the check
- * took, confirmations, fields changed. Red only when a field changed.
+ * One calm line under the ticket once the phone has a verdict (riset-ui/37 §2 replaces the Doto readout):
+ * "Your phone compared all 6 fields with the sealed record · just now". Confirmations, block and timing
+ * live in the ticket's collapsed Technical proof. Red only when a field changed.
  */
-export function ChainReadout({ result }: { result: VerifyResult }) {
+export function ChainReadout({ result, freshness = 'just now' }: { result: VerifyResult; freshness?: string }) {
   const changed = result.status === 'MISMATCH' ? result.mismatches.length : 0
-  const cells: Array<[string, string, string]> = [
-    [(result.elapsedMs / 1000).toFixed(2), 'seconds', result.status === 'MATCH' ? 'text-ok' : 'text-ink'],
-    [result.confirmations !== undefined ? result.confirmations.toLocaleString('en-US') : '—', 'confirmations', 'text-ink'],
-    [String(changed), changed === 1 ? 'field changed' : 'fields changed', changed ? 'text-bad' : 'text-ink'],
-  ]
   return (
-    <section aria-label="Chain check" className="st-rise flex flex-col gap-2">
-      <dl className="grid grid-cols-3 divide-x divide-line rounded-lg border border-line bg-card py-3.5">
-        {cells.map(([v, k, c]) => (
-          <div key={k} className="flex min-w-0 flex-col-reverse items-center px-2 text-center">
-            <dt className="mt-2 text-[13px] text-ink-2">{k}</dt>
-            <dd className={`doto text-[28px] ${c}`}>{v}</dd>
-          </div>
-        ))}
-      </dl>
-      <p className="px-1 text-center text-[13px] leading-snug text-ink-2">
-        Checked by your phone, not by Saksi&apos;s server
-        {result.blockNumber ? ` · block ${Number(result.blockNumber).toLocaleString('en-US')}` : ''}
+    <section aria-label="Your phone's check" className="st-rise flex items-start gap-3 rounded-[16px] border border-line bg-card px-4 py-3.5">
+      <span
+        aria-hidden="true"
+        className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${changed ? 'bg-bad-bg text-bad' : 'bg-ok-bg text-ok'}`}
+      >
+        {changed ? (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M6 6l12 12M18 6 6 18" /></svg>
+        ) : (
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="m5 12.5 4.5 4.5L19 7.5" /></svg>
+        )}
+      </span>
+      <p className="min-w-0 text-[15px] leading-[1.45] text-ink">
+        Your phone compared all {FIELDS} fields with the sealed record
+        {changed ? (
+          <span className="text-bad">
+            {' '}· {changed} {changed === 1 ? 'was' : 'were'} changed
+          </span>
+        ) : null}
+        <span className="text-ink-3"> · {freshness}</span>
+        <span className="mt-0.5 block text-[13px] text-ink-3">Checked on this device, not by Saksi&apos;s server.</span>
       </p>
     </section>
   )
 }
+
+/** The fields the phone compares with the seal: event type, legal basis, purpose, evidence, pseudonym, contract. */
+const FIELDS = 6

@@ -2,6 +2,8 @@ import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { DotIcon } from '@/components/ui/DotIcon'
 import { IconX } from '@/components/ui/icons'
+import '@/app/citizen/stub-list.css'
+import '@/app/citizen/witness.css'
 
 /**
  * Receipts master–detail. Phone (< 1024 px of shell width): one column, `focus` decides which side shows,
@@ -14,6 +16,7 @@ export function ReceiptsSplit({
   pane,
   focus,
   closeHref = '/citizen',
+  paneKey,
 }: {
   list: ReactNode
   pane: ReactNode
@@ -21,6 +24,8 @@ export function ReceiptsSplit({
   focus: 'list' | 'pane'
   /** Pane close (laptop only), shown while a receipt is open. */
   closeHref?: string
+  /** The open receipt: a change re-keys the pane so it cross-fades (220 ms) instead of snapping. */
+  paneKey?: string
 }) {
   const open = focus === 'pane'
   return (
@@ -46,7 +51,10 @@ export function ReceiptsSplit({
             </Link>
           </div>
         ) : null}
-        <div className={`flex flex-1 flex-col ${open ? '@5xl:mx-auto @5xl:w-full @5xl:max-w-[600px] @5xl:px-8 @5xl:pb-16 @5xl:pt-7' : ''}`}>
+        <div
+          key={paneKey ?? 'none'}
+          className={`flex flex-1 flex-col ${paneKey ? 'wt-pane' : ''} ${open ? '@5xl:mx-auto @5xl:w-full @5xl:max-w-[600px] @5xl:px-8 @5xl:pb-16 @5xl:pt-7' : ''}`}
+        >
           {pane}
         </div>
       </section>
@@ -54,19 +62,37 @@ export function ReceiptsSplit({
   )
 }
 
-/** Laptop pane before a receipt is picked. Phones never see it (the list is the page). */
+/**
+ * Laptop pane before a receipt is picked (Mail / Linear empty detail): a ghost stub, one line, and the
+ * keyboard hint. With no receipts at all it says what will land here instead. Phones never see it.
+ */
 export function SelectReceiptPane({ count }: { count?: number }) {
+  const none = count === 0
   return (
-    <div className="flex flex-1 flex-col items-center justify-center px-10 py-24 text-center">
-      <span aria-hidden="true" className="flex h-16 w-16 items-center justify-center rounded-lg bg-paper-2 text-ink-3">
-        <DotIcon name="eye" size={30} />
-      </span>
-      <p className="mt-5 text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">Select a receipt</p>
-      <p className="mt-1.5 max-w-[34ch] text-[15px] leading-[1.6] tracking-[0.01em] text-ink-2">
-        {count === 0
-          ? 'Receipts land here the moment a company opens your data.'
-          : 'Open one to see who opened your data, why, and whether it still matches the chain.'}
+    <div className="wt-fade flex flex-1 flex-col items-center justify-center px-10 py-24 text-center">
+      <div aria-hidden="true" className="relative flex h-[64px] w-[220px] items-stretch rounded-[14px] border-[1.5px] border-dashed border-line-strong">
+        <span className="flex w-[58px] shrink-0 items-center justify-center text-ink-3">
+          <DotIcon name="eye" size={20} />
+        </span>
+        <span className="sl-perf-v absolute bottom-2.5 left-[57px] top-2.5 text-line-strong" />
+        <span className="flex flex-1 flex-col justify-center gap-1.5 pl-4 pr-4">
+          <span className="h-2 w-[70%] rounded-full bg-line" />
+          <span className="h-2 w-[45%] rounded-full bg-line/70" />
+        </span>
+      </div>
+      <p className="mt-6 text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">{none ? 'No receipts yet' : 'Pick a receipt'}</p>
+      <p className="mt-1.5 max-w-[36ch] text-[15px] leading-[1.6] text-ink-2">
+        {none
+          ? 'When an agency opens your record, Saksi witnesses it and the receipt lands here.'
+          : 'Each receipt is an access Saksi witnessed: who opened your data, why, and whether it still matches the seal.'}
       </p>
+      {none ? null : (
+        <p className="mt-5 flex items-center gap-2 text-[13px] text-ink-3">
+          <kbd className="wt-kbd">↑</kbd>
+          <kbd className="wt-kbd">↓</kbd>
+          to move between receipts
+        </p>
+      )}
     </div>
   )
 }

@@ -9,6 +9,7 @@ import type { AutoVerdict, GhostReceipt } from '@/lib/data'
 import { actSentence, formatWIB, proofPath, timeAgo, timeBucket } from '@/lib/format'
 import type { ReceiptOpening } from '@/lib/shared/types'
 import '@/app/citizen/stub-list.css'
+import '@/app/citizen/witness.css'
 
 /** Drill-in chevron (rows); same stroke family as components/ui/icons. */
 export function IconChevron({ size = 16, ...p }: { size?: number } & SVGProps<SVGSVGElement>) {
@@ -82,9 +83,9 @@ function RowStatus({ opening, verdict, onInk = false }: { opening: ReceiptOpenin
     )
   if (verdict === 'match')
     return (
-      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok" title="Matches the chain">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok" title="Matches the sealed record">
         <IconCheck size={13} strokeWidth={2.6} aria-hidden="true" />
-        <span className="sr-only">Matches the chain</span>
+        <span className="sr-only">Matches the sealed record</span>
       </span>
     )
   if (verdict === 'not_found') return <span className={`shrink-0 text-[13px] ${quiet}`}>Not on this node</span>
@@ -130,21 +131,24 @@ export function ReceiptRow({
   const href = `/citizen/receipt/${opening.eventId}${altered ? '?check=1' : ''}`
   const fresh = isNew && !altered
   return (
-    <div className={`sl-focus sl-shadow-sm ${fresh ? 'cz-row-in' : ''}`}>
+    // Arrival (riset-ui/37 §5.1): slide down 8px + fade, then a blue wash fades over 1.2s.
+    // ALTERED: the stub turns red and shakes once, 2px (key on the verdict so it plays when it flips).
+    <div key={altered ? 'altered' : 'ok'} className={`sl-focus sl-shadow-sm ${fresh ? 'wt-arrive' : ''} ${altered ? 'wt-shake' : ''}`}>
       <Link
         href={href}
         data-verdict={verdict ?? 'none'}
+        data-event-id={opening.eventId}
         aria-current={selected ? 'page' : undefined}
-        className={`sl-stub group relative flex min-h-[72px] items-stretch overflow-hidden rounded-[16px] transition-colors duration-150 ${
-          selected ? 'bg-ink text-paper' : 'bg-card text-ink hover:bg-white'
+        className={`wt-row sl-stub group relative flex min-h-[72px] items-stretch overflow-hidden rounded-[16px] ${
+          selected ? 'bg-ink text-paper' : altered ? 'bg-bad-bg text-ink' : 'bg-card text-ink hover:bg-white'
         }`}
       >
-        {altered ? <span aria-hidden="true" className="cz-tamper pointer-events-none absolute inset-0" /> : null}
+        {fresh ? <span aria-hidden="true" className="wt-wash pointer-events-none absolute inset-0" /> : null}
         <span className="relative flex w-[74px] shrink-0 flex-col items-center justify-center py-3">
           <span className="tnum text-[17px] font-semibold leading-tight tracking-[-0.02em]">{clockWIB(opening.createdAt)}</span>
           <span className={`text-[12px] leading-tight ${selected ? 'text-paper/70' : 'text-ink-2'}`}>{dayWIB(opening.createdAt, now)}</span>
         </span>
-        <span aria-hidden="true" className={`sl-perf-v absolute bottom-3 left-[73px] top-3 ${selected ? 'text-paper/30' : 'text-line-strong'}`} />
+        <span aria-hidden="true" className={`sl-perf-v absolute bottom-3 left-[73px] top-3 ${selected ? 'text-paper/30' : altered ? 'text-bad/30' : 'text-line-strong'}`} />
         <span className="relative flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-3.5">
           <span className="min-w-0 flex-1">
             <span className="flex min-w-0 items-center gap-2">
@@ -196,15 +200,15 @@ export function GhostRow({ ghost, now }: { ghost: GhostReceipt; now: number }) {
         <span aria-hidden="true" className="sl-perf mx-4 block text-bad/35" />
         <div className="px-4 pb-2 pt-3">
           <p className="text-[15px] leading-relaxed text-ink">
-            <span className="text-bad">This record disappeared from the company&apos;s database.</span>{' '}
-            <strong className="font-semibold">The chain still has it.</strong>
+            <span className="text-bad">This record disappeared from the agency&apos;s database.</span>{' '}
+            <strong className="font-semibold">Saksi&apos;s seal still has it.</strong>
           </p>
           <p className="mt-1 text-[13px] leading-snug text-ink-2">
-            Seen {now ? timeAgo(new Date(ghost.lastSeenAt).toISOString(), now) : 'earlier'} · missing now · still sealed on chain
+            Seen {now ? timeAgo(new Date(ghost.lastSeenAt).toISOString(), now) : 'earlier'} · missing now · still sealed on the public ledger
           </p>
           <div className="mt-1 flex flex-wrap items-center gap-x-5">
             <Link href={proofPath(o)} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
-              View on-chain proof <IconArrowUpRight size={14} />
+              View the seal <IconArrowUpRight size={14} />
             </Link>
             {o.txHash && o.logIndex !== null ? (
               <Link href={`/citizen/receipt/${o.eventId}`} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
@@ -240,7 +244,7 @@ export function TamperBanner({
   const rest =
     altered > 0
       ? `${altered === 1 ? 'was' : 'were'} changed after ${altered === 1 ? 'it was' : 'they were'} sealed`
-      : `disappeared from the company's database`
+      : `disappeared from the agency's database`
   return (
     <div className="cz-banner">
       <section role="alert" aria-label="Tampering detected" className="cz-banner-box sl-shadow">
@@ -250,7 +254,7 @@ export function TamperBanner({
           </p>
           {altered > 0 && deleted > 0 ? (
             <p className="mt-2 text-[16px] leading-[1.5] text-ink-2">
-              And {deleted} record{deleted === 1 ? '' : 's'} disappeared from the company&apos;s database.
+              And {deleted} record{deleted === 1 ? '' : 's'} disappeared from the agency&apos;s database.
             </p>
           ) : null}
         </div>
@@ -259,7 +263,7 @@ export function TamperBanner({
           <p className="flex items-start gap-2 text-[14px] leading-relaxed text-ink-2">
             <DotIcon name="cross" size={16} className="mt-[3px] shrink-0 text-bad" />
             <span>
-              {checked > 0 ? `Your phone checked ${checked} receipt${checked === 1 ? '' : 's'} against the chain just now` : 'Your phone checked the chain'}
+              {checked > 0 ? `Your phone compared ${checked} receipt${checked === 1 ? '' : 's'} with Saksi's seal just now` : 'Your phone compared them with Saksi’s seal'}
               , not Saksi&apos;s server.
             </span>
           </p>

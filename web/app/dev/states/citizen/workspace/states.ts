@@ -14,5 +14,11 @@ export const WORKSPACE_STATES = {
   'profile-altered': 'Profile · one company altered a record',
   'profile-empty': 'Profile · no receipts yet',
   'profile-confirm': 'Profile · confirm delete',
+  firstrun: 'First run · who you are (identity sheet)',
+  how: 'How Saksi witnesses · explainer sheet',
+  arrive: 'Motion · a new receipt arrives (trigger)',
+  'tamper-live': 'Motion · a receipt flips to ALTERED (trigger)',
+  keyboard: 'Laptop · up/down moves the selection',
+  filtered: 'Laptop · filter pill switches the list (trigger)',
 } as const
 export type WorkspaceState = keyof typeof WORKSPACE_STATES

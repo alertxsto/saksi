@@ -1,0 +1,108 @@
+/* Citizen v2 · witness motion and sheets (riset-ui/37 §5). Prefix wt-.
+   Durations: 150 hover/press, 220 content, 320 sheets/panes, 600 max for the one stamp.
+   Enter: cubic-bezier(.2,.8,.2,1). Leave: cubic-bezier(.4,0,1,1). Nothing loops; nothing moves
+   without a state change. Reduced motion: every rule below collapses to instant. */
+
+:root {
+  --wt-in: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --wt-out: cubic-bezier(0.4, 0, 1, 1);
+}
+
+/* 1 · a new receipt arrives: slide down 8px + fade, then a blue wash that fades over 1.2s. */
+@keyframes wt-arrive {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes wt-wash {
+  0%, 15% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.wt-arrive { animation: wt-arrive 320ms var(--wt-in) both; }
+.wt-wash {
+  background: color-mix(in oklab, var(--color-blue) 13%, transparent);
+  box-shadow: inset 0 0 0 1.5px color-mix(in oklab, var(--color-blue) 45%, transparent);
+  border-radius: inherit;
+  animation: wt-wash 1200ms var(--wt-out) 200ms both;
+}
+
+/* 2 · ALTERED row: turns red and shakes once, 2px. */
+@keyframes wt-shake {
+  0%, 100% { transform: none; }
+  25% { transform: translateX(-2px); }
+  75% { transform: translateX(2px); }
+}
+.wt-shake { animation: wt-shake 260ms var(--wt-in) 1; }
+.wt-row { transition: background-color 220ms var(--wt-in), color 220ms var(--wt-in); }
+
+/* 3 · the pass flips to tamper with a 220ms colour change (title, ring, seal). */
+.wt-pass, .wt-pass * { transition: color 220ms var(--wt-in), background-color 220ms var(--wt-in), box-shadow 220ms var(--wt-in); }
+
+/* 4 · laptop pane cross-fades when the selection changes; list fades when a filter changes. */
+@keyframes wt-pane {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.wt-pane { animation: wt-pane 220ms var(--wt-in) both; }
+@keyframes wt-fade { from { opacity: 0; } to { opacity: 1; } }
+.wt-fade { animation: wt-fade 220ms var(--wt-in) both; }
+
+/* 5 · sheets: bottom sheet on phones, centred dialog from 1024px. 320ms in, 220ms out. */
+.wt-sheet {
+  margin: auto 0 0;
+  width: 100%;
+  max-width: 100%;
+  max-height: 88dvh;
+  padding: 0;
+  border: 0;
+  border-radius: 20px 20px 0 0;
+  background: var(--color-paper);
+  color: var(--color-ink);
+  overscroll-behavior: contain;
+}
+.wt-sheet::backdrop { background: rgb(30 26 22 / 0.42); }
+.wt-sheet[open] { animation: wt-sheet-up 320ms var(--wt-in) both; }
+.wt-sheet[open]::backdrop { animation: wt-fade 320ms var(--wt-in) both; }
+.wt-sheet[data-closing] { animation: wt-sheet-down 220ms var(--wt-out) both; }
+.wt-sheet[data-closing]::backdrop { animation: wt-fade 220ms var(--wt-out) reverse both; }
+@keyframes wt-sheet-up { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes wt-sheet-down { from { transform: none; } to { transform: translateY(100%); } }
+@media (min-width: 640px) {
+  .wt-sheet { margin-inline: auto; max-width: 440px; }
+}
+@media (min-width: 1024px) {
+  .wt-sheet { margin: auto; max-width: 480px; border-radius: 20px; }
+  .wt-sheet[open] { animation-name: wt-dialog-in; }
+  .wt-sheet[data-closing] { animation-name: wt-dialog-out; }
+}
+@keyframes wt-dialog-in { from { opacity: 0; transform: translateY(8px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes wt-dialog-out { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(6px) scale(0.985); } }
+.wt-grab { width: 36px; height: 4px; border-radius: 99px; background: var(--color-line-strong); }
+
+/* Steps inside the explainer: each one rises 60ms after the previous, once, when the sheet opens. */
+.wt-sheet[open] .wt-step { animation: wt-pane 320ms var(--wt-in) both; animation-delay: calc(120ms + var(--i, 0) * 60ms); }
+
+/* Technical proof disclosure: chevron turns, rows fade in. */
+.wt-proof > summary::-webkit-details-marker { display: none; }
+.wt-proof > summary { list-style: none; }
+.wt-proof .wt-chev { transition: transform 220ms var(--wt-in); }
+.wt-proof[open] .wt-chev { transform: rotate(90deg); }
+.wt-proof[open] > div { animation: wt-fade 220ms var(--wt-in) both; }
+
+/* Keyboard hint chips in the empty pane. */
+.wt-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  min-width: 22px; height: 22px; padding: 0 5px;
+  border-radius: 6px; background: var(--color-card);
+  box-shadow: 0 0 0 1px var(--color-line), 0 1px 0 1px var(--color-line);
+  font-size: 12px; color: var(--color-ink-2);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wt-arrive, .wt-wash, .wt-shake, .wt-pane, .wt-fade, .wt-step,
+  .wt-sheet[open], .wt-sheet[data-closing], .wt-sheet[open]::backdrop, .wt-sheet[data-closing]::backdrop,
+  .wt-sheet[open] .wt-step, .wt-proof[open] > div {
+    animation: none !important;
+  }
+  .wt-wash { opacity: 0; }
+  .wt-row, .wt-pass, .wt-pass *, .wt-proof .wt-chev { transition: none !important; }
+}
