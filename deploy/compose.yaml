@@ -23,6 +23,11 @@ services:
     depends_on:
       db:
         condition: service_healthy
+    # Lets AI_BASE_URL point at an OpenAI-compatible service on the VM itself
+    # (http://host.docker.internal:<port>/v1). The host firewall must accept that port from the
+    # saksi network below; see deploy/README.md.
+    extra_hosts:
+      - host.docker.internal:host-gateway
     restart: unless-stopped
     init: true
     stop_grace_period: 20s
@@ -74,3 +79,10 @@ services:
 
 volumes:
   saksi-db:
+
+# Fixed subnet so a host firewall rule can allow exactly this network.
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.31.250.0/24

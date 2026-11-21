@@ -1,3 +1,8 @@
+CREATE TYPE "public"."tamper_action" AS ENUM('edit', 'delete', 'restore');--> statement-breakpoint
+CREATE TYPE "public"."ai_fallback" AS ENUM('primary', 'fallback', 'cached', 'template');--> statement-breakpoint
+CREATE TYPE "public"."ai_feature" AS ENUM('explain', 'draft');--> statement-breakpoint
+CREATE TYPE "public"."breach_mode" AS ENUM('on_time', 'late');--> statement-breakpoint
+CREATE TYPE "public"."record_status" AS ENUM('pending', 'submitted', 'anchored', 'failed');--> statement-breakpoint
 CREATE TABLE "access_events" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"controller_id" text NOT NULL,

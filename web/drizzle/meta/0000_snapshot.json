@@ -1,5 +1,5 @@
 {
-  "id": "e008f4cd-85b4-4f8b-9556-cd374e26483e",
+  "id": "2087c4eb-93d4-4983-8e88-7d99842f8b06",
   "prevId": "00000000-0000-0000-0000-000000000000",
   "version": "7",
   "dialect": "postgresql",
@@ -757,7 +757,53 @@
       "isRLSEnabled": false
     }
   },
-  "enums": {},
+  "enums": {
+    "public.tamper_action": {
+      "name": "tamper_action",
+      "schema": "public",
+      "values": [
+        "edit",
+        "delete",
+        "restore"
+      ]
+    },
+    "public.ai_fallback": {
+      "name": "ai_fallback",
+      "schema": "public",
+      "values": [
+        "primary",
+        "fallback",
+        "cached",
+        "template"
+      ]
+    },
+    "public.ai_feature": {
+      "name": "ai_feature",
+      "schema": "public",
+      "values": [
+        "explain",
+        "draft"
+      ]
+    },
+    "public.breach_mode": {
+      "name": "breach_mode",
+      "schema": "public",
+      "values": [
+        "on_time",
+        "late"
+      ]
+    },
+    "public.record_status": {
+      "name": "record_status",
+      "schema": "public",
+      "values": [
+        "pending",
+        "submitted",
+        "anchored",
+        "failed"
+      ]
+    }
+  },
   "schemas": {},
   "sequences": {},
   "roles": {},

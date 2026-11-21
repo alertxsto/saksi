@@ -201,3 +201,16 @@ Formatnya `KEY=value` polos, tanpa `export`. File ini dibaca oleh `docker compos
 - Container berjalan sebagai `node` (uid 1000) dengan rootfs read-only. File aplikasi milik root; yang bisa ditulis hanya tmpfs `/tmp` dan `/app/.next/cache`.
 - Image tidak arch-specific di Dockerfile: `node:22-alpine` multi-arch, dan pnpm memasang binary SWC/Turbopack musl yang sesuai platform build. Build di VM menghasilkan image `linux/arm64`.
 - Caddy menimpa `X-Forwarded-For` dengan IP klien asli (tidak ada trusted proxy, karena Cloudflare DNS only), dan rate limit di API memakai header itu.
+
+## AI on the same VM
+
+To use an OpenAI-compatible service running on the VM (for example on port 20128), set
+`AI_BASE_URL=http://host.docker.internal:20128/v1` and allow only the saksi network to reach it,
+before any DROP rule for that port:
+
+```sh
+sudo iptables -I INPUT 1 -s 172.31.250.0/24 -p tcp --dport 20128 -j ACCEPT
+```
+
+The rule does not survive a reboot unless saved (netfilter-persistent). Remove it with the same
+command using `-D` instead of `-I INPUT 1`.

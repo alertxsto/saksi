@@ -2,11 +2,11 @@ import { sql } from 'drizzle-orm';
 import { bigint, char, check, index, integer, jsonb, pgEnum, pgTable, smallint, text, timestamp, uniqueIndex, uuid } from 'drizzle-orm/pg-core';
 const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull().defaultNow();
 const epoch = (name: string) => bigint(name, { mode: 'number' });
-const status = pgEnum('record_status', ['pending', 'submitted', 'anchored', 'failed']);
-const mode = pgEnum('breach_mode', ['on_time', 'late']);
-const feature = pgEnum('ai_feature', ['explain', 'draft']);
-const fallback = pgEnum('ai_fallback', ['primary', 'fallback', 'cached', 'template']);
-const action = pgEnum('tamper_action', ['edit', 'delete', 'restore']);
+export const status = pgEnum('record_status', ['pending', 'submitted', 'anchored', 'failed']);
+export const mode = pgEnum('breach_mode', ['on_time', 'late']);
+export const feature = pgEnum('ai_feature', ['explain', 'draft']);
+export const fallback = pgEnum('ai_fallback', ['primary', 'fallback', 'cached', 'template']);
+export const action = pgEnum('tamper_action', ['edit', 'delete', 'restore']);
 export const controllers = pgTable('controllers', {
   id: text().primaryKey(), slug: text().notNull().unique(), name: text().notNull(),
   eoa: text().notNull(), registryTx: text('registry_tx'), createdAt: createdAt(),

@@ -51,7 +51,8 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
     if (!client) break;
     let parsed: z.ZodSafeParseResult<T> | undefined;
     try {
-      const response = await client.chat.completions.create({ model, max_tokens: AI_MAX_TOKENS,
+      // stream: false is explicit because some OpenAI-compatible routers stream unless told otherwise.
+      const response = await client.chat.completions.create({ model, stream: false, max_tokens: AI_MAX_TOKENS,
         messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) }] });
       parsed = schema.safeParse(extractJson(response.choices[0]?.message.content ?? ''));
     } catch { continue; }

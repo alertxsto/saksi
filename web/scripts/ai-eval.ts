@@ -35,7 +35,7 @@ for (const model of models) {
     const started = performance.now();
     let content: string | undefined, error: string | undefined;
     try {
-      const response = await client.chat.completions.create({ model, max_tokens: AI_MAX_TOKENS,
+      const response = await client.chat.completions.create({ model, stream: false, max_tokens: AI_MAX_TOKENS,
         messages: [{ role: 'system', content: draftPrompt },
           { role: 'user', content: JSON.stringify({ controllerId: evalControllerId, narrative: evalCase.narrative }) }] });
       content = response.choices[0]?.message.content ?? '';

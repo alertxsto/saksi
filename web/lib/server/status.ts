@@ -27,7 +27,7 @@ export async function serviceStatus() {
     probe(async () => {
       if (!config) throw new Error('AI not configured');
       const client = new OpenAI({ baseURL: config.baseURL, apiKey: config.apiKey, maxRetries: 0, timeout: 3000 });
-      await client.chat.completions.create({ model: config.model, max_tokens: 3, messages: [{ role: 'user', content: 'Reply OK' }] });
+      await client.chat.completions.create({ model: config.model, stream: false, max_tokens: 3, messages: [{ role: 'user', content: 'Reply OK' }] });
       return {};
     }),
   ]);
