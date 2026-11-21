@@ -46,3 +46,10 @@ export type DemoReceipt = {
   logIndex: number | null; blockNumber: number | null; status: RecordStatus;
   state: 'intact' | 'edited' | 'deleted'; restorable: boolean; editable: boolean;
 };
+/** Which kinds of personal data an access touched. Sent with each access and hashed into its evidence descriptor. */
+export const DATA_CATEGORIES = ['identity', 'address', 'contact', 'financial', 'health', 'employment', 'biometric', 'other'] as const;
+export type DataCategory = (typeof DATA_CATEGORIES)[number];
+export const DATA_CATEGORY_LABELS: Record<DataCategory, string> = {
+  identity: 'Identity', address: 'Address', contact: 'Contact', financial: 'Financial',
+  health: 'Health', employment: 'Employment', biometric: 'Biometric', other: 'Other',
+};

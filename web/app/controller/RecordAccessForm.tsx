@@ -9,10 +9,13 @@ import { IconLock } from '@/components/ui/icons'
 import { normalizeCitizenCode } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import {
+  DATA_CATEGORIES,
+  DATA_CATEGORY_LABELS,
   EVENT_LABELS,
   EVENT_TYPES,
   LEGAL_BASES,
   LEGAL_BASIS_KEYS,
+  type DataCategory,
   type EventTypeCode,
   type LegalBasisKey,
   type ReceiptOpening,
@@ -25,6 +28,12 @@ export type AccessFormValues = {
   eventType: EventTypeCode
   purposeText: string
   legalBasisKey: LegalBasisKey
+  /** Which kinds of personal data the access touched (at least one). */
+  dataCategories: DataCategory[]
+  /** The system the record was opened in. Empty: the server uses the controller's registered name. */
+  system: string
+  /** A desk or role reference, never a name ("officer", "desk-07"). */
+  operatorRef: string
 }
 
 const BASIS_HINT: Record<LegalBasisKey, string> = {
@@ -55,11 +64,28 @@ export function purposeError(purpose: string): string | null {
   return null
 }
 
+/** Same rule as operatorRef in lib/server/access.ts: a short token, so a name or ID number does not fit. */
+const OPERATOR_REF = /^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/
+const SYSTEM_MAX = 80
+
+export function categoriesError(categories: readonly DataCategory[]): string | null {
+  return categories.length ? null : 'Pick at least one kind of data you opened.'
+}
+
+export function sourceError(system: string, operatorRef: string): string | null {
+  if (system.trim().length > SYSTEM_MAX) return `Keep the system name under ${SYSTEM_MAX} characters.`
+  if (!OPERATOR_REF.test(operatorRef.trim())) return 'Officer reference: letters, digits, dot, dash or underscore, up to 32. Not a name.'
+  return null
+}
+
 export const DEFAULT_ACCESS_VALUES: AccessFormValues = {
   subjectCode: '',
   eventType: 0,
   purposeText: '',
   legalBasisKey: 'PDP-20-2-b',
+  dataCategories: [],
+  system: '',
+  operatorRef: 'officer',
 }
 
 /** Arrow keys move a radio group's selection (WAI-ARIA radio pattern). */
@@ -189,12 +215,14 @@ export function RecordAccessForm({
   const [v, setV] = useState<AccessFormValues>({ ...DEFAULT_ACCESS_VALUES, ...initial })
   const [touched, setTouched] = useState(showErrors)
   const now = useNow()
-  const ids = { code: useId(), purpose: useId(), basis: useId() }
+  const ids = { code: useId(), purpose: useId(), basis: useId(), data: useId(), system: useId(), operator: useId() }
   const formRef = useRef<HTMLFormElement>(null)
 
   const cErr = codeError(v.subjectCode)
   const pErr = purposeError(v.purposeText)
-  const valid = !cErr && !pErr
+  const dErr = categoriesError(v.dataCategories)
+  const sErr = sourceError(v.system, v.operatorRef)
+  const valid = !cErr && !pErr && !dErr && !sErr
   const set = (patch: Partial<AccessFormValues>) => setV((cur) => ({ ...cur, ...patch }))
 
   const preview: ReceiptOpening = {
@@ -206,7 +234,7 @@ export function RecordAccessForm({
     purposeSalt: '0x',
     legalBasisKey: stringToHex(v.legalBasisKey, { size: 32 }),
     eventType: v.eventType,
-    evidence: {},
+    evidence: { dataCategories: v.dataCategories },
     txHash: null,
     logIndex: null,
     status: previewStatus,
@@ -219,11 +247,16 @@ export function RecordAccessForm({
       formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
       return
     }
-    onSeal({ ...v, purposeText: v.purposeText.trim() })
+    onSeal({ ...v, purposeText: v.purposeText.trim(), system: v.system.trim(), operatorRef: v.operatorRef.trim() })
   }
 
   const codeInvalid = touched && Boolean(cErr)
   const purposeInvalid = touched && Boolean(pErr)
+  const categoriesInvalid = touched && Boolean(dErr)
+  const sourceInvalid = touched && Boolean(sErr)
+  // Kept in DATA_CATEGORIES order, so the same choice always hashes to the same evidence.
+  const toggleCategory = (c: DataCategory) =>
+    set({ dataCategories: DATA_CATEGORIES.filter((x) => (x === c ? !v.dataCategories.includes(c) : v.dataCategories.includes(x))) })
 
   return (
     <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12">
@@ -277,6 +310,40 @@ export function RecordAccessForm({
               )
             })}
           </div>
+        </Row>
+
+        <Row label="Which data" as="fieldset" hint="Every kind you opened. Hashed into the receipt.">
+          <div className="flex flex-wrap gap-2" role="group" aria-label="Which data" aria-describedby={`${ids.data}-h`}>
+            {DATA_CATEGORIES.map((c, i) => {
+              const on = v.dataCategories.includes(c)
+              return (
+                <button
+                  key={c}
+                  type="button"
+                  aria-pressed={on}
+                  aria-invalid={categoriesInvalid && i === 0 ? true : undefined}
+                  onClick={() => toggleCategory(c)}
+                  className={`inline-flex h-10 items-center gap-2 rounded-pill border px-4 text-[14px] font-medium transition-[background-color,border-color,color] duration-150 ease-[cubic-bezier(.65,0,.2,1)] ${
+                    on
+                      ? 'border-ink bg-ink text-paper'
+                      : categoriesInvalid
+                        ? 'border-pending/60 bg-card text-ink hover:border-ink'
+                        : 'border-line-strong bg-card text-ink hover:border-ink'
+                  }`}
+                >
+                  <span aria-hidden="true" className={`size-1.5 rounded-full ${on ? 'bg-paper' : 'bg-line-strong'}`} />
+                  {DATA_CATEGORY_LABELS[c]}
+                </button>
+              )
+            })}
+          </div>
+          <p id={`${ids.data}-h`} className={`mt-2.5 text-[13px] ${categoriesInvalid ? 'text-pending' : 'text-ink-2'}`}>
+            {categoriesInvalid
+              ? dErr
+              : v.dataCategories.length
+                ? `${v.dataCategories.length} selected. The citizen sees these on the receipt.`
+                : 'Tap each kind of data the officer opened.'}
+          </p>
         </Row>
 
         <Row label="Purpose" htmlFor={ids.purpose} hint="Plain words. The citizen reads exactly this.">
@@ -334,6 +401,47 @@ export function RecordAccessForm({
               )
             })}
           </div>
+        </Row>
+
+        <Row label="Recorded from" as="fieldset" hint="Where it happened and which desk. No names.">
+          <div className="grid gap-3 sm:grid-cols-[1fr_200px]">
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor={ids.system} className="text-[12px] text-ink-2">
+                System
+              </label>
+              <input
+                id={ids.system}
+                value={v.system}
+                maxLength={SYSTEM_MAX}
+                onChange={(e) => set({ system: e.target.value })}
+                aria-describedby={`${ids.system}-h`}
+                className="h-11 w-full min-w-0 rounded-md border border-line-strong bg-card px-3.5 text-[15px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue"
+                placeholder={controllerName || 'Your registered name'}
+              />
+            </div>
+            <div className="flex min-w-0 flex-col gap-1.5">
+              <label htmlFor={ids.operator} className="text-[12px] text-ink-2">
+                Officer reference
+              </label>
+              <input
+                id={ids.operator}
+                value={v.operatorRef}
+                maxLength={32}
+                onChange={(e) => set({ operatorRef: e.target.value })}
+                autoComplete="off"
+                spellCheck={false}
+                aria-invalid={sourceInvalid}
+                aria-describedby={`${ids.system}-h`}
+                className="h-11 w-full min-w-0 rounded-md border border-line-strong bg-card px-3.5 font-mono text-[14px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue aria-[invalid=true]:border-pending"
+                placeholder="desk-07"
+              />
+            </div>
+          </div>
+          <p id={`${ids.system}-h`} className={`mt-2.5 text-[13px] ${sourceInvalid ? 'text-pending' : 'text-ink-2'}`}>
+            {sourceInvalid
+              ? sErr
+              : `Left empty, the system is recorded as ${controllerName ? `“${controllerName}”` : 'your registered name'}.`}
+          </p>
         </Row>
 
         <div className="flex flex-col gap-5 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">

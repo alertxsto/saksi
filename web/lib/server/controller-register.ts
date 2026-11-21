@@ -81,13 +81,27 @@ export function aggregateControllers(input: RegisterInput): RegisterRow[] {
   return [...rows.values()].sort((a, b) => (a.status === b.status ? (b.lastActivity ?? '').localeCompare(a.lastActivity ?? '') || a.registeredBlock - b.registeredBlock : a.status === 'active' ? -1 : 1));
 }
 
-type Scan = { changes: RegistryChange[]; head: bigint; at: number };
+export type Scan = { changes: RegistryChange[]; head: bigint; at: number };
 let cached: Scan | undefined;
+let inFlight: Promise<Scan> | undefined;
 const blockTimes = new Map<bigint, number>();
 
+/**
+ * Concurrent requests share one scan. A failed scan falls back to the last good one (its `at` stays the real scan
+ * time), so one RPC hiccup does not take the register down; it only throws when there is nothing to fall back to.
+ */
+export function registryChanges(scan: () => Promise<Scan> = scanRegistry): Promise<Scan> {
+  if (cached && Date.now() - cached.at < 30_000) return Promise.resolve(cached);
+  inFlight ??= scan().then((fresh) => (cached = fresh), (error: unknown) => {
+    console.error('controller register: registry scan failed', error);
+    if (cached) return cached;
+    throw error;
+  }).finally(() => { inFlight = undefined; });
+  return inFlight;
+}
+
 // Every registration and revocation since the deploy block. The deploy block is recent, so this is a few getLogs calls.
-async function registryChanges(): Promise<Scan> {
-  if (cached && Date.now() - cached.at < 30_000) return cached;
+async function scanRegistry(): Promise<Scan> {
   const client = rpc();
   const registry = addresses().registry;
   const tip = await client.getBlockNumber();
@@ -113,8 +127,7 @@ async function registryChanges(): Promise<Scan> {
     const block = await client.getBlock({ blockNumber }).catch(() => null);
     if (block) blockTimes.set(blockNumber, Number(block.timestamp));
   }));
-  cached = { changes, head, at: Date.now() };
-  return cached;
+  return { changes, head, at: Date.now() };
 }
 
 /** GET /api/regulator/controllers: the on-chain register of authorised controllers with live compliance numbers. */
@@ -129,7 +142,7 @@ export async function controllerRegister() {
     database.select({ controllerId: breachReports.controllerId, mode: breachReports.mode, n: count(), last: max(breachReports.createdAt) })
       .from(breachReports).where(eq(breachReports.status, 'anchored')).groupBy(breachReports.controllerId, breachReports.mode),
     // Before the citizen_reports migration is applied the rest of the register still loads.
-    openReportsByController().catch(() => null),
+    openReportsByController().catch((error: unknown) => { console.error('controller register: open reports query failed', error); return null; }),
     watch().catch(() => null),
   ]);
   const watchRows = integrity ? integrity.rows.filter((r) => r.status === 'ALTERED' || r.status === 'DELETED') : null;
@@ -144,6 +157,6 @@ export async function controllerRegister() {
   return {
     controllers, registry: addresses().registry, blockNumber: Number(scan.head),
     watch: integrity ? { blockNumber: integrity.blockNumber, checkedAt: integrity.checkedAt } : null,
-    checkedAt: new Date().toISOString(),
+    checkedAt: new Date(scan.at).toISOString(),
   };
 }

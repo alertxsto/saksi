@@ -1,6 +1,6 @@
 import 'server-only';
 import { and, count, desc, eq } from 'drizzle-orm';
-import { decodeEventLog, verifyMessage, type Hex } from 'viem';
+import { decodeEventLog, keccak256, stringToHex, verifyMessage, type Hex } from 'viem';
 import { z } from 'zod';
 import { db } from '../../db/client';
 import { accessEvents, citizenReports, controllers, subjects } from '../../db/schema';
@@ -87,6 +87,16 @@ export const reportStore: ReportStore = {
 };
 
 /**
+ * The report id of a receipt Saksi's store no longer has, derived from its proven chain position and never from the
+ * browser: dedup is keyed on the chain event and one citizen cannot take another's event id first.
+ */
+export function chainEventId(txHash: Hex, logIndex: number) {
+  const h = keccak256(stringToHex(`${txHash.toLowerCase()}:${logIndex}`)).slice(2, 34);
+  const variant = ((parseInt(h[16], 16) & 0x3) | 0x8).toString(16);
+  return `${h.slice(0, 8)}-${h.slice(8, 12)}-5${h.slice(13, 16)}-${variant}${h.slice(17, 20)}-${h.slice(20, 32)}`;
+}
+
+/**
  * A citizen reports one of their own receipts to the regulator. The verdict stored with the report is computed here
  * against the chain. A receipt that no longer exists in Saksi's store can still be reported from the chain position
  * the citizen's phone kept: ownership is then proven by recomputing the citizen's pseudonym for that controller.
@@ -105,7 +115,7 @@ export async function createReport(subjectId: string, input: z.output<typeof rep
     record = await store.eventByLog(input.chain.txHash, input.chain.logIndex);
     if (!record) {
       serverVerdict = 'DELETED';
-      snapshot = { eventId: input.eventId, controllerId: log.controllerId, eventType: log.eventType,
+      snapshot = { eventId: chainEventId(input.chain.txHash, input.chain.logIndex), controllerId: log.controllerId, eventType: log.eventType,
         txHash: input.chain.txHash, logIndex: input.chain.logIndex, sealedAt: Number(log.timestamp) };
     }
   }
@@ -141,11 +151,16 @@ export function toRegulatorReport({ report, controllerName, code }: StoredReport
 }
 
 export async function listReports() {
-  const rows = await db().select({ report: citizenReports, controllerName: controllers.name, code: subjects.code }).from(citizenReports)
-    .innerJoin(controllers, eq(citizenReports.controllerId, controllers.id)).innerJoin(subjects, eq(citizenReports.subjectId, subjects.id))
-    .orderBy(desc(citizenReports.createdAt)).limit(200);
-  const reports = rows.map(toRegulatorReport);
-  return { reports, counts: { open: reports.filter((r) => r.status === 'open').length, reviewed: reports.filter((r) => r.status === 'reviewed').length } };
+  const [rows, totals] = await Promise.all([
+    // A citizen who deleted their profile leaves the report without a subject; the masked code then shows as unknown.
+    db().select({ report: citizenReports, controllerName: controllers.name, code: subjects.code }).from(citizenReports)
+      .innerJoin(controllers, eq(citizenReports.controllerId, controllers.id)).leftJoin(subjects, eq(citizenReports.subjectId, subjects.id))
+      .orderBy(desc(citizenReports.createdAt)).limit(200),
+    db().select({ status: citizenReports.status, n: count() }).from(citizenReports).groupBy(citizenReports.status),
+  ]);
+  const counts = { open: 0, reviewed: 0 };
+  for (const { status, n } of totals) counts[status] = n;
+  return { reports: rows.map(toRegulatorReport), counts };
 }
 
 export async function openReportsByController() {

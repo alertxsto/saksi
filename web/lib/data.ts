@@ -10,6 +10,7 @@ import { controllerId as controllerIdOf } from './shared/commit'
 import type {
   AiMeta,
   BreachRow,
+  DataCategory,
   DemoReceipt,
   EventTypeCode,
   LegalBasisKey,
@@ -32,8 +33,8 @@ export function verdictOf(result: Pick<VerifyResult, 'status'>): Verdict {
 }
 
 /**
- * Controllers registered by contracts/script/Deploy.s.sol: keccak256("ctrl:" + slug).
- * useWalletState checks the connected wallet against these ids in ControllerRegistry.
+ * Controllers registered by contracts/script/Deploy.s.sol: keccak256("ctrl:" + slug). Fallback only: the controller
+ * wallet resolves its ids from the ControllerRegistered log (controllerCandidates, end of this file) and appends these.
  */
 export const DEMO_CONTROLLER_IDS: readonly Hex[] = ['demo-one', 'demo-two', 'demo-spare'].map(controllerIdOf)
 
@@ -326,6 +327,9 @@ export type SealAccessInput = {
   purposeText: string
   legalBasisKey: LegalBasisKey
   eventType: EventTypeCode
+  system?: string
+  dataCategories?: readonly DataCategory[]
+  operatorRef?: string
 }
 /** Same as AnchorBreachInput in lib/client/controller.ts. */
 export type BreachNoticeInput = {
@@ -507,8 +511,22 @@ export async function getDemoReceipts(token: string): Promise<DemoReceipt[]> {
   return (await requestJson<{ rows: DemoReceipt[] }>('/api/demo/receipts', { headers: demoHeaders(token) })).rows
 }
 
+/**
+ * What POST /api/demo/tamper ran (lib/server/tamper.ts): the parameterised SQL text, the non-secret parameters, the
+ * changed columns (encrypted ones never decrypted) and the row hashes written to tamper_log.
+ */
+export type TamperReport = {
+  action: TamperAction
+  eventId: string
+  statement: string
+  params: { name: string; value: string }[]
+  changes: { field: string; before: string; after: string }[]
+  rowHash: { before: string | null; after: string | null }
+  log: { id: string; at: string }
+}
+
 /** POST /api/demo/tamper. `edit` turns a SHARE_THIRD_PARTY row into READ; `restore` undoes the last edit or delete. */
-export function tamperReceipt(token: string, action: TamperAction, eventId: string): Promise<{ action: TamperAction; eventId: string }> {
+export function tamperReceipt(token: string, action: TamperAction, eventId: string): Promise<TamperReport> {
   return requestJson('/api/demo/tamper', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...demoHeaders(token) },
@@ -632,4 +650,36 @@ export function reviewReport(id: string, signedAt: string, signature: Hex): Prom
 /** GET /api/regulator/controllers: every controller registered on chain, with live compliance numbers. */
 export function getControllerRegister(): Promise<ControllerRegisterWire> {
   return getJson<ControllerRegisterWire>('/api/regulator/controllers')
+}
+
+// ---- controller resolution: which controller ids a wallet may act for -----------------------------
+
+/** One ControllerRegistered or ControllerRevoked log, reduced to what ordering needs. */
+export type RegistryLogRef = { controllerId: Hex; blockNumber: bigint; logIndex: number }
+
+const isAfter = (a: RegistryLogRef, b: RegistryLogRef) => a.blockNumber > b.blockNumber || (a.blockNumber === b.blockNumber && a.logIndex > b.logIndex)
+
+/**
+ * Candidate controller ids for one wallet, best first. `registered` / `revoked` are the registry logs filtered by the
+ * wallet's indexed `eoa`; `registered` is null when the log read failed. Ids whose newest registration was not
+ * followed by a revocation come first, newest registration first; the static fallback ids follow (alone when the
+ * read failed). The wallet check then picks the first id the contract's isAuthorized confirms, so a stale or
+ * incomplete log can never authorize a wallet on its own.
+ */
+export function controllerCandidates(
+  registered: readonly RegistryLogRef[] | null,
+  revoked: readonly RegistryLogRef[],
+  fallback: readonly Hex[] = DEMO_CONTROLLER_IDS,
+): Hex[] {
+  const key = (id: Hex) => id.toLowerCase() as Hex
+  const latest = new Map<Hex, RegistryLogRef>()
+  for (const log of registered ?? []) {
+    const seen = latest.get(key(log.controllerId))
+    if (!seen || isAfter(log, seen)) latest.set(key(log.controllerId), log)
+  }
+  const active = [...latest.values()]
+    .filter((reg) => !revoked.some((rev) => key(rev.controllerId) === key(reg.controllerId) && isAfter(rev, reg)))
+    .sort((a, b) => (isAfter(a, b) ? -1 : 1))
+    .map((reg) => key(reg.controllerId))
+  return [...active, ...fallback.map(key).filter((id) => !active.includes(id))]
 }

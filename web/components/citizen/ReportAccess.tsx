@@ -58,6 +58,12 @@ export function ReportAccess({
   const [receipt, setReceipt] = useState<ReportReceipt | null>(initial?.receipt ?? null)
   const [error, setError] = useState<string | null>(initial?.error ?? null)
   const [copied, setCopied] = useState(false)
+  // The check can finish after this block mounted: an altered verdict then preselects that reason if none is picked.
+  const [seenVerdict, setSeenVerdict] = useState(verdict)
+  if (verdict !== seenVerdict) {
+    setSeenVerdict(verdict)
+    if (verdict === 'altered' && !reason) setReason('altered')
+  }
 
   const onOpen = () => setPhase('open')
   const onCancel = () => {
@@ -210,8 +216,11 @@ export function ReportAccess({
           placeholder="For example: I closed this account last year."
           className="w-full resize-none rounded-lg border border-line bg-card px-4 py-3 text-[16px] leading-relaxed text-ink placeholder:text-ink-3 focus:border-ink focus:outline-none"
         />
-        <span className="self-end px-1 text-[13px] text-ink-3 tnum">
-          {note.length}/{REPORT_NOTE_MAX}
+        <span className="flex justify-between gap-3 px-1 text-[13px] text-ink-3">
+          <span>The regulator page is public in this demo. Leave out personal details.</span>
+          <span className="shrink-0 tnum">
+            {note.length}/{REPORT_NOTE_MAX}
+          </span>
         </span>
       </div>
 

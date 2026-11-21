@@ -9,7 +9,7 @@
 // The citizen's phone then receives the receipt and verifies it against the chain itself.
 //
 // Run from web/:
-//   CONTROLLER_PRIVATE_KEY=0x... CONTROLLER_SLUG=demo-spare CITIZEN_CODE=JVHULK node scripts/agency-example.mjs
+//   CONTROLLER_PRIVATE_KEY=0x... CONTROLLER_SLUG=rsud-contoh CITIZEN_CODE=JVHULK node scripts/agency-example.mjs
 //
 // Env:
 //   SAKSI_URL               Saksi deployment (default https://saksiku.web.id)
@@ -19,6 +19,10 @@
 //   PURPOSE                 purpose text shown to the citizen (default below)
 //   LEGAL_BASIS             PDP-20-2-a … PDP-20-2-f (default PDP-20-2-e, public task)
 //   EVENT_TYPE              0 READ, 1 UPDATE, 2 EXPORT, 3 SHARE_THIRD_PARTY (default 0)
+//   SYSTEM                  the system the record was opened in (default "agency-backend")
+//   DATA_CATEGORIES         comma list of identity, address, contact, financial, health, employment, biometric, other
+//                           (default identity,contact)
+//   OPERATOR_REF            desk or role reference, never a name (default "officer")
 //   RPC_URL                 Sepolia RPC (default https://ethereum-sepolia-rpc.publicnode.com)
 import { readFileSync } from 'node:fs';
 import { createPublicClient, createWalletClient, http, keccak256, toBytes } from 'viem';
@@ -49,6 +53,13 @@ const eventType = Number(env.EVENT_TYPE ?? 0);
 if (![0, 1, 2, 3].includes(eventType)) fail('EVENT_TYPE must be 0, 1, 2 or 3.');
 const legalBasisKey = env.LEGAL_BASIS || 'PDP-20-2-e';
 const purposeText = env.PURPOSE || 'Officer opened the record to process a service request';
+// Evidence descriptor fields: hashed into evidenceHash on chain, so they describe this access, not a template.
+const system = (env.SYSTEM || 'agency-backend').trim();
+const CATEGORIES = ['identity', 'address', 'contact', 'financial', 'health', 'employment', 'biometric', 'other'];
+const dataCategories = (env.DATA_CATEGORIES || 'identity,contact').split(',').map((c) => c.trim().toLowerCase()).filter(Boolean);
+if (!dataCategories.length || dataCategories.some((c) => !CATEGORIES.includes(c))) fail(`DATA_CATEGORIES must be a comma list of ${CATEGORIES.join(', ')}.`);
+const operatorRef = (env.OPERATOR_REF || 'officer').trim();
+if (!/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/.test(operatorRef)) fail('OPERATOR_REF must be a short desk or role reference such as desk-07, not a name.');
 
 const account = privateKeyToAccount(env.CONTROLLER_PRIVATE_KEY);
 const chain = createPublicClient({ chain: sepolia, transport: http(RPC_URL) });
@@ -95,9 +106,9 @@ const authorized = await chain.readContract({ address: registry, abi: registryAb
 if (!authorized) fail(`${account.address} is not the registered wallet for controller ${controllerId}.`);
 
 // 1. Prepare: Saksi stores the opening (purpose text, salts, evidence) encrypted and returns only commitments.
-const { id, submitToken, args } = await saksi('prepare', { controllerId, subjectCode, purposeText, legalBasisKey, eventType });
+const { id, submitToken, args } = await saksi('prepare', { controllerId, subjectCode, purposeText, legalBasisKey, eventType, system, dataCategories, operatorRef });
 if (args[0].toLowerCase() !== controllerId.toLowerCase() || args[4] !== eventType) fail('prepare returned arguments for a different request.');
-console.log(`prepared  ${id}`);
+console.log(`prepared  ${id}  (${system} · ${dataCategories.join(', ')} · ${operatorRef})`);
 
 // 2. Sign: the agency's own key sends logAccess with exactly the prepared arguments.
 const txHash = await wallet.writeContract({ address: journal, abi: accessAbi, functionName: 'logAccess', args });

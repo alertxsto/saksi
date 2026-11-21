@@ -214,7 +214,7 @@ export function ControllerGallery() {
               <WalletGate wallet={wallet('ready')}>
                 <RecordAccessForm
                   controllerName={controllerName}
-                  initial={{ subjectCode: 'K7M2QD', eventType: 3, purposeText: 'Debt collection', legalBasisKey: 'PDP-20-2-f' }}
+                  initial={{ subjectCode: 'K7M2QD', eventType: 3, purposeText: 'Debt collection', legalBasisKey: 'PDP-20-2-f', dataCategories: ['address', 'contact'], operatorRef: 'desk-07' }}
                   onSeal={noop}
                   aside={<TxChamber tx={{ phase: 'idle' }} />}
                 />
@@ -231,7 +231,7 @@ export function ControllerGallery() {
           <Frame title="Filled · signing" note="onSeal">
             <RecordAccessForm
               controllerName={controllerName}
-              initial={{ subjectCode: 'K7M2QD', eventType: 3, purposeText: 'Debt collection', legalBasisKey: 'PDP-20-2-f' }}
+              initial={{ subjectCode: 'K7M2QD', eventType: 3, purposeText: 'Debt collection', legalBasisKey: 'PDP-20-2-f', dataCategories: ['address', 'contact'], operatorRef: 'desk-07' }}
               busy
               onSeal={noop}
               aside={<TxChamber tx={{ phase: 'signing' }} />}

@@ -6,9 +6,11 @@ import { privateKeyToAccount } from 'viem/accounts';
 import type { Hex } from 'viem';
 import { reviewMessage } from '../lib/shared/report-message';
 import { pseudonym } from '../lib/server/crypto';
-import { aggregateControllers, type RegistryChange } from '../lib/server/controller-register';
-import { createReport, reportInput, reviewInput, reviewReport, toRegulatorReport, type NewReport, type ReportStore } from '../lib/server/reports';
+import { aggregateControllers, registryChanges, type RegistryChange, type Scan } from '../lib/server/controller-register';
+import { chainEventId, createReport, reportInput, reviewInput, reviewReport, toRegulatorReport, type NewReport, type ReportStore } from '../lib/server/reports';
 import type { AccessRow } from '../lib/server/access';
+import { rememberedChain } from '../lib/client/seen-receipts';
+import type { ReceiptOpening } from '../lib/shared/types';
 import { GET, POST } from '../app/api/[...path]/route';
 
 // Synthetic values only: fictional ids, throwaway keys generated for this test file.
@@ -45,7 +47,7 @@ function store(over: Partial<ReportStore> = {}) {
 const body = (over: Record<string, unknown> = {}) => reportInput.parse({ eventId, reason: 'altered', ...over });
 const status = (promise: Promise<unknown>) => promise.then(() => 200, (error: { status?: number }) => error.status);
 
-afterEach(() => { vi.unstubAllEnvs(); });
+afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.restoreAllMocks(); });
 
 describe('citizen report', () => {
   test('stores the server verdict and a copy of the access row, never the browser verdict', async () => {
@@ -92,7 +94,27 @@ describe('citizen report', () => {
         chainLog: async () => ({ controllerId, subjectPseudonym: mine, eventType: 3, timestamp: 1_795_300_000n }) });
       const result = await createReport(me, body({ chain }), '10.0.0.1', s);
       expect(result.serverVerdict).toBe('DELETED');
-      expect(inserted[0]).toMatchObject({ eventId, controllerId, txHash, logIndex: 4, sealedAt: 1_795_300_000, serverVerdict: 'DELETED' });
+      expect(inserted[0]).toMatchObject({ eventId: chainEventId(txHash, 4), controllerId, txHash, logIndex: 4, sealedAt: 1_795_300_000, serverVerdict: 'DELETED' });
+    });
+
+    test('stores an event id derived from the chain position, never the one the browser sent', async () => {
+      vi.stubEnv('SUBJECT_KEY', '22'.repeat(32));
+      const mine = pseudonym(controllerId, me, salt);
+      const { s, inserted } = store({ eventById: async () => undefined,
+        chainLog: async () => ({ controllerId, subjectPseudonym: mine, eventType: 3, timestamp: 1_795_300_000n }) });
+      await createReport(me, body({ chain }), '10.0.0.1', s);
+      await createReport(me, body({ chain, eventId: someoneElse }), '10.0.0.1', s);
+      expect(inserted.map((r) => r.eventId)).toEqual([chainEventId(txHash, 4), chainEventId(txHash, 4)]);
+      expect(inserted[0].eventId).not.toBe(eventId);
+    });
+
+    test('the derived event id is a stable UUID per chain position', () => {
+      const id = chainEventId(txHash, 4);
+      expect(id).toMatch(/^[0-9a-f]{8}-[0-9a-f]{4}-5[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+      expect(reportInput.shape.eventId.safeParse(id).success).toBe(true);
+      expect(chainEventId(txHash.toUpperCase().replace('0X', '0x') as Hex, 4)).toBe(id);
+      expect(chainEventId(txHash, 5)).not.toBe(id);
+      expect(chainEventId(`0x${'cd'.repeat(32)}`, 4)).not.toBe(id);
     });
 
     test('is refused when the chain event belongs to someone else', async () => {
@@ -208,6 +230,55 @@ describe('controller register', () => {
     const again: RegistryChange = { kind: 'registered', controllerId: b, eoa: eoa('4'), name: 'RS Sehat Contoh (fiktif)', blockNumber: 12_182_000n, logIndex: 2, txHash: tx('4') };
     const rows = aggregateControllers({ changes: [...changes, again], blockTimes: new Map(), activity: [], breaches: [], openReports: [], watchRows: [], eventControllers: new Map() });
     expect(rows.find((r) => r.id === b)).toMatchObject({ status: 'active', eoa: eoa('4'), registrationTx: tx('4'), revocationTx: null });
+  });
+});
+
+describe('controller register scan', () => {
+  const scan = (head: bigint, at: number): Scan => ({ changes: [], head, at });
+  // registryChanges keeps module state, so these steps run in order inside one test.
+  test('shares one scan, falls back to the last good scan on error, and throws only with nothing cached', async () => {
+    const log = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const boom = new Error('rpc down');
+    await expect(registryChanges(async () => { throw boom; })).rejects.toBe(boom);
+    expect(log).toHaveBeenCalledTimes(1);
+
+    let calls = 0;
+    const first = scan(100n, Date.now());
+    const slow = async () => { calls++; await new Promise((r) => setTimeout(r, 5)); return first; };
+    const [a, b] = await Promise.all([registryChanges(slow), registryChanges(slow)]);
+    expect(calls).toBe(1);
+    expect(a).toBe(first);
+    expect(b).toBe(first);
+
+    // Past the 30 s cache window a failing scan returns the previous scan with its real time.
+    vi.spyOn(Date, 'now').mockReturnValue(first.at + 31_000);
+    const stale = await registryChanges(async () => { throw boom; });
+    expect(stale).toBe(first);
+    expect(stale.at).toBe(first.at);
+    expect(log).toHaveBeenCalledTimes(2);
+
+    const second = scan(200n, first.at + 31_000);
+    expect(await registryChanges(async () => second)).toBe(second);
+  });
+});
+
+describe('deleted receipt kept on this phone', () => {
+  const opening = (over: Partial<ReceiptOpening> = {}) => ({
+    eventId, controllerId, controllerName: 'Dinas Layanan Kota Contoh (fiktif)', subjectPseudonym, purposeText: purpose, purposeSalt: `0x${'01'.repeat(32)}`,
+    legalBasisKey: `0x${'d1'.repeat(32)}`, eventType: 3, evidence: {},
+    txHash, logIndex: 4, status: 'anchored', createdAt: '2026-11-21T12:29:00.000Z', ...over,
+  }) as ReceiptOpening;
+  const remember = (o: ReceiptOpening) => {
+    const items = new Map([['saksi:seen-receipts:v1', JSON.stringify({ code: 'K7M2QD', seen: { [o.eventId]: { opening: o, lastSeenAt: 1 } } })]]);
+    vi.stubGlobal('localStorage', { getItem: (k: string) => items.get(k) ?? null, setItem: () => {}, removeItem: () => {} });
+  };
+
+  test('gives the chain position to report it from', () => {
+    remember(opening());
+    expect(rememberedChain(eventId)).toEqual({ txHash, logIndex: 4 });
+    expect(rememberedChain(someoneElse)).toBeNull();
+    remember(opening({ txHash: null, logIndex: null }));
+    expect(rememberedChain(eventId)).toBeNull();
   });
 });
 

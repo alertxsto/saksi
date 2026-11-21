@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
   ApiClientError,
+  controllerCandidates,
   DEMO_CONTROLLER_IDS,
   explain,
   getProfile,
@@ -204,6 +205,41 @@ describe('DEMO_CONTROLLER_IDS', () => {
     // Same vector as test/commit.test.ts for ctrl:demo-one.
     expect(DEMO_CONTROLLER_IDS[0]).toBe('0x81d37ea3558b4d7aaa6fe7db776b0bcd7b6c8cc9a7cb87b6948b92e10fa01246')
     expect(DEMO_CONTROLLER_IDS).toHaveLength(3)
+  })
+})
+
+describe('controllerCandidates', () => {
+  const id = (n: number) => `0x${n.toString(16).padStart(64, '0')}` as const
+  const log = (n: number, blockNumber: bigint, logIndex = 0) => ({ controllerId: id(n), blockNumber, logIndex })
+
+  it('puts the newest active registration first, then the static fallback ids', () => {
+    const ids = controllerCandidates([log(1, 100n), log(2, 200n)], [])
+    expect(ids.slice(0, 2)).toEqual([id(2), id(1)])
+    expect(ids.slice(2)).toEqual([...DEMO_CONTROLLER_IDS])
+  })
+
+  it('orders registrations in one block by log index', () => {
+    expect(controllerCandidates([log(1, 100n, 5), log(2, 100n, 3)], [], [])).toEqual([id(1), id(2)])
+  })
+
+  it('drops an id revoked after its newest registration but keeps one re-registered after a revocation', () => {
+    expect(controllerCandidates([log(1, 100n), log(2, 150n)], [log(2, 160n)], [])).toEqual([id(1)])
+    expect(controllerCandidates([log(1, 100n), log(1, 300n)], [log(1, 200n)], [])).toEqual([id(1)])
+    expect(controllerCandidates([log(1, 100n, 1)], [log(1, 100n, 2)], [])).toEqual([])
+  })
+
+  it('falls back to the static ids when the log read failed or found nothing', () => {
+    expect(controllerCandidates(null, [])).toEqual([...DEMO_CONTROLLER_IDS])
+    expect(controllerCandidates([], [])).toEqual([...DEMO_CONTROLLER_IDS])
+  })
+
+  it('does not repeat an id that is both registered and a fallback id, and ignores hex case', () => {
+    const demoOne = DEMO_CONTROLLER_IDS[0]
+    const upper = `0x${demoOne.slice(2).toUpperCase()}` as const
+    const ids = controllerCandidates([{ controllerId: upper, blockNumber: 1n, logIndex: 0 }, log(9, 2n)], [])
+    expect(ids[0]).toBe(id(9))
+    expect(ids[1]).toBe(demoOne)
+    expect(ids.filter((x) => x === demoOne)).toHaveLength(1)
   })
 })
 

@@ -42,8 +42,8 @@ export function ProofResult({
   }
 
   return (
-    <div className="anim-rise grid gap-10 lg:grid-cols-12">
-      <div className="flex flex-col gap-5 lg:col-span-7">
+    <div className="anim-rise grid grid-cols-1 gap-10 lg:grid-cols-12">
+      <div className="flex min-w-0 flex-col gap-5 lg:col-span-7">
         {head.claimed ? (
           <p role="alert" className="rounded-lg border-2 border-bad bg-bad-bg p-3 text-[15px] leading-snug text-ink">
             <span className="label block text-[11px] font-bold text-bad">The chain disagrees with this receipt</span>
@@ -76,13 +76,13 @@ export function ProofResult({
         />
       </div>
 
-      <aside className="flex flex-col gap-6 self-start lg:sticky lg:top-24 lg:col-span-5">
+      <aside className="flex min-w-0 flex-col gap-6 self-start lg:sticky lg:top-24 lg:col-span-5">
         <section aria-labelledby="node-pick">
           <h2 id="node-pick" className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
             Don’t trust us <span className="text-ink-2">· pick another node</span>
           </h2>
           <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">The same record, read through someone else’s RPC node. Switching runs the check again.</p>
-          <fieldset className="mt-4 border-b border-line" disabled={!nodes.data?.length}>
+          <fieldset className="mt-4 min-w-0 border-b border-line" disabled={!nodes.data?.length}>
             <legend className="sr-only">RPC node</legend>
             {nodes.data?.length ? (
               nodes.data.map((n) => {
