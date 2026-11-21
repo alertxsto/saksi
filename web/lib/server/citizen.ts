@@ -46,7 +46,8 @@ export async function citizenReceipts() {
   for (const { row } of checks) nextCheck.set(row.id, now + 3000);
   const checked = await Promise.allSettled(checks.map(({ row }) => confirmAccess(row.id)));
   const changed = checked.some((result) => result.status === 'fulfilled' && result.value.status !== 'submitted');
-  return { receipts: (changed ? await loadCitizenRows(id) : rows).map(({ row, controllerName }) => readOpening(row, controllerName)), pseudonyms };
+  return { receipts: (changed ? await loadCitizenRows(id) : rows).map(({ row, controllerName }) => readOpening(row, controllerName)), pseudonyms,
+    profile: { code: subject.code, displayName: subject.displayName } };
 }
 export async function deleteCitizen() {
   const id = await readSession();

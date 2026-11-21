@@ -31,7 +31,11 @@ export const aiConfig = () => {
   const { AI_BASE_URL: baseURL, AI_API_KEY: apiKey, AI_MODEL: model } = process.env;
   return baseURL && apiKey && model ? { baseURL, apiKey, model } : undefined;
 };
-const provider = 'sponsor';
+// Provider label shown in the UI; falls back to the AI host name (e.g. api.groq.com).
+const providerName = () => {
+  if (process.env.AI_PROVIDER) return process.env.AI_PROVIDER;
+  try { return new URL(process.env.AI_BASE_URL ?? '').hostname || 'ai'; } catch { return 'ai'; }
+};
 
 async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: object, schema: z.ZodType<T>, template: T) {
   const started = performance.now();
@@ -55,7 +59,7 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
         messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) }] });
       parsed = schema.safeParse(extractJson(response.choices[0]?.message.content ?? ''));
     } catch { continue; }
-    if (parsed.success) return save(parsed.data, { provider, model, fallbackLevel: index ? 'fallback' : 'primary' });
+    if (parsed.success) return save(parsed.data, { provider: providerName(), model, fallbackLevel: index ? 'fallback' : 'primary' });
   }
   const [cached] = await db().select().from(aiRuns).where(and(eq(aiRuns.feature, feature), eq(aiRuns.inputHash, inputHash),
     inArray(aiRuns.fallbackLevel, ['primary', 'fallback']))).orderBy(desc(aiRuns.createdAt)).limit(1);

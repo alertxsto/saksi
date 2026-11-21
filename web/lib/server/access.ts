@@ -1,7 +1,7 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
 import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
-import { decodeEventLog, type Hex } from 'viem';
+import { decodeEventLog, hexToString, type Hex } from 'viem';
 import { z } from 'zod';
 import { db } from '../../db/client';
 import { accessEvents as logs, controllers, subjects } from '../../db/schema';
@@ -79,9 +79,15 @@ export async function confirmAccess(id: string) {
   return { status: 'anchored' };
 }
 export async function recentAccess(controllerId: Hex) {
-  const rows = await db().select({ id: logs.id, eventType: logs.eventType, status: logs.status, txHash: logs.txHash, createdAt: logs.createdAt })
-    .from(logs).where(eq(logs.controllerId, controllerId)).orderBy(desc(logs.createdAt)).limit(10);
-  return { rows: rows.map((row) => ({ ...row, action: EVENT_TYPES[row.eventType] })) };
+  const rows = await db().select({ id: logs.id, eventType: logs.eventType, legalBasisKey: logs.legalBasisKey, status: logs.status, failReason: logs.failReason,
+    txHash: logs.txHash, logIndex: logs.logIndex, blockNumber: logs.blockNumber, code: subjects.code, createdAt: logs.createdAt })
+    .from(logs).leftJoin(subjects, eq(logs.subjectId, subjects.id)).where(eq(logs.controllerId, controllerId)).orderBy(desc(logs.createdAt)).limit(10);
+  return { rows: rows.map(({ code, legalBasisKey: basis, ...row }) => {
+    const key = hexToString(hash.parse(basis), { size: 32 });
+    return { ...row, action: EVENT_TYPES[row.eventType], legalBasisKey: Object.hasOwn(LEGAL_BASES, key) ? key : null,
+      // Controllers only see a masked hint, never the full citizen code.
+      subjectCodeHint: code ? code.slice(0, 3) + '•••' : null };
+  }) };
 }
 export async function loadCitizenRows(id: string) {
   return db().select({ row: logs, controllerName: controllers.name }).from(logs).innerJoin(controllers, eq(logs.controllerId, controllers.id))

@@ -2,6 +2,7 @@ import { expect, test, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 import { accessInput } from '../lib/server/access';
 import { compareOpening } from '../lib/server/watch';
+import { extractJson } from '../lib/server/ai';
 import type { ReceiptOpening } from '../lib/shared/types';
 import type { Hex } from 'viem';
 
@@ -25,8 +26,7 @@ test('access preparation accepts encoded legal codes, not display labels', () =>
   expect(accessInput.safeParse({ ...valid, legalBasisKey: 'Consent' }).success).toBe(false);
 });
 
-test('extracts model JSON wrapped in code fences or prose', async () => {
-  const { extractJson } = await import('../lib/server/ai');
+test('extracts model JSON wrapped in code fences or prose', () => {
   expect(extractJson('```json\n{"text":"ok"}\n```')).toEqual({ text: 'ok' });
   expect(extractJson('Here you go: {"a":{"b":1}} thanks')).toEqual({ a: { b: 1 } });
   expect(() => extractJson('no json here')).toThrow();
