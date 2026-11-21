@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Suspense, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
+import { createContext, Suspense, useContext, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { ControllerWalletProvider, useControllerWallet } from '@/app/controller/wallet'
 import { createProfile, getReceipts, toCitizenError } from '@/lib/data'
@@ -28,6 +28,9 @@ export function EnterView({ as }: { as?: DoorKey }) {
 }
 
 const noop = () => {}
+
+/** Clears the picked door, so a failed action brings the other doors back. */
+const Unpick = createContext<() => void>(noop)
 
 /**
  * Page frame shared with the dev gallery: title, the real-life strip, the three doors, the "anyone" row.
@@ -73,11 +76,13 @@ export function EnterLayout({ citizen, controller, as }: { citizen: ReactNode; c
 
       <RealLifeStrip />
 
-      <div ref={doorsRef} data-picking={picked ? '' : undefined} className="en-doors grid gap-4 md:gap-5 lg:grid-cols-3">
-        {slot('citizen', citizen)}
-        {slot('agency', controller)}
-        {slot('regulator', <RegulatorPanel />)}
-      </div>
+      <Unpick.Provider value={() => setPicked(null)}>
+        <div ref={doorsRef} data-picking={picked ? '' : undefined} className="en-doors grid gap-4 md:gap-5 lg:grid-cols-3">
+          {slot('citizen', citizen)}
+          {slot('agency', controller)}
+          {slot('regulator', <RegulatorPanel />)}
+        </div>
+      </Unpick.Provider>
       <AnyoneRow />
     </div>
   )
@@ -86,6 +91,7 @@ export function EnterLayout({ citizen, controller, as }: { citizen: ReactNode; c
 function CitizenEntry() {
   const router = useRouter()
   const qc = useQueryClient()
+  const unpick = useContext(Unpick)
   const [creating, setCreating] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const receipts = useQuery({ queryKey: ['enter', 'citizen-session'], queryFn: getReceipts, retry: false })
@@ -116,6 +122,7 @@ function CitizenEntry() {
           : 'Could not create a citizen right now. Check your connection and try again.',
       )
       setCreating(false)
+      unpick()
     }
   }
 
