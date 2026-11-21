@@ -42,7 +42,7 @@ pnpm db:push
 pnpm dev
 ```
 
-`/api/status` dan `/api/demo/tamper` memerlukan header `x-demo-token`. Watch membandingkan log Sepolia dengan isi DB saat ini. Jalankan SQL ini hanya untuk satu UUID catatan **Share with third party** yang sudah di-anchor di database sintetis:
+`/api/status`, `/api/demo/receipts`, dan `/api/demo/tamper` memerlukan header `x-demo-token`. Untuk demo langsung, buka `/operator` (tidak ada di navigasi, `noindex`), tempel `DEMO_ADMIN_TOKEN` sekali (hanya disimpan di sessionStorage tab), lalu pakai tombol Edit/Delete/Restore sambil memantau ringkasan Watch tiap 3 detik. Watch membandingkan log Sepolia dengan isi DB saat ini. Jalankan SQL ini hanya untuk satu UUID catatan **Share with third party** yang sudah di-anchor di database sintetis:
 
 ```sh
 psql "$DATABASE_URL" -v event_id="$DEMO_EVENT_ID" -f scripts/tamper.sql

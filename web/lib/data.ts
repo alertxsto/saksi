@@ -10,6 +10,7 @@ import { controllerId as controllerIdOf } from './shared/commit'
 import type {
   AiMeta,
   BreachRow,
+  DemoReceipt,
   EventTypeCode,
   LegalBasisKey,
   Pasal46Fields,
@@ -408,5 +409,55 @@ export async function readReceiptFile(file: Pick<File, 'text'>): Promise<Receipt
       : null
   } catch {
     return null
+  }
+}
+
+// ---- presenter console (/operator) ---------------------------------------------------------------
+// Every call carries the demo admin token in the x-demo-token header. The token lives only in the
+// presenter's sessionStorage (app/operator/OperatorConsole.tsx), never in URLs or cookies.
+
+export type { DemoReceipt }
+export type TamperAction = 'edit' | 'delete' | 'restore'
+type Probe = { ok: boolean; ms: number }
+/** GET /api/status. */
+export type ServiceStatus = {
+  rpc: (Probe & { name: string; block?: number })[]
+  db: Probe
+  ai: Probe & { model: string | null }
+  contracts: { journal: Hex | null; breach: Hex | null; registry: Hex | null }
+  configProblems: string[]
+}
+
+const demoHeaders = (token: string) => ({ 'x-demo-token': token })
+
+/** GET /api/demo/receipts: recent anchored receipts plus rows the demo deleted (so they can be restored). */
+export async function getDemoReceipts(token: string): Promise<DemoReceipt[]> {
+  return (await requestJson<{ rows: DemoReceipt[] }>('/api/demo/receipts', { headers: demoHeaders(token) })).rows
+}
+
+/** POST /api/demo/tamper. `edit` turns a SHARE_THIRD_PARTY row into READ; `restore` undoes the last edit or delete. */
+export function tamperReceipt(token: string, action: TamperAction, eventId: string): Promise<{ action: TamperAction; eventId: string }> {
+  return requestJson('/api/demo/tamper', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...demoHeaders(token) },
+    body: JSON.stringify({ action, eventId }),
+  })
+}
+
+/** GET /api/status: RPC, database and AI probes. The AI probe runs a tiny completion, so call it on demand. */
+export function getServiceStatus(token: string): Promise<ServiceStatus> {
+  return requestJson<ServiceStatus>('/api/status', { headers: demoHeaders(token) })
+}
+
+export const watchKey = (txHash: string | null, logIndex: number | null) => `${txHash?.toLowerCase()}:${logIndex}`
+export type WatchSummary = { stats: WatchWire['stats']; blockNumber: number; verdicts: Map<string, WatchRow['status']> }
+
+/** GET /api/watch reduced to the counters and a per-receipt verdict keyed by watchKey(txHash, logIndex). */
+export async function getWatchSummary(): Promise<WatchSummary> {
+  const wire = await getJson<WatchWire>('/api/watch')
+  return {
+    stats: wire.stats,
+    blockNumber: wire.blockNumber,
+    verdicts: new Map(wire.rows.map((row) => [watchKey(row.txHash, row.logIndex), row.status])),
   }
 }
