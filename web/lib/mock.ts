@@ -570,3 +570,141 @@ export function mockWalletSnapshot(state: 'no_wallet' | 'disconnected' | 'wrong_
     isSwitching: false,
   }
 }
+
+// ── STAGE UI ──
+// Fixtures for the /stage gallery (app/dev/states/stage). Synthetic controllers ("Demo One/Two") and
+// masked citizen codes only. The live /stage never imports these.
+
+type StageStatsMock = import('./data').StageStatsWire
+type StageWatchMock = import('./data').WatchView
+type StageRecentMock = import('./data').StageRecentWire
+
+export type StageMockState = 'idle' | 'live' | 'alert' | 'offline'
+export type StageSnapshot = { stats: StageStatsMock; watch: StageWatchMock; failed: boolean; updatedAt: number }
+
+const STAGE_FEED: Array<[name: string, ev: 0 | 1 | 2 | 3, code: string]> = [
+  ['Demo One', 2, 'JV••••'],
+  ['Demo Two', 0, '7K••••'],
+  ['Demo One', 3, 'QF••••'],
+  ['Demo Two', 1, 'M3••••'],
+  ['Demo One', 0, 'R8••••'],
+  ['Demo Two', 2, 'XC••••'],
+  ['Demo One', 0, 'HT••••'],
+]
+
+function stageRow(i: number, at: number, status: StageRecentMock['status']): StageRecentMock {
+  const [controllerName, eventType, citizenMasked] = STAGE_FEED[i % STAGE_FEED.length]
+  return { id: `stg_${String(i).padStart(3, '0')}`, controllerName, eventType, citizenMasked, createdAt: new Date(at).toISOString(), status }
+}
+
+function stageWatch(recent: StageRecentMock[], extraMatches: number, alteredId: string | null, changedAt: number): StageWatchMock {
+  const rows: WatchRowView[] = recent
+    .filter((r) => r.status === 'anchored')
+    .map((r, i) => ({
+      ref: `R.${r.id.slice(-3)}`,
+      eventId: r.id,
+      txHash: fakeHex(`stage:${r.id}`),
+      logIndex: i % 3,
+      controllerName: r.controllerName,
+      status: 'MATCH' as const,
+      blockNumber: MOCK_BLOCK_BASE - 12 * i,
+    }))
+  for (let i = 0; i < extraMatches; i++) {
+    rows.push({
+      ref: `R.9${String(i).padStart(2, '0')}`,
+      eventId: `stg_old_${i}`,
+      txHash: fakeHex(`stage:old:${i}`),
+      logIndex: 1,
+      controllerName: STAGE_FEED[i % STAGE_FEED.length][0],
+      status: 'MATCH',
+      blockNumber: MOCK_BLOCK_BASE - 300 - i * 20,
+    })
+  }
+  const hit = rows.find((r) => r.eventId === alteredId)
+  if (hit) {
+    hit.status = 'ALTERED'
+    hit.field = 'eventType'
+    hit.dbValue = 'READ'
+    hit.chainValue = 'SHARE_THIRD_PARTY'
+    hit.changedAt = changedAt
+  }
+  return { rows, blockNumber: MOCK_BLOCK_BASE + 1_088, stale: false }
+}
+
+/** One frozen snapshot per stage state, relative to `now` (the gallery passes a fixed clock). */
+export function mockStageSnapshot(state: StageMockState, now: number): StageSnapshot {
+  if (state === 'idle') {
+    return {
+      stats: { citizens: 3, receipts: 0, lastSealAt: null, recent: [] },
+      watch: { rows: [], blockNumber: MOCK_BLOCK_BASE + 1_088, stale: false },
+      failed: false,
+      updatedAt: now - 2_000,
+    }
+  }
+  const ages = [4, 12, 41, 75, 130, 260, 420]
+  const recent = ages.map((s, i) => stageRow(i, now - s * 1000, i === 0 ? 'submitted' : 'anchored'))
+  // Alert: the company rewrote row 3 in its database (SHARE → READ); the chain still has SHARE.
+  if (state === 'alert') recent[2] = { ...recent[2], eventType: 0 }
+  const stats: StageStatsMock = { citizens: 14, receipts: 23, lastSealAt: new Date(now - 12_000).toISOString(), recent }
+  return {
+    stats,
+    watch: stageWatch(recent, 17, state === 'alert' ? recent[2].id : null, now - 3_000),
+    failed: state === 'offline',
+    updatedAt: now - 18_000,
+  }
+}
+
+/**
+ * Scripted demo for the gallery "play" frame, as two loaders (same shapes as getStageStats / getWatchView):
+ *   0 s idle · +2 s first citizen · +5 s first receipt (sealing, then RECORDED 2 s later) · a new receipt every
+ *   3.5 s · +26 s the third receipt (SHARE) is rewritten to READ in the database → alert.
+ */
+export function createStagePlayback(start = Date.now()) {
+  const ARRIVALS = [5, 8.5, 12, 15.5, 19, 22.5].map((s) => s * 1000)
+  const ALTER_AT = 26_000
+  const snapshot = () => {
+    const now = Date.now()
+    const t = now - start
+    const alteredId = t >= ALTER_AT ? stageRow(2, 0, 'anchored').id : null
+    const recent = ARRIVALS.flatMap((at, i) => (t >= at ? [stageRow(i, start + at, t >= at + 2_000 ? 'anchored' : 'submitted')] : []))
+      .map((r) => (r.id === alteredId ? { ...r, eventType: 0 as const } : r))
+      .reverse()
+    const sealed = recent.filter((r) => r.status === 'anchored')
+    const citizens = (t >= 2_000 ? 1 : 0) + Math.max(0, Math.floor((t - 2_000) / 2_600))
+    const stats: StageStatsMock = {
+      citizens: Math.min(citizens, 12),
+      receipts: sealed.length,
+      lastSealAt: sealed[0] ? new Date(Date.parse(sealed[0].createdAt) + 2_000).toISOString() : null,
+      recent,
+    }
+    const watch = stageWatch(recent, 0, alteredId, start + ALTER_AT)
+    watch.blockNumber = MOCK_BLOCK_BASE + 1_088 + Math.floor(t / 12_000)
+    return { stats, watch }
+  }
+  return {
+    loadStats: async (): Promise<StageStatsMock> => {
+      await sleep(120)
+      return snapshot().stats
+    },
+    loadWatch: async (): Promise<StageWatchMock> => {
+      await sleep(160)
+      return snapshot().watch
+    },
+  }
+}
+
+// ── CONTROLLER UI ──
+// Synchronous breach-draft fixture for the /dev/states/controller gallery: every breach frame renders
+// its fields on first paint, so a "drafted" or "edited" state never shows empty fields.
+
+export const CONTROLLER_DRAFT_FIXTURE: { fields: Pasal46Fields; meta: AiMeta } = {
+  fields: {
+    dataAffected: 'Names, phone numbers and loan balances of about 1,240 borrowers. No ID numbers or passwords.',
+    whenAndHow:
+      'Detected on the date below by our security team. A misconfigured storage bucket exposed a customer export file for about six hours before it was found.',
+    actionsTaken:
+      'Public access to the file was removed within 40 minutes. Access keys were rotated and affected borrowers will be contacted by SMS.',
+    contact: 'Data Protection Officer — dpo@contoh-lending.example (fictional), +62 21 0000 0000',
+  },
+  meta: { provider: 'example-provider', model: 'example-large', fallbackLevel: 'primary', latencyMs: 1544 },
+}

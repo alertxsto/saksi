@@ -16,7 +16,10 @@ const BROKEN = `/proof/${SAMPLE.txHash}/${SAMPLE.logIndex}#${encodeOpening(SAMPL
 const GROUPS: { title: string; links: [string, string, string?][] }[] = [
   {
     title: 'Landing',
-    links: [['/', 'Landing page (nav, hero seal cycler, proof, roles, limits, CTA + QR)']],
+    links: [
+      ['/', 'Landing page (nav, hero seal cycler, proof, roles, limits, CTA + QR)'],
+      ['/dev/states/stage', 'Stage (projected /stage): idle · live · alert · offline at 1920 + 1280, plus a play sequence'],
+    ],
   },
   {
     title: 'Citizen · mobile 390',

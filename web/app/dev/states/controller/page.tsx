@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { Logo } from '@/components/ui/Logo'
+import { ConsoleReveal } from '@/components/controller/ConsoleReveal'
 import { ControllerGallery } from './Gallery'
 
 export const metadata: Metadata = { title: 'Controller states', robots: { index: false } }
@@ -15,6 +16,7 @@ export default function ControllerStatesPage() {
         </Link>
       </div>
       <ControllerGallery />
+      <ConsoleReveal />
     </main>
   )
 }

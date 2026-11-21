@@ -3,7 +3,7 @@
 // Every state of every citizen screen, side by side at 390 px, forced through props.
 // Frames use a CSS transform so the fixed TabBar / dialog overlay stay inside each frame.
 import Link from 'next/link'
-import type { ReactNode } from 'react'
+import { createContext, useContext, type ReactNode } from 'react'
 import { CitizenShell } from '@/app/citizen/CitizenShell'
 import { OnboardingView, ReceiptListView } from '@/app/citizen/CitizenHome'
 import { ProfileScreenView, type ConfirmState, type ProfileState } from '@/app/citizen/profile/ProfileView'
@@ -16,6 +16,7 @@ import {
 import { AiPanel } from '@/components/ui/AiPanel'
 import { ReceiptDetailSkeleton } from '@/components/ui/Skeleton'
 import { ToastView } from '@/components/ui/Toast'
+import type { AutoVerdicts, GhostReceipt } from '@/lib/data'
 import { MOCK_BLOCK_BASE, mockAllReceipts } from '@/lib/mock'
 import type { AiMeta, ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
@@ -39,6 +40,18 @@ const RECEIPTS: ReceiptOpening[] = [
   ALL[4],
 ]
 const OPENING = ALL[1]
+// What the tampered database now returns: the share was rewritten as a plain read for "Account review".
+const EDITED: ReceiptOpening = { ...ALL[1], eventType: 0, purposeText: 'Account review' }
+const SEALING: ReceiptOpening = { ...ALL[1], status: 'submitted', txHash: null, logIndex: null }
+
+// red moment (riset-ui/24 §2): auto-verify verdicts per row + one remembered receipt the database lost
+const CHECKING: AutoVerdicts = { [ALL[1].eventId]: 'match', [ALL[2].eventId]: 'verifying', [ALL[4].eventId]: 'verifying' }
+const ALTERED_ROW: AutoVerdicts = { [ALL[1].eventId]: 'altered', [ALL[2].eventId]: 'match', [ALL[4].eventId]: 'match' }
+const MIXED: AutoVerdicts = { [ALL[1].eventId]: 'match', [ALL[2].eventId]: 'not_found', [ALL[4].eventId]: 'match' }
+const GHOST: GhostReceipt = {
+  opening: { ...ALL[3], eventId: 'evt-ghost-0007', purposeText: 'Collections call list', status: 'anchored', createdAt: new Date(NOW - 26 * 3600_000).toISOString() },
+  lastSeenAt: NOW - 2 * 3600_000,
+}
 const RPC = 'ethereum-sepolia-rpc.publicnode.com'
 const BASE = { blockNumber: MOCK_BLOCK_BASE - 214, confirmations: 214, rpc: RPC }
 
@@ -54,6 +67,8 @@ const ALTERED: VerifyResult = {
 }
 const NOT_FOUND: VerifyResult = { status: 'NOT_FOUND', mismatches: [], elapsedMs: 2410, rpc: RPC }
 
+const AI_ALTERED =
+  'The company told Saksi it only read your data, but the chain sealed a record saying it was shared with a third party, for a different purpose. Someone edited the database after sealing. Saksi cannot say who or why. Keep the receipt file as evidence; you can show it to the regulator.'
 const AI_TEXT =
   'Contoh Lending Co. recorded this access at the time shown, and nobody has changed the record since. Your phone compared it with the fingerprint sealed on the public chain and every field matched.'
 const META: Record<AiMeta['fallbackLevel'], AiMeta> = {
@@ -68,9 +83,12 @@ const PROFILE = { code: CODE, displayName: 'Synthetic citizen K7M' }
 
 // ---- frames ------------------------------------------------------------------------------------
 
+const Width = createContext(390)
+
 function Frame({ label, children, bare }: { label: string; children: ReactNode; bare?: boolean }) {
+  const w = useContext(Width)
   return (
-    <figure className="w-[390px] shrink-0">
+    <figure className="shrink-0" style={{ width: w }}>
       <figcaption className="label mb-2 text-[11px] text-ink-2">{label}</figcaption>
       <div
         className={`relative flex flex-col overflow-hidden rounded-xl border border-line-strong bg-paper [transform:translateZ(0)] ${
@@ -93,10 +111,18 @@ function Row({ title, note, children }: { title: string; note: string; children:
   )
 }
 
-function Detail({ verify, ai = { state: 'idle' } }: { verify: DetailVerifyState; ai?: DetailAiState }) {
+function Detail({
+  verify,
+  ai = { state: 'idle' },
+  opening = OPENING,
+}: {
+  verify: DetailVerifyState
+  ai?: DetailAiState
+  opening?: ReceiptOpening
+}) {
   return (
     <ReceiptDetailView
-      opening={OPENING}
+      opening={opening}
       now={NOW}
       verify={verify}
       ai={ai}
@@ -105,6 +131,7 @@ function Detail({ verify, ai = { state: 'idle' } }: { verify: DetailVerifyState;
       onShowLimits={noop}
       onDownload={noop}
       onShare={noop}
+      onKeepEvidence={noop}
     />
   )
 }
@@ -146,12 +173,24 @@ function List(props: Partial<Parameters<typeof ReceiptListView>[0]>) {
 
 // ---- gallery -----------------------------------------------------------------------------------
 
-export function CitizenStatesGallery() {
+export function CitizenStatesGallery({ width = 390 }: { width?: number }) {
   return (
+    <Width.Provider value={width}>
     <main id="main" className="min-h-dvh bg-paper-2/60 px-6 py-10">
       <h1 className="text-[36px] font-medium tracking-[-0.04em] text-ink">
-        Citizen states <span className="text-ink-2">at 390 px.</span>
+        Citizen states <span className="text-ink-2">at {width} px.</span>
       </h1>
+      <p className="mt-2 text-[14px] text-ink-2">
+        Widths:{' '}
+        <Link href="/dev/states/citizen" className="text-blue underline">
+          390
+        </Link>{' '}
+        ·{' '}
+        <Link href="/dev/states/citizen?w=360" className="text-blue underline">
+          360
+        </Link>
+        . Reduced motion: emulate prefers-reduced-motion in devtools; every one-shot animation drops out.
+      </p>
       <p className="mt-2 max-w-[80ch] text-[15px] text-ink-2">
         Forced through props on the presentational views (<code className="font-mono">OnboardingView</code>,{' '}
         <code className="font-mono">ReceiptListView</code>, <code className="font-mono">ReceiptDetailView</code>,{' '}
@@ -217,6 +256,24 @@ export function CitizenStatesGallery() {
         </Frame>
       </Row>
 
+      <Row
+        title="C2r · The phone turns red"
+        note="ReceiptListView verdicts={AutoVerdicts} + ghosts={GhostReceipt[]} (riset-ui/28). The teammate's auto-verify feeds verdicts; the remembered-receipts store feeds ghosts. Red only for ALTERED / DELETED."
+      >
+        <Frame label="auto-verify running (checking + checked)">
+          <List verdicts={CHECKING} freshIds={[]} />
+        </Frame>
+        <Frame label="ALTERED · banner + red row">
+          <List verdicts={ALTERED_ROW} freshIds={[]} />
+        </Frame>
+        <Frame label="DELETED · ghost card">
+          <List verdicts={MIXED} ghosts={[GHOST]} freshIds={[]} />
+        </Frame>
+        <Frame label="ALTERED + DELETED">
+          <List verdicts={ALTERED_ROW} ghosts={[GHOST]} freshIds={[]} />
+        </Frame>
+      </Row>
+
       <Row title="C3 · Receipt detail" note="findReceipt(eventId). Fingerprint: copy + explorer link from NEXT_PUBLIC_EXPLORER_URL.">
         <Frame label="loading">
           <ReceiptDetailSkeleton />
@@ -230,6 +287,9 @@ export function CitizenStatesGallery() {
         <Frame label="ready · before verify">
           <Detail verify={{ phase: 'idle' }} />
         </Frame>
+        <Frame label="pending · waiting for the chain (amber)">
+          <Detail verify={{ phase: 'idle' }} opening={SEALING} />
+        </Frame>
       </Row>
 
       <Row title="C4 · Verify" note="onVerify → verifyTimed(); the timer is the round trip measured in the browser.">
@@ -239,8 +299,11 @@ export function CitizenStatesGallery() {
         <Frame label="MATCH">
           <Detail verify={{ phase: 'done', result: MATCH }} />
         </Frame>
-        <Frame label="ALTERED">
-          <Detail verify={{ phase: 'done', result: ALTERED }} />
+        <Frame label="ALTERED · comparison + actions">
+          <Detail verify={{ phase: 'done', result: ALTERED }} opening={EDITED} />
+        </Frame>
+        <Frame label="ALTERED · Ask AI answered">
+          <Detail verify={{ phase: 'done', result: ALTERED }} opening={EDITED} ai={{ state: 'done', data: { text: AI_ALTERED, meta: META.primary } }} />
         </Frame>
         <Frame label="NOT FOUND ON THIS NODE (gray)">
           <Detail verify={{ phase: 'done', result: NOT_FOUND }} />
@@ -295,5 +358,6 @@ export function CitizenStatesGallery() {
         </Frame>
       </Row>
     </main>
+    </Width.Provider>
   )
 }
