@@ -8,6 +8,7 @@ export default function OperatorLayout({ children }: LayoutProps<'/operator'>) {
     <>
       <AppHeader
         role="Operator"
+        area="operator"
         nav={[]}
         right={
           <Chip icon={<IconLock size={12} />} tone="pending">
@@ -15,8 +16,8 @@ export default function OperatorLayout({ children }: LayoutProps<'/operator'>) {
           </Chip>
         }
       />
-      <main id="main" className="px-4 pb-20 pt-8 md:px-6 md:pt-10">
-        <div className="mx-auto max-w-[1200px]">{children}</div>
+      <main id="main" className="pb-20 pt-8 md:pt-10">
+        <div className="ws">{children}</div>
       </main>
     </>
   )

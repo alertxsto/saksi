@@ -11,9 +11,14 @@ export default function ControllerStatesPage() {
     <main id="main" className="mx-auto max-w-[1360px] px-4 py-10 md:px-8">
       <div className="mb-10 flex items-center justify-between">
         <Logo sub="Dev · controller states" />
-        <Link href="/dev" className="label text-blue hover:underline">
-          ← Dev index
-        </Link>
+        <span className="flex items-center gap-6">
+          <Link href="/dev/states/controller/entry" className="label text-blue hover:underline">
+            /enter states →
+          </Link>
+          <Link href="/dev" className="label text-blue hover:underline">
+            ← Dev index
+          </Link>
+        </span>
       </div>
       <ControllerGallery />
       <ConsoleReveal />
