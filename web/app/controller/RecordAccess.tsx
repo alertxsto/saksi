@@ -61,7 +61,8 @@ export function RecordAccess() {
 
   const onSeal = (values: AccessFormValues) => {
     if (!controllerId || busy) return
-    void runSeal({ controllerId, ...values })
+    // An empty system field means "use our registered name", which the server fills in.
+    void runSeal({ controllerId, ...values, system: values.system || undefined })
   }
 
   const onRetry = () => {

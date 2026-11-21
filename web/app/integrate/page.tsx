@@ -259,8 +259,8 @@ export default function IntegratePage() {
                   ))}
                 </ul>
                 <p className="mt-4 text-[13px] leading-[1.5] text-ink-3">
-                  In this hackathon build Saksi also generates the evidence descriptor (system, data categories, request
-                  time) with synthetic values.
+                  The evidence descriptor is built from what your backend sends (system, data categories, officer
+                  reference); Saksi adds the request time and a random nonce before hashing it.
                 </p>
               </div>
             </div>

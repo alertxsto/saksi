@@ -8,6 +8,7 @@ import { sepolia } from 'viem/chains';
 import { accessAbi, breachAbi, breachAddress, getReceiptRobust, journalAddress, publicClient } from '../shared/chain';
 import { confirmation, invalidResponse, post, responseObject, submission, type Resource } from './api';
 import { createTransactionFlow, TransactionFlowError, type TransactionState } from './transactions';
+import type { DataCategory } from '../shared/types';
 
 export type RecordAccessInput = {
   controllerId: Hex;
@@ -15,6 +16,10 @@ export type RecordAccessInput = {
   purposeText: string;
   legalBasisKey: `PDP-20-2-${'a' | 'b' | 'c' | 'd' | 'e' | 'f'}`;
   eventType: 0 | 1 | 2 | 3;
+  /** Evidence fields (hashed on chain). The server defaults them for clients that leave them out. */
+  system?: string;
+  dataCategories?: readonly DataCategory[];
+  operatorRef?: string;
 };
 
 export type AnchorBreachInput = {
@@ -41,9 +46,9 @@ async function preparation(resource: Resource, body: object, argCount: number) {
 }
 
 async function prepareAccess(input: RecordAccessInput): Promise<AccessPreparation> {
-  const { controllerId: requestedId, subjectCode, purposeText, legalBasisKey: requestedBasis, eventType: requestedEvent } = input;
+  const { controllerId: requestedId, subjectCode, purposeText, legalBasisKey: requestedBasis, eventType: requestedEvent, system, dataCategories, operatorRef } = input;
   const { id, args } = await preparation('access', {
-    controllerId: requestedId, subjectCode, purposeText, legalBasisKey: requestedBasis, eventType: requestedEvent,
+    controllerId: requestedId, subjectCode, purposeText, legalBasisKey: requestedBasis, eventType: requestedEvent, system, dataCategories, operatorRef,
   }, 6);
   const [controllerId, subjectPseudonym, purposeHash, legalBasisKey, eventType, evidenceHash] = args;
   if (!bytes32(controllerId) || controllerId.toLowerCase() !== requestedId.toLowerCase() ||
