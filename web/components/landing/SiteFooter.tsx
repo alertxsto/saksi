@@ -35,6 +35,8 @@ const COLS = [
       ["#breach", "72 hours"],
       ["#roles", "Roles"],
       ["#faq", "FAQ"],
+      ["/why", "Why Saksi exists"],
+      ["/why#sources", "Sources"],
     ],
   },
 ] as const;
@@ -43,9 +45,9 @@ const COLS = [
  * S9 closer + S10 footer as ONE vault (zaro: the page ends dark, closer and footer split by a single
  * hairline). The biggest type on the page lives here; words rise in; the QR's registration marks flash ice
  * once when it arrives (md+ only — on a phone you are already there). Each contract row shows only when its
- * address is set in env; never a placeholder pill.
+ * address is set in env; never a placeholder pill. `base` prefixes the section anchors on other pages.
  */
-export function SiteFooter() {
+export function SiteFooter({ base = "" }: { base?: string }) {
   return (
     <footer
       id="closer"
@@ -116,7 +118,7 @@ export function SiteFooter() {
                 {c.links.map(([href, label]) => (
                   <li key={href}>
                     <Link
-                      href={href}
+                      href={href.startsWith("#") ? `${base}${href}` : href}
                       className="flex min-h-7 items-center text-[14px] tracking-[0.02em] text-[#dad8ce] transition-colors duration-150 hover:text-paper"
                     >
                       <OdoText>{label}</OdoText>
