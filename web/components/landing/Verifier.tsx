@@ -1,8 +1,11 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import Link from 'next/link'
+import { useEffect, useRef, useState } from 'react'
 import { DotoValue } from '@/components/ui/DotoValue'
-import { IconCheck, IconX } from '@/components/ui/icons'
+import { IconArrow, IconCheck, IconX } from '@/components/ui/icons'
+import { verifyTimed } from '@/lib/data'
+import { SAMPLE_PROOF_HREF, SAMPLE_RECEIPT, SAMPLE_TX_SHORT } from './sample-receipt'
 import { scramble } from '@/lib/motion/scramble'
 import { matches, range, REDUCED_QUERY, subscribe } from '@/lib/motion/scroll'
 import { Cta } from './Cta'
@@ -20,7 +23,6 @@ const DOES_NOT_PROVE = [
   'The real discovery time of a breach.',
   'That notifications were actually sent to people.',
 ]
-const FP = '0x3fa2c41b7e0d…5b1e09e19c1d'
 const N = 14
 const C = (N - 1) / 2
 
@@ -57,7 +59,16 @@ const fillFor = (s: number, ok: boolean) => (ok ? OK : INK)
  * receipt → check with a green radial sweep, and the result + DotoValue timer appear. Below, the limits
  * as two hairline lists whose rows turn ink-3 → ink as they cross the viewport.
  */
+type Live = { status: 'MATCH' | 'MISMATCH' | 'NOT_FOUND' | 'ERROR'; secs: string }
+
+/** A real check of the public sample receipt, from this browser against a public Sepolia node, timed. */
+const checkSample = (): Promise<Live> =>
+  verifyTimed(SAMPLE_RECEIPT)
+    .then((r) => ({ status: r.status, secs: (r.elapsedMs / 1000).toFixed(1) }))
+    .catch(() => ({ status: 'ERROR' as const, secs: '0.0' }))
+
 export function Verifier() {
+  const [live, setLive] = useState<Live | null>(null)
   const boxRef = useRef<HTMLDivElement>(null)
   const fpRef = useRef<HTMLElement>(null)
   const svgRef = useRef<SVGSVGElement>(null)
@@ -69,7 +80,21 @@ export function Verifier() {
     const fp = fpRef.current
     const svg = svgRef.current
     const limits = limitsRef.current
-    if (!box || !fp || !svg || !limits || matches(REDUCED_QUERY)) return
+    if (!box || !fp || !svg || !limits) return
+    if (matches(REDUCED_QUERY)) {
+      // No animation, but the check itself is still real.
+      const io = new IntersectionObserver(([e]) => {
+        if (!e.isIntersecting) return
+        io.disconnect()
+        void checkSample().then(setLive)
+      })
+      io.observe(box)
+      runRef.current = () => {
+        setLive(null)
+        void checkSample().then(setLive)
+      }
+      return () => io.disconnect()
+    }
     const dots = Array.from(svg.querySelectorAll<SVGCircleElement>('circle'))
     const timers: number[] = []
     const setPhase = (v: 'idle' | 'press' | 'done') => box.setAttribute('data-phase', v)
@@ -91,7 +116,10 @@ export function Verifier() {
       stopScr?.()
       paint(0)
       setPhase('idle')
-      stopScr = scramble(fp, FP, { stepMs: 26 })
+      setLive(null)
+      // The real verification starts now and runs while the lattice animates; the result waits for it.
+      const pending = checkSample()
+      stopScr = scramble(fp, SAMPLE_TX_SHORT, { stepMs: 26 })
       timers.push(
         window.setTimeout(() => setPhase('press'), 1000),
         window.setTimeout(() => {
@@ -100,7 +128,11 @@ export function Verifier() {
             const m = Math.min(1, (now - t0) / 900)
             paint(m)
             if (m < 1) raf = requestAnimationFrame(step)
-            else setPhase('done')
+            else
+              void pending.then((r) => {
+                setLive(r)
+                setPhase('done')
+              })
           }
           raf = requestAnimationFrame(step)
         }, 1180),
@@ -153,9 +185,9 @@ export function Verifier() {
 
           <div ref={boxRef} className="min-w-0 lg:col-span-6 lg:col-start-7 lg:pt-2" data-phase="done">
             <div className="ver-input flex h-16 items-center gap-3 rounded-md border border-line-strong bg-card pl-4 pr-2 transition-transform duration-300 ease-[cubic-bezier(.22,1,.36,1)] hover:scale-[1.01]">
-              <span className="label hidden text-[11px] text-ink-3 sm:inline">Fingerprint</span>
-              <code ref={fpRef} className="min-w-0 flex-1 truncate font-mono text-[14px] text-ink">
-                {FP}
+              <span className="label hidden text-[11px] text-ink-3 sm:inline">Sample tx</span>
+              <code ref={fpRef} className="min-w-0 flex-1 truncate font-mono text-[14px] text-ink" data-no-translate>
+                {SAMPLE_TX_SHORT}
               </code>
               <span
                 aria-hidden="true"
@@ -172,14 +204,32 @@ export function Verifier() {
                 ))}
               </svg>
               <div className="ver-result min-w-0" aria-live="polite">
-                <p className="flex items-center gap-2 text-[20px] font-medium text-ok md:text-[24px]">
-                  <IconCheck size={20} strokeWidth={2.6} /> Match
-                </p>
-                <p className="mt-1 text-[15px] text-ink-2">This record matches the chain.</p>
+                {!live ? (
+                  <p className="text-[20px] font-medium text-ink-2 md:text-[24px]">Checking the chain…</p>
+                ) : live.status === 'MATCH' ? (
+                  <>
+                    <p className="flex items-center gap-2 text-[20px] font-medium text-ok md:text-[24px]">
+                      <IconCheck size={20} strokeWidth={2.6} /> Match
+                    </p>
+                    <p className="mt-1 text-[15px] text-ink-2">This record matches the chain.</p>
+                  </>
+                ) : live.status === 'MISMATCH' ? (
+                  <>
+                    <p className="flex items-center gap-2 text-[20px] font-medium text-bad md:text-[24px]">
+                      <IconX size={20} strokeWidth={2.6} /> Altered
+                    </p>
+                    <p className="mt-1 text-[15px] text-ink-2">This record does not match the chain.</p>
+                  </>
+                ) : (
+                  <>
+                    <p className="text-[20px] font-medium text-ink-2 md:text-[24px]">No answer</p>
+                    <p className="mt-1 text-[15px] text-ink-2">Couldn’t reach a public node. Run the check again.</p>
+                  </>
+                )}
                 <p className="mt-4 text-[48px] leading-none text-ink">
-                  <DotoValue value="1.8" unit="s" />
+                  <DotoValue value={live?.secs ?? '0.0'} unit="s" />
                 </p>
-                <p className="label mt-3 text-[11px] text-ink-2">Verified by your phone · not by our server</p>
+                <p className="label mt-3 text-[11px] text-ink-2">Checked by your browser · not by our server</p>
               </div>
             </div>
             <button
@@ -189,6 +239,12 @@ export function Verifier() {
             >
               Run the check again
             </button>
+            <p className="mt-1 text-[13px] leading-relaxed text-ink-3">
+              A real receipt sealed on Sepolia (synthetic data).{' '}
+              <Link href={SAMPLE_PROOF_HREF} className="inline-flex items-center gap-1 font-medium text-ink-2 underline-offset-4 hover:text-blue hover:underline">
+                Open this receipt <IconArrow size={12} />
+              </Link>
+            </p>
           </div>
         </div>
 

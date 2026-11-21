@@ -60,7 +60,7 @@ const tick: Tick = (t, a, k) => {
   a('blk', { opacity: (done ? ss(4.15, 4.3, t) : 0) * (1 - back) })
   const lit = (k % 6) + 3 + (done ? 1 : 0)
   for (let i = 0; i < 8; i++) a(`c${i}`, { fill: i < lit % 9 ? K.ice : K.line })
-  a('n', { text: `#${fmt(7123456 + k + (done ? 1 : 0))}` })
+  a('n', { text: `#${fmt(12181964 + k + (done ? 1 : 0))}` })
 }
 const clamp01 = (x: number) => Math.min(1, Math.max(0, x))
 
@@ -125,7 +125,7 @@ export function SealIllus({ className, framed }: IllusProps) {
       {Array.from({ length: 8 }, (_, i) => (
         <rect key={i} data-a={`c${i}`} x={452 + i * 9.5} y={277} width={5} height={5} fill={i < 3 ? K.ice : K.line} />
       ))}
-      <text data-a="n" x={488} y={302} textAnchor="middle" fill={K.l3}>#7,123,456</text>
+      <text data-a="n" x={488} y={302} textAnchor="middle" fill={K.l3}>#12,181,964</text>
     </Illus>
   )
 }

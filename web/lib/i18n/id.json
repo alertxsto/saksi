@@ -1997,5 +1997,12 @@
  "signs reviews": "tanda tangan tinjauan",
  "Total": "Total",
  "The AI only helps write a personal data breach notice. Describe the incident in your own words.": "AI hanya membantu menyusun pemberitahuan kebocoran data pribadi. Ceritakan insidennya dengan kata-kata Anda sendiri.",
- "The draft stopped before it finished. Try again.": "Draf berhenti sebelum selesai. Coba lagi."
+ "The draft stopped before it finished. Try again.": "Draf berhenti sebelum selesai. Coba lagi.",
+ "Sample tx": "Contoh tx",
+ "This record does not match the chain.": "Catatan ini tidak cocok dengan chain.",
+ "Couldn’t reach a public node. Run the check again.": "Node publik tidak terjangkau. Jalankan pemeriksaan lagi.",
+ "Checked by your browser · not by our server": "Diperiksa browser Anda · bukan server kami",
+ "A real receipt sealed on Sepolia (synthetic data).": "Bukti akses asli yang disegel di Sepolia (data sintetis).",
+ "Open this receipt": "Buka bukti akses ini",
+ "Contracts deployed at block": "Kontrak di-deploy di blok"
 }

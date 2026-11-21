@@ -8,7 +8,10 @@ import { clamp, matches, range, subscribe } from '@/lib/motion/scroll'
 import { Cta } from './Cta'
 import { SealGL } from './SealGL'
 
-const FP = '0x3fa2c41b…09e19c1d'
+import { SAMPLE_RECEIPT } from './sample-receipt'
+
+// The sample receipt's real transaction (sealed on Sepolia), not a made-up fingerprint.
+const FP = `${SAMPLE_RECEIPT.txHash!.slice(0, 10)}…${SAMPLE_RECEIPT.txHash!.slice(-8)}`
 const d = (ms: number) => ({ '--d': `${ms}ms` }) as CSSProperties
 
 /**
@@ -131,7 +134,7 @@ export function HeroDive() {
             <p className="label absolute bottom-8 left-[max(24px,calc(50%-620px))] text-[12px] text-vault-ink-2">
               {DEPLOY_BLOCK ? (
                 <>
-                  Block <code ref={blockRef} className="text-vault-ink">{DEPLOY_BLOCK}</code> ·{' '}
+                  Contracts deployed at block <code ref={blockRef} className="text-vault-ink">{DEPLOY_BLOCK}</code> ·{' '}
                 </>
               ) : null}
               {CHAIN_NAME}

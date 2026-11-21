@@ -186,7 +186,7 @@ function defs(): CalloutDef[] {
     { id: 'did', tag: 'DID', value: DID_BEFORE, tone: 'ice', at: did, plateY: did[1], t: [0.58, 1.04, 1.42] },
     { id: 'why', tag: 'WHY', value: 'Debt collection', tone: 'ice', at: why, plateY: why[1], t: [0.67, 1.04, 1.42] },
     { id: 'fp', tag: 'FINGERPRINT', value: '0x3fa2…9c1d', tone: 'ice', at: fp, plateY: fp[1], t: [1.3, 1.5, 1.62] },
-    { id: 'block', tag: 'BLOCK', value: '#7,123,242', tone: 'ice', at: [OURS_X, LINK.y0 + 0.5], plateY: LINK.y0 - 5.5, t: [1.86, 2.04, 2.3] },
+    { id: 'block', tag: 'BLOCK', value: '#12,181,964', tone: 'ice', at: [OURS_X, LINK.y0 + 0.5], plateY: LINK.y0 - 5.5, t: [1.86, 2.04, 2.3] },
     { id: 'sealed', tag: 'SEALED', value: '21 Nov 14:03 WIB', tone: 'ok', at: [OURS_X, LINK.y0 + LINK.w - 0.5], plateY: LINK.y0 + LINK.w + 4.5, t: [1.91, 2.04, 2.3] },
     { id: 'verified', tag: 'VERIFIED', value: 'By your phone', tone: 'ok', at: tick, plateY: tick[1], t: [2.42, 3.02, 3.14] },
     { id: 'time', tag: 'MATCH', value: '1.8 S', tone: 'ok', at: ring, plateY: ring[1], t: [2.6, 3.02, 3.14], dot: true },
