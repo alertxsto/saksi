@@ -1,6 +1,6 @@
 import 'server-only';
 import { randomUUID } from 'node:crypto';
-import { and, desc, eq, isNotNull, isNull, sql } from 'drizzle-orm';
+import { and, desc, eq, isNotNull, isNull, ne, sql } from 'drizzle-orm';
 import { decodeEventLog, hexToString, type Hex } from 'viem';
 import { z } from 'zod';
 import { db } from '../../db/client';
@@ -11,10 +11,11 @@ import { addresses, events, hash, receipt, rpc } from './chain';
 import { decrypt, encrypt, pseudonym, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
+import { requireSubmitToken, submitToken, submitTokenFormat } from './submit-token';
 
 export const citizenCode = z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{6}$/);
 export const accessInput = z.strictObject({ controllerId: hash, subjectCode: citizenCode, purposeText: z.string().trim().min(1).max(500), legalBasisKey: z.enum(Object.keys(LEGAL_BASES) as (keyof typeof LEGAL_BASES)[]), eventType: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]) });
-export const submitInput = z.strictObject({ id: z.uuid(), txHash: hash });
+export const submitInput = z.strictObject({ id: z.uuid(), txHash: hash, submitToken: submitTokenFormat });
 export const confirmInput = z.strictObject({ id: z.uuid() });
 export type AccessRow = typeof logs.$inferSelect;
 export function readOpening(row: AccessRow, controllerName: string): ReceiptOpening {
@@ -41,9 +42,10 @@ export async function prepareAccess(input: z.output<typeof accessInput>) {
   await db().insert(logs).values({ id, controllerId: input.controllerId, subjectId: subject.id, subjectPseudonym,
     purposeTextEnc: encryptedPurpose.ciphertext, purposeSaltEnc: encryptedSalt.iv + '.' + encryptedSalt.ciphertext, encIv: encryptedPurpose.iv,
     purposeHash: purpose, legalBasisKey: basis, eventType: input.eventType, evidenceEnc: encryptedEvidence.ciphertext, evidenceIv: encryptedEvidence.iv, evidenceHash: commitment });
-  return { id, args: [input.controllerId, subjectPseudonym, purpose, basis, input.eventType, commitment] as const };
+  return { id, submitToken: submitToken('access', id), args: [input.controllerId, subjectPseudonym, purpose, basis, input.eventType, commitment] as const };
 }
-export async function submitAccess({ id, txHash }: z.output<typeof submitInput>) {
+export async function submitAccess({ id, txHash, submitToken: token }: z.output<typeof submitInput>) {
+  requireSubmitToken('access', id, token);
   const [row] = await db().update(logs).set({ status: 'submitted', txHash }).where(and(eq(logs.id, id), eq(logs.status, 'pending'), isNull(logs.txHash))).returning({ id: logs.id });
   if (row) return { status: 'submitted' };
   const [existing] = await db().select({ txHash: logs.txHash }).from(logs).where(eq(logs.id, id));
@@ -85,13 +87,15 @@ export async function recentAccess(controllerId: Hex) {
   return { rows: rows.map(({ code, legalBasisKey: basis, ...row }) => {
     const key = hexToString(hash.parse(basis), { size: 32 });
     return { ...row, action: EVENT_TYPES[row.eventType], legalBasisKey: Object.hasOwn(LEGAL_BASES, key) ? key : null,
-      // Controllers only see a masked hint, never the full citizen code.
-      subjectCodeHint: code ? code.slice(0, 3) + '•••' : null };
+      // Controllers only see a masked hint, never the full citizen code. Two characters leave 32^4
+      // candidates, which the per-IP prepare limit keeps out of reach of guessing.
+      subjectCodeHint: code ? code.slice(0, 2) + '••••' : null };
   }) };
 }
+// Pending rows are unsigned drafts (a rejected or abandoned wallet prompt), not receipts, so citizens never see them.
 export async function loadCitizenRows(id: string) {
   return db().select({ row: logs, controllerName: controllers.name }).from(logs).innerJoin(controllers, eq(logs.controllerId, controllers.id))
-    .where(eq(logs.subjectId, id)).orderBy(desc(logs.createdAt));
+    .where(and(eq(logs.subjectId, id), ne(logs.status, 'pending'))).orderBy(desc(logs.createdAt));
 }
 export async function unlinkCitizen(id: string) {
   await db().execute(sql`with unlinked as (update access_events set subject_id = null where subject_id = ${id})

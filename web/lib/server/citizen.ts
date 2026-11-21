@@ -1,29 +1,25 @@
 import 'server-only';
 import { randomInt } from 'node:crypto';
 import { fakerID_ID } from '@faker-js/faker';
-import { eq, sql } from 'drizzle-orm';
+import { eq } from 'drizzle-orm';
 import { db } from '../../db/client';
-import { citizenRateLimits, controllers, subjects } from '../../db/schema';
+import { controllers, subjects } from '../../db/schema';
 import { confirmAccess, loadCitizenRows, readOpening, unlinkCitizen } from './access';
 import { hash } from './chain';
 import { decrypt, encrypt, pseudonym, randomSalt32 } from './crypto';
 import { HttpError } from './http';
+import { consume } from './rate-limit';
 import { clearSession, readSession, setSession } from './session';
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 const nextCheck = new Map<string, number>();
-export async function createCitizen(ip: string) {
-  const window = Math.floor(Date.now() / 60_000);
-  const [quota] = await db().insert(citizenRateLimits).values({ key: ip, window, count: 1 }).onConflictDoUpdate({
-    target: citizenRateLimits.key, set: { window, count: sql`case when ${citizenRateLimits.window} < ${window} then 1 else ${citizenRateLimits.count} + 1 end` },
-    setWhere: sql`${citizenRateLimits.window} < ${window} or ${citizenRateLimits.count} < 30`,
-  }).returning({ count: citizenRateLimits.count });
-  if (!quota) throw new HttpError(429, 'RATE_LIMITED', 'Please wait before creating another profile.');
+export async function createCitizen(ip: string, secureCookie: boolean) {
+  if (!await consume(ip, 30)) throw new HttpError(429, 'RATE_LIMITED', 'Please wait before creating another profile.');
   const encrypted = encrypt(randomSalt32());
   for (let attempt = 0; attempt < 4; attempt++) {
     const code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join('');
     const [row] = await db().insert(subjects).values({ code, displayName: fakerID_ID.person.fullName(), pseudonymSaltEnc: encrypted.ciphertext, pseudonymSaltIv: encrypted.iv })
       .onConflictDoNothing({ target: subjects.code }).returning({ id: subjects.id, code: subjects.code, displayName: subjects.displayName });
-    if (row) { await setSession(row.id); return { code: row.code, displayName: row.displayName }; }
+    if (row) { await setSession(row.id, secureCookie); return { code: row.code, displayName: row.displayName }; }
   }
   throw new HttpError(503, 'CODE_UNAVAILABLE', 'Could not allocate a profile code. Try again.');
 }

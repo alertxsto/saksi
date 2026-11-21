@@ -12,6 +12,7 @@ import { decrypt, encrypt, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
 import { submitInput } from './access';
+import { requireSubmitToken, submitToken } from './submit-token';
 export const pasal46 = z.strictObject({ dataAffected: z.string().trim().min(1).max(1000), whenAndHow: z.string().trim().min(1).max(2000), actionsTaken: z.string().trim().min(1).max(2000), contact: z.string().trim().min(1).max(500) });
 export const prepareBreachInput = z.strictObject({ controllerId: hash, fields: pasal46, detectedAt: z.int().nonnegative(), affectedCount: z.int().nonnegative(), aiRunId: z.uuid().optional() });
 const windowSeconds = 72 * 3600;
@@ -31,9 +32,10 @@ export async function prepareBreach(data: z.output<typeof prepareBreachInput>) {
   await db().insert(reports).values({ id, controllerId: data.controllerId, reportJsonEnc: encrypted.ciphertext, reportIv: encrypted.iv, reportHash: commitment,
     affectedCountEnc: count.iv + '.' + count.ciphertext, countSaltEnc: countSalt.iv + '.' + countSalt.ciphertext, affectedCountHash: countHash,
     detectedAt: data.detectedAt, mode, aiRunId: data.aiRunId });
-  return { id, args: [data.controllerId, commitment, countHash, data.detectedAt] as const, mode, deadline, hoursLeft: (deadline - now) / 3600 };
+  return { id, submitToken: submitToken('breach', id), args: [data.controllerId, commitment, countHash, data.detectedAt] as const, mode, deadline, hoursLeft: (deadline - now) / 3600 };
 }
-export async function submitBreach({ id, txHash }: z.output<typeof submitInput>) {
+export async function submitBreach({ id, txHash, submitToken: token }: z.output<typeof submitInput>) {
+  requireSubmitToken('breach', id, token);
   const [row] = await db().update(reports).set({ status: 'submitted', txHash }).where(and(eq(reports.id, id), eq(reports.status, 'pending'), isNull(reports.txHash))).returning({ id: reports.id });
   if (row) return { status: 'submitted' };
   const [existing] = await db().select({ txHash: reports.txHash }).from(reports).where(eq(reports.id, id));

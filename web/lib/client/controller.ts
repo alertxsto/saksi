@@ -6,7 +6,8 @@ import { getAccount } from 'wagmi/actions';
 import { stringToHex, type Hash, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
 import { accessAbi, breachAbi, breachAddress, journalAddress, publicClient } from '../shared/chain';
-import { createTransactionFlow, TransactionFlowError, type Confirmation, type TransactionState } from './transactions';
+import { confirmation, invalidResponse, post, responseObject, type Resource } from './api';
+import { createTransactionFlow, TransactionFlowError, type TransactionState } from './transactions';
 
 export type RecordAccessInput = {
   controllerId: Hex;
@@ -26,36 +27,16 @@ export type AnchorBreachInput = {
 
 type AccessPreparation = { id: string; args: readonly [Hex, Hex, Hex, Hex, RecordAccessInput['eventType'], Hex] };
 type BreachPreparation = { id: string; args: readonly [Hex, Hex, Hex, bigint] };
-type Resource = 'access' | 'breach';
-type Action = 'prepare' | 'submit' | 'confirm';
-
 const bytes32 = (value: unknown): value is Hex => typeof value === 'string' && /^0x[0-9a-f]{64}$/i.test(value);
-const isObject = (value: unknown): value is Record<string, unknown> => value !== null && typeof value === 'object';
-const invalidResponse = () => new TransactionFlowError('api', 'The controller service returned an invalid response.');
 
-async function post(resource: Resource, action: Action, body: object) {
-  try {
-    const response = await fetch(`/api/controller/${resource}/${action}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-      signal: AbortSignal.timeout(15_000),
-    });
-    if (response.ok) return response;
-  } catch { /* Keep transport details and request data out of UI errors. */ }
-  throw new TransactionFlowError('api', `The controller service could not ${action} the transaction.`);
-}
-
-async function responseObject(response: Response) {
-  let value: unknown;
-  try { value = await response.json(); } catch { throw invalidResponse(); }
-  if (!isObject(value)) throw invalidResponse();
-  return value;
-}
+// Prepare returns a token that submit must echo; it stays in this tab's memory so Reconfirm can reuse it.
+const submitTokens = new Map<string, string>();
 
 async function preparation(resource: Resource, body: object, argCount: number) {
-  const { id, args } = await responseObject(await post(resource, 'prepare', body));
-  if (typeof id !== 'string' || !id || !Array.isArray(args) || args.length !== argCount) throw invalidResponse();
+  const { id, args, submitToken } = await responseObject(await post(resource, 'prepare', body));
+  if (typeof id !== 'string' || !id || !Array.isArray(args) || args.length !== argCount ||
+    typeof submitToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(submitToken)) throw invalidResponse();
+  submitTokens.set(`${resource}:${id}`, submitToken);
   return { id, args: args as readonly unknown[] };
 }
 
@@ -99,18 +80,17 @@ function configured<T>(value: T | undefined): T {
 function transactions(resource: Resource) {
   return {
     async submit(id: string, txHash: Hash) {
-      await post(resource, 'submit', { id, txHash });
+      const submitToken = submitTokens.get(`${resource}:${id}`);
+      if (!submitToken) throw new TransactionFlowError('api', 'This draft is no longer available in this tab. Prepare the transaction again.');
+      await post(resource, 'submit', { id, txHash, submitToken });
     },
     async wait(hash: Hash) {
       // B associates the preparation with the original hash, not with a replacement transaction.
       const receipt = await configured(publicClient).waitForTransactionReceipt({ hash, timeout: 60_000, checkReplacement: false });
       return receipt.status;
     },
-    async confirm(id: string): Promise<Confirmation> {
-      const { status, reason } = await responseObject(await post(resource, 'confirm', { id }));
-      if (status === 'anchored') return { status };
-      if (status === 'failed' && (reason === undefined || typeof reason === 'string')) return { status, reason };
-      throw invalidResponse();
+    confirm(id: string) {
+      return confirmation(resource, id);
     },
   };
 }

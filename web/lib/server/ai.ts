@@ -14,18 +14,14 @@ import { hash } from './chain';
 import { missing } from './http';
 import { controller } from './registry';
 import { draftPrompt, explainPrompt } from './prompts';
+import { contradictsVerdict, EXPLAIN_TEMPLATE, withVerdict } from './explain-guard';
+import { AI_MAX_TOKENS, AI_TIMEOUT_MS, draftResult, extractJson } from './ai-output';
+export { draftResult, extractJson } from './ai-output';
 
 const explainResult = z.strictObject({ text: z.string().trim().min(1).max(1500)
   .refine((text) => text.split(/\s+/u).length <= 120) });
-// Models often wrap JSON in ``` fences or add a sentence around it; take the outermost object.
-export function extractJson(content: string): unknown {
-  const start = content.indexOf('{'), end = content.lastIndexOf('}');
-  if (start === -1 || end <= start) throw new SyntaxError('No JSON object in model output.');
-  return JSON.parse(content.slice(start, end + 1));
-}
-const draftResult = z.strictObject({ dataAffected: z.string().max(1000), whenAndHow: z.string().max(2000),
-  actionsTaken: z.string().max(2000), contact: z.string().max(500), detectedAtGuess: z.string().max(100).optional() });
-export const explainInput = z.strictObject({ eventId: z.uuid(), verifyResult: z.object({ status: z.enum(['MATCH', 'MISMATCH', 'NOT_FOUND']) }).passthrough() });
+// verifyResult is accepted for older clients but ignored: the server recomputes the verdict itself.
+export const explainInput = z.strictObject({ eventId: z.uuid(), verifyResult: z.unknown().optional() });
 export const draftInput = z.strictObject({ controllerId: hash, narrative: z.string().trim().min(1).max(6000) });
 export const aiConfig = () => {
   const { AI_BASE_URL: baseURL, AI_API_KEY: apiKey, AI_MODEL: model } = process.env;
@@ -42,7 +38,7 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
   const promptVersion = evidenceHash(prompt);
   const inputHash = evidenceHash({ promptVersion, input });
   const config = aiConfig();
-  const client = config && new OpenAI({ baseURL: config.baseURL, apiKey: config.apiKey, maxRetries: 0, timeout: 8_000 });
+  const client = config && new OpenAI({ baseURL: config.baseURL, apiKey: config.apiKey, maxRetries: 0, timeout: AI_TIMEOUT_MS });
   async function save(value: T, meta: Omit<AiMeta, 'latencyMs'>) {
     const ai = { ...meta, latencyMs: Math.round(performance.now() - started) };
     const [row] = await db().insert(aiRuns).values({ feature, ...ai, promptVersion, inputHash,
@@ -55,7 +51,7 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
     if (!client) break;
     let parsed: z.ZodSafeParseResult<T> | undefined;
     try {
-      const response = await client.chat.completions.create({ model, max_tokens: 700,
+      const response = await client.chat.completions.create({ model, max_tokens: AI_MAX_TOKENS,
         messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) }] });
       parsed = schema.safeParse(extractJson(response.choices[0]?.message.content ?? ''));
     } catch { continue; }
@@ -76,16 +72,14 @@ export async function explain({ eventId }: z.output<typeof explainInput>) {
   // Never accept the browser-supplied verdict as input to the model.
   const { status, mismatches } = await verifyReceipt(opening);
   const basis = hexToString(opening.legalBasisKey, { size: 32 });
-  const allowed = { controllerName: opening.controllerName, eventType: EVENT_TYPES[opening.eventType], purposeText: opening.purposeText,
+  // purposeText is controller-written free text, so it never reaches the model (prompt-injection channel).
+  const allowed = { controllerName: opening.controllerName, eventType: EVENT_TYPES[opening.eventType],
     legalBasis: Object.hasOwn(LEGAL_BASES, basis) ? LEGAL_BASES[basis as keyof typeof LEGAL_BASES] : 'Unknown', status,
     mismatches: mismatches.map(({ field }) => field) };
-  const template = { text: {
-    MATCH: 'This record matches the blockchain commitment. It does not prove that the access was lawful or that it actually occurred.',
-    MISMATCH: 'The current record differs from the blockchain commitment. Ask the controller for an explanation or correction.',
-    NOT_FOUND: 'This node did not return a verifiable receipt. Try again later; this does not mean the record was altered.',
-  }[status] };
-  const { value, ai } = await generate('explain', explainPrompt, allowed, explainResult, template);
-  return { text: value.text, ai };
+  // The refinement also re-checks cached outputs before they are replayed.
+  const guarded = explainResult.refine(({ text }) => !contradictsVerdict(status, text));
+  const { value, ai } = await generate('explain', explainPrompt, allowed, guarded, { text: EXPLAIN_TEMPLATE[status] });
+  return { text: withVerdict(status, value.text), ai };
 }
 
 export async function draft({ controllerId, narrative }: z.output<typeof draftInput>) {

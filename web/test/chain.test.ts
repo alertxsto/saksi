@@ -59,7 +59,7 @@ test('a null receipt at the first RPC does not hide the proven event from the se
   const missing = await rpc(null);
   const found = await rpc(receipt);
   const verify = createReceiptVerifier(commitments, { urls: [missing, found], journal });
-  await expect(verify(opening)).resolves.toMatchObject({ status: 'MATCH', rpc: found, blockNumber: 2n, blockTime: 291, confirmations: 2 });
+  await expect(verify(opening)).resolves.toMatchObject({ status: 'MATCH', rpc: found, blockNumber: 2, blockTime: 291, confirmations: 2 });
   await expect(verify({ ...opening, eventType: 3 })).resolves.toMatchObject({
     status: 'MISMATCH', mismatches: [{ field: 'eventType', db: 'SHARE_THIRD_PARTY', chain: 'READ' }],
   });
@@ -122,4 +122,27 @@ test('same-block revocation does not change who was authorized at the receipt lo
   const { isAuthorizedAt } = await import('../lib/shared/chain');
   await expect(isAuthorizedAt(opening.controllerId, controller, 2n, 1)).resolves.toBe(true);
   await expect(isAuthorizedAt(opening.controllerId, controller, 2n)).resolves.toBe(false);
+});
+
+test('registry reads move to the next RPC when the primary rate-limits', async () => {
+  const controller = '0x0000000000000000000000000000000000000002';
+  const registered = parseAbiItem('event ControllerRegistered(bytes32 indexed controllerId, address indexed eoa, string name)');
+  const topics = encodeEventTopics({ abi: [registered], eventName: 'ControllerRegistered', args: { controllerId: opening.controllerId, eoa: controller } });
+  const limited = createServer((_, res) => { res.statusCode = 429; res.end('Too Many Requests'); });
+  servers.push(limited);
+  const listening = once(limited, 'listening');
+  limited.listen(0, '127.0.0.1');
+  await listening;
+  const port = (limited.address() as { port: number }).port;
+  const healthy = await rpc(null, () => [{ address: journal, blockHash: block.hash, blockNumber: '0x2', transactionHash: hash(20),
+    transactionIndex: '0x0', logIndex: '0x0', removed: false, topics, data: encodeAbiParameters([{ type: 'string' }], ['Demo One']) }]);
+  vi.stubEnv('NEXT_PUBLIC_RPC_PRIMARY', `http://127.0.0.1:${port}`);
+  vi.stubEnv('NEXT_PUBLIC_RPC_SECONDARY', healthy);
+  vi.stubEnv('NEXT_PUBLIC_REGISTRY_ADDRESS', journal);
+  vi.stubEnv('NEXT_PUBLIC_JOURNAL_ADDRESS', journal);
+  vi.stubEnv('NEXT_PUBLIC_BREACH_ADDRESS', journal);
+  vi.stubEnv('NEXT_PUBLIC_DEPLOY_BLOCK', '1');
+  vi.resetModules();
+  const { findControllerName } = await import('../lib/shared/chain');
+  await expect(findControllerName(opening.controllerId, controller)).resolves.toBe('Demo One');
 });

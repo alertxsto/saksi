@@ -3,7 +3,8 @@ import { accessInput, confirmAccess, confirmInput, prepareAccess, recentAccess, 
 import { breachDetails, confirmBreach, listBreaches, prepareBreach, prepareBreachInput, submitBreach } from '../../../lib/server/breach';
 import { createCitizen, citizenReceipts, deleteCitizen } from '../../../lib/server/citizen';
 import { hash } from '../../../lib/server/chain';
-import { HttpError, input, json, missing, requireDemoToken } from '../../../lib/server/http';
+import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, secureCookies, validate } from '../../../lib/server/http';
+import { consume } from '../../../lib/server/rate-limit';
 import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai';
 import { serviceStatus } from '../../../lib/server/status';
 import { tamper, tamperInput } from '../../../lib/server/tamper';
@@ -12,6 +13,10 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 30;
 type Context = { params: Promise<{ path: string[] }> };
+// Prepare writes a draft for any citizen code and answers 404 for unknown codes, so cap it per client IP.
+async function limitPrepare(request: Request) {
+  if (!await consume(`prepare:${clientIp(request)}`, 20)) throw new HttpError(429, 'RATE_LIMITED', 'Too many drafts from this network. Wait a minute and try again.');
+}
 async function route(request: Request, context: Context): Promise<Response> {
   const { path } = await context.params;
   const url = new URL(request.url);
@@ -19,24 +24,29 @@ async function route(request: Request, context: Context): Promise<Response> {
     switch (request.method + ' ' + path.join('/')) {
       case 'POST citizen/session': {
         await input(request, z.strictObject({}));
-        // Vercel sets x-vercel-forwarded-for; on the VM, Caddy sets x-forwarded-for / x-real-ip.
-        const forwarded = request.headers.get('x-vercel-forwarded-for') ?? request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip');
-        const ip = forwarded?.split(',')[0]?.trim() || 'local';
-        return json(await createCitizen(ip), 201);
+        return json(await createCitizen(clientIp(request), secureCookies(request)), 201);
       }
       case 'GET citizen/receipts': return json(await citizenReceipts());
       case 'DELETE citizen/session': await deleteCitizen(); return new Response(null, { status: 204 });
-      case 'POST controller/access/prepare': return json(await prepareAccess(await input(request, accessInput)), 201);
+      case 'POST controller/access/prepare': {
+        const body = await input(request, accessInput);
+        await limitPrepare(request);
+        return json(await prepareAccess(body), 201);
+      }
       case 'POST controller/access/submit': return json(await submitAccess(await input(request, submitInput)));
       case 'POST controller/access/confirm': return json(await confirmAccess((await input(request, confirmInput)).id));
-      case 'GET controller/access/recent': return json(await recentAccess(hash.parse(url.searchParams.get('controllerId'))));
-      case 'POST controller/breach/prepare': return json(await prepareBreach(await input(request, prepareBreachInput)), 201);
+      case 'GET controller/access/recent': return json(await recentAccess(validate(hash, url.searchParams.get('controllerId'))));
+      case 'POST controller/breach/prepare': {
+        const body = await input(request, prepareBreachInput);
+        await limitPrepare(request);
+        return json(await prepareBreach(body), 201);
+      }
       case 'POST controller/breach/submit': return json(await submitBreach(await input(request, submitInput)));
       case 'POST controller/breach/confirm': return json(await confirmBreach((await input(request, confirmInput)).id));
       case 'GET regulator/breaches': return json(await listBreaches());
       case 'GET watch': {
         const controllerId = url.searchParams.get('controllerId');
-        return json(await watch(controllerId === null ? undefined : hash.parse(controllerId)));
+        return json(await watch(controllerId === null ? undefined : validate(hash, controllerId)));
       }
       case 'POST demo/tamper':
         requireDemoToken(request);
@@ -47,12 +57,13 @@ async function route(request: Request, context: Context): Promise<Response> {
         requireDemoToken(request);
         return json(await serviceStatus());
       default:
-        if (request.method === 'GET' && path.length === 3 && path[0] === 'regulator' && path[1] === 'breaches') return json(await breachDetails(z.uuid().parse(path[2])));
+        if (request.method === 'GET' && path.length === 3 && path[0] === 'regulator' && path[1] === 'breaches') return json(await breachDetails(validate(z.uuid(), path[2])));
         throw missing();
     }
   } catch (error) {
     if (error instanceof HttpError) return json({ error: { code: error.code, message: error.message } }, error.status);
-    if (error instanceof z.ZodError) return json({ error: { code: 'INVALID_INPUT', message: 'Please check the submitted values.' } }, 400);
+    // Request input is validated with HttpError(400) above; anything else (configuration, stored data, DB, RPC) is ours.
+    console.error('[api]', request.method, path.join('/'), describeError(error));
     return json({ error: { code: 'UNAVAILABLE', message: 'Saksi is temporarily unavailable. Try again.' } }, 503);
   }
 }

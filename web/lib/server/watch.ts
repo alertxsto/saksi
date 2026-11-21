@@ -28,6 +28,12 @@ export function compareOpening(opening: ReceiptOpening, args: AccessLog['args'])
   return difference ? { field: difference[0], dbValue: difference[1], chainValue: difference[2] } : undefined;
 }
 
+// NOT_ANCHORED is for rows that claimed a transaction (submitted) which never reached the journal.
+// Pending rows have no transaction hash: they are unsigned drafts from a rejected or abandoned wallet prompt.
+export function isUnanchoredClaim(row: { status: string; txHash: string | null; createdAt: Date }, seenTransactions: ReadonlySet<string>, cutoff: number) {
+  return row.status === 'submitted' && row.txHash !== null && row.createdAt.getTime() < cutoff && !seenTransactions.has(row.txHash.toLowerCase());
+}
+
 async function scan(controllerId?: Hex) {
   const client = rpc();
   if (await client.getChainId() !== 11155111) throw new Error('Expected Sepolia.');
@@ -54,12 +60,14 @@ async function scan(controllerId?: Hex) {
 }
 
 export async function watch(controllerId?: Hex) {
+  // Resolve the database client first: if it throws, the chain scan has not started and cannot reject unobserved.
+  const database = db();
   const [{ logs, head }, records, orgs] = await Promise.all([
     scan(controllerId),
-    db().select({ row: accessEvents, name: controllers.name }).from(accessEvents)
+    database.select({ row: accessEvents, name: controllers.name }).from(accessEvents)
       .innerJoin(controllers, eq(accessEvents.controllerId, controllers.id))
       .where(controllerId ? eq(accessEvents.controllerId, controllerId) : undefined),
-    db().select({ id: controllers.id, name: controllers.name }).from(controllers),
+    database.select({ id: controllers.id, name: controllers.name }).from(controllers),
   ]);
   const byEvent = new Map(records.filter(({ row }) => row.txHash !== null && row.logIndex !== null)
     .map((record) => [key(record.row.txHash, record.row.logIndex), record]));
@@ -81,8 +89,7 @@ export async function watch(controllerId?: Hex) {
   });
   const cutoff = Date.now() - 120_000;
   for (const { row, name } of records) {
-    if ((row.status === 'pending' || row.status === 'submitted') && row.createdAt.getTime() < cutoff &&
-      (!row.txHash || !seenTransactions.has(row.txHash.toLowerCase()))) {
+    if (isUnanchoredClaim(row, seenTransactions, cutoff)) {
       rows.push({ eventId: row.id, txHash: row.txHash ? hash.parse(row.txHash) : emptyHash,
         logIndex: row.logIndex ?? -1, controllerName: name, status: 'NOT_ANCHORED' });
     }

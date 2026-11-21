@@ -21,7 +21,8 @@ export type ReceiptOpening = {
 export type VerifyResult = {
   status: 'MATCH' | 'MISMATCH' | 'NOT_FOUND';
   mismatches: { field: 'eventType' | 'legalBasis' | 'purpose' | 'evidence' | 'pseudonym' | 'contract'; db: string; chain: string }[];
-  blockNumber?: bigint; blockTime?: number; confirmations?: number; elapsedMs: number; rpc: string;
+  // A plain number (Sepolia heights are far below 2^53) so the result survives JSON.stringify in the browser.
+  blockNumber?: number; blockTime?: number; confirmations?: number; elapsedMs: number; rpc: string;
 };
 export type WatchRow = {
   eventId: string | null; txHash: Hex; logIndex: number; controllerName: string;

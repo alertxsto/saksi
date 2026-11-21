@@ -7,6 +7,7 @@ import { injected } from 'wagmi/connectors';
 import { fallback, http, parseEther, type Address, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
 import { deployBlock, findControllerName, publicClient, registryAbi, registryAddress, rpcUrls } from '../shared/chain';
+import { walletStatus, type Controller, type WalletStatus } from './wallet-status';
 
 export { useAnchorBreach, useRecordAccess, type AnchorBreachInput, type RecordAccessInput } from './controller';
 export type { TransactionError, TransactionState } from './transactions';
@@ -20,13 +21,6 @@ export const wagmiConfig = rpcUrls.length ? createConfig({
 }) : undefined;
 
 const minimumBalance = parseEther('0.002');
-
-type Controller = { controllerId: Hex; name: string; balance: bigint };
-type WalletStatus =
-  | { state: 'no_wallet' | 'disconnected' }
-  | { state: 'wrong_network'; address: Address; chainId: number | undefined }
-  | { state: 'not_registered'; address: Address }
-  | ({ state: 'no_gas' | 'ready'; address: Address } & Controller);
 
 export type WalletState = WalletStatus & {
   isChecking: boolean;
@@ -81,15 +75,16 @@ export function useWalletState(controllerIds: readonly Hex[]): WalletState {
       if (!address) throw new Error('Connect a wallet before checking its registration.');
       return readController(address, controllerIds);
     },
-    retry: false,
+    // Registration rarely changes; do not re-scan the registry every time the presenter switches tabs.
+    staleTime: 60_000,
+    refetchOnWindowFocus: false,
+    retry: 1,
   });
 
-  let status: WalletStatus;
-  if (injectedWallet === false) status = { state: 'no_wallet' };
-  else if (injectedWallet === undefined || !account.isConnected || !address) status = { state: 'disconnected' };
-  else if (account.chainId !== sepolia.id) status = { state: 'wrong_network', address, chainId: account.chainId };
-  else if (!registry.data || registry.isError) status = { state: 'not_registered', address };
-  else status = { state: registry.data.balance < minimumBalance ? 'no_gas' : 'ready', address, ...registry.data };
+  const status: WalletStatus = walletStatus({
+    injectedWallet, isConnected: account.isConnected, address, chainId: account.chainId,
+    expectedChainId: sepolia.id, minimumBalance, registry: registry.data,
+  });
 
   return {
     ...status,

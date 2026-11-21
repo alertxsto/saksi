@@ -10,10 +10,12 @@ function sign(value: string) {
   if (!secret || Buffer.byteLength(secret) < 32) throw new Error('SESSION_SECRET must contain at least 32 bytes.');
   return createHmac('sha256', secret).update(value).digest();
 }
-export async function setSession(id: string) {
+// `secure` must follow the scheme the browser used (see secureCookies in ./http): browsers drop
+// Secure cookies set over plain http, which would break every citizen request after sign-up.
+export async function setSession(id: string, secure: boolean) {
   const data = Buffer.from(JSON.stringify({ id, exp: Math.floor(Date.now() / 1000) + lifetime })).toString('base64url');
   (await cookies()).set(name, data + '.' + sign(data).toString('base64url'), {
-    httpOnly: true, sameSite: 'lax', path: '/', maxAge: lifetime, secure: process.env.NODE_ENV === 'production',
+    httpOnly: true, sameSite: 'lax', path: '/', maxAge: lifetime, secure,
   });
 }
 export async function readSession(): Promise<string | undefined> {

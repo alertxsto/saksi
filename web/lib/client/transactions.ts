@@ -9,6 +9,8 @@ export type Confirmation = { status: 'anchored' } | { status: 'failed'; reason?:
 export type TransactionError = {
   code: 'wallet' | 'rejected' | 'nonce' | 'timeout' | 'reverted' | 'api' | 'unconfirmed' | 'unknown';
   message: string;
+  /** The API error code (for example UNKNOWN_CITIZEN or FUTURE_DETECTION) when the API rejected the request. */
+  apiCode?: string;
 };
 export type TransactionState =
   | { step: 'idle' | 'preparing' }
@@ -34,14 +36,14 @@ export type TransactionIO<Input, Prepared extends Preparation> = {
 };
 
 export class TransactionFlowError extends Error {
-  constructor(readonly code: TransactionError['code'], message: string) {
+  constructor(readonly code: TransactionError['code'], message: string, readonly apiCode?: string) {
     super(message);
   }
 }
 
 function explainError(error: unknown): TransactionError {
   for (let depth = 0; depth < 12 && error && typeof error === 'object'; depth++) {
-    if (error instanceof TransactionFlowError) return { code: error.code, message: error.message };
+    if (error instanceof TransactionFlowError) return { code: error.code, message: error.message, ...(error.apiCode && { apiCode: error.apiCode }) };
     const cause = error as { name?: string; message?: string; code?: unknown; cause?: unknown };
     const name = typeof cause.name === 'string' ? cause.name : '';
     const message = typeof cause.message === 'string' ? cause.message : '';

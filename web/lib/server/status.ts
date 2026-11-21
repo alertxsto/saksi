@@ -6,6 +6,7 @@ import { sepolia } from 'viem/chains';
 import { db } from '../../db/client';
 import { aiConfig } from './ai';
 import { addresses } from './chain';
+import { configProblems } from './config';
 async function probe<T extends object>(work: () => Promise<T>) {
   const start = performance.now();
   try { return { ...await work(), ok: true, ms: Math.round(performance.now() - start) }; }
@@ -32,5 +33,5 @@ export async function serviceStatus() {
   ]);
   let contracts;
   try { contracts = addresses(); } catch { contracts = { journal: null, breach: null, registry: null }; }
-  return { rpc, db: database, ai: { ...ai, model: config?.model ?? null }, contracts };
+  return { rpc, db: database, ai: { ...ai, model: config?.model ?? null }, contracts, configProblems: configProblems() };
 }
