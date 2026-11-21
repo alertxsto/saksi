@@ -13,14 +13,18 @@ const LINKS = [
   ['#roles', 'Roles'],
   ['#verify', 'Verify'],
   ['#faq', 'FAQ'],
+  ['/why', 'Sources'],
 ] as const
+const LINK =
+  'nav-link flex min-h-11 items-center whitespace-nowrap rounded-sm px-3 text-[14px] font-medium tracking-[0.01em] transition-colors duration-150'
 
 /**
  * zaro A.7 nav: transparent at rest, white 80% + 4 px blur + hairline after 100 px, vault colours while a
  * [data-surface="vault"] block sits under it, and it slides away while the dark closer is on screen.
- * Links are centred exactly (05 §4); hover is the odometer roll.
+ * Links are centred exactly (05 §4); hover is the odometer roll. `base` prefixes the section anchors when
+ * the nav sits on another page (e.g. "/" on /why, so "#how" becomes "/#how").
  */
-export function Nav() {
+export function Nav({ base = '' }: { base?: string }) {
   const ref = useRef<HTMLElement>(null)
 
   useEffect(() => {
@@ -54,15 +58,17 @@ export function Nav() {
           <span className="text-[19px] font-semibold tracking-[-0.04em]">saksi</span>
         </Link>
         <nav aria-label="Sections" className="absolute inset-y-0 left-1/2 hidden -translate-x-1/2 items-center gap-1 lg:flex">
-          {LINKS.map(([href, label]) => (
-            <a
-              key={href}
-              href={href}
-              className="nav-link flex min-h-11 items-center whitespace-nowrap rounded-sm px-3 text-[14px] font-medium tracking-[0.01em] transition-colors duration-150"
-            >
-              <OdoText>{label}</OdoText>
-            </a>
-          ))}
+          {LINKS.map(([href, label]) =>
+            href.startsWith('#') ? (
+              <a key={href} href={`${base}${href}`} className={LINK}>
+                <OdoText>{label}</OdoText>
+              </a>
+            ) : (
+              <Link key={href} href={href} className={LINK}>
+                <OdoText>{label}</OdoText>
+              </Link>
+            ),
+          )}
         </nav>
         <Cta href="/citizen" size="md" className="nav-cta ml-auto">
           Open live demo

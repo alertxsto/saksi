@@ -1,13 +1,15 @@
 'use client'
 
 import { useState } from 'react'
+import { Cite } from '@/components/ui/Cite'
+import type { SourceId } from '@/lib/sources'
 import { Cta } from './Cta'
 import { Heading } from './Words'
 
 // Copy: riset-ui/15 S8, with 5, 6 and 9 checked against PRD-00 (§1, §3, §4.2–4.3): the controller signs and
 // pays gas from its registered wallet; Sepolia is the demo network; Merkle batching and L2 are roadmap,
-// not built; AI only explains and drafts; citizens need no wallet.
-export const FAQ: { q: string; a: string }[] = [
+// not built; AI only explains and drafts; citizens need no wallet. `cite` points at lib/sources.ts (shown on /why).
+export const FAQ: { q: string; a: string; cite?: readonly SourceId[] }[] = [
   {
     q: 'Who uses Saksi?',
     a: 'Three people. A company (the controller) records each access from its registered wallet. A citizen gets a receipt and checks it on their phone. A regulator sees on-time or late breach notices and altered rows, without asking the company for access.',
@@ -19,6 +21,12 @@ export const FAQ: { q: string; a: string }[] = [
   {
     q: 'How is this different from a normal audit log?',
     a: 'A normal log lives in the company’s own database, so whoever can write to it can rewrite it. Saksi seals a fingerprint of each entry on a public chain the moment it is written. If someone changes the row later, the fingerprint no longer matches.',
+    cite: ['djp-npwp-2024'],
+  },
+  {
+    q: 'Doesn’t the law already require access logs?',
+    a: 'Yes. UU PDP Art. 31 requires every controller to record all processing of personal data, and OJK’s lending rule (POJK 40/2024) asks for non-repudiation and an audit trail usable in disputes. Both leave the log inside the company. Saksi makes that same record checkable by the person it is about.',
+    cite: ['uu-pdp-31', 'pojk-40-2024'],
   },
   {
     q: 'What does Saksi not prove?',
@@ -27,6 +35,7 @@ export const FAQ: { q: string; a: string }[] = [
   {
     q: 'What goes on chain? Is my data public?',
     a: 'A fingerprint of the record and a keyed pseudonym (HMAC) in place of your identity, plus a salted hash of the purpose, the access type, the legal-basis code and the time. No names, no ID numbers, no record contents. The readable details stay on the company’s server.',
+    cite: ['uu-pdp-20'],
   },
   {
     q: 'What does it cost, and who pays?',
@@ -39,6 +48,7 @@ export const FAQ: { q: string; a: string }[] = [
   {
     q: 'How does the 72-hour rule (UU PDP Art. 46) work here?',
     a: 'The breach notice is sealed with its own block time. The contract compares that time with the declared discovery time. On time or late is computed by code, not claimed in a PDF.',
+    cite: ['uu-pdp-46'],
   },
   {
     q: 'Why Sepolia and not mainnet?',
@@ -106,6 +116,7 @@ export function Faq() {
                   <div className="overflow-hidden">
                     <p className="max-w-[62ch] pb-7 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[17px]">
                       {f.a}
+                      {f.cite ? <Cite ids={f.cite} /> : null}
                     </p>
                   </div>
                 </div>
