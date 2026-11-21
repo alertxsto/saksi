@@ -164,8 +164,8 @@ export function WatchView({ load }: { load?: () => Promise<WatchData> }) {
 
       <div className="grid gap-8 xl:grid-cols-12">
         <div className="min-w-0 xl:col-span-8">
-          <div className="mb-3 flex items-center justify-between">
-            <p className="label text-ink-2">Receipts · problems first · every 3 s</p>
+          <div className="mb-3 flex items-center justify-between gap-3">
+            <p className="label text-ink-2">Receipts · problems first · every 3&nbsp;s</p>
             {q.isFetching && hasData ? <span className="label text-[11px] text-ink-2">checking…</span> : null}
           </div>
           {stale ? (

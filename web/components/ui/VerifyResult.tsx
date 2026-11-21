@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from 'react'
 import type { ReceiptOpening, VerifyResult as VerifyResultT } from '@/lib/shared/types'
 import { EVENT_LABELS, EVENT_TYPES, type EventTypeName } from '@/lib/shared/types'
-import { basisLabel, eventVerb, shortHex } from '@/lib/format'
+import { basisLabel, eventVerb, rpcLabel, shortHex } from '@/lib/format'
 import { Button } from './Button'
 import { DotoValue } from './DotoValue'
 import { IconCheck, IconQuestion, IconRefresh, IconShield, IconX } from './icons'
@@ -142,11 +142,11 @@ export function VerifyResult({
             {[
               ['BLOCK', result.blockNumber ? Number(result.blockNumber).toLocaleString('en-US') : '—'],
               ['CONFIRMS', result.confirmations?.toLocaleString('en-US') ?? '—'],
-              ['NODE', result.rpc.split('.')[0] ?? result.rpc],
-            ].map(([k, v]) => (
-              <div key={k} className="bg-card p-2.5">
+              ['NODE', rpcLabel(result.rpc), result.rpc],
+            ].map(([k, v, full]) => (
+              <div key={k} className="min-w-0 bg-card p-2.5">
                 <dt className="label text-[11px] text-ink-2">{k}</dt>
-                <dd className="tnum mt-1 truncate text-ink" title={v}>
+                <dd className="tnum mt-1 truncate text-ink" title={full ?? v}>
                   {v}
                 </dd>
               </div>

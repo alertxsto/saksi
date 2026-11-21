@@ -53,7 +53,7 @@ export function formatEth(wei: bigint | undefined): string {
 export function WalletStrip({ state }: { state: WalletState }) {
   const idx = WALLET_STATES.indexOf(state)
   return (
-    <ol className="grid grid-cols-3 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-6" aria-label="Wallet checks">
+    <ol className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3 lg:grid-cols-6" aria-label="Wallet checks">
       {WALLET_STATES.map((s, i) => {
         const passed = i < idx || state === 'ready'
         const current = s === state
