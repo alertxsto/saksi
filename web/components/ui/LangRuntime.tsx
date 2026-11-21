@@ -52,7 +52,7 @@ const TIMES: [RegExp, string][] = [
 function translate(d: Dict, key: string): string | null {
   const hit = d[key]
   if (hit) return hit
-  for (const [re, to] of PATTERNS) if (re.test(key)) return key.replace(re, to)
+  for (const [re, to] of PATTERNS) if (re.test(key)) return withTimes(key.replace(re, to))
   for (const sep of [' · ', ', ']) {
     if (!key.includes(sep)) continue
     const parts = key.split(sep)
@@ -64,9 +64,13 @@ function translate(d: Dict, key: string): string | null {
     })
     if (any) return out.join(sep)
   }
-  let timed = key
-  for (const [re, to] of TIMES) timed = timed.replace(re, to)
+  const timed = withTimes(key)
   return timed !== key ? timed : null
+}
+
+function withTimes(s: string) {
+  for (const [re, to] of TIMES) s = s.replace(re, to)
+  return s
 }
 
 function lookup(d: Dict, raw: string) {

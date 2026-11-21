@@ -1084,6 +1084,8 @@ html.lenis, html.lenis body { height: auto; }
    the app header and the content under it: the logo, the tabs and the first column share one left edge. */
 html { --hdr: 68px; }
 @media (min-width: 768px) { html { --hdr: 76px; } }
+/* laptop app areas: the 64 px WorkspaceBar (components/ui/WorkspaceBar.tsx) replaces the floating bar */
+@media (min-width: 1024px) { html { --hdr: 64px; } }
 .ws { width: 100%; max-width: 1376px; margin-inline: auto; padding-inline: 16px; }
 .ws.ws-bar { padding-inline: 8px; }
 @media (min-width: 768px) { .ws { padding-inline: 32px; } .ws.ws-bar { padding-inline: 16px; } }

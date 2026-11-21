@@ -64,7 +64,7 @@ export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; 
   return (
     <aside
       aria-label="Regulator workspace"
-      className="no-print sticky top-(--hdr) hidden h-[calc(100dvh-var(--hdr))] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-t border-line bg-paper-2/55 lg:flex"
+      className="no-print sticky top-(--hdr) hidden h-[calc(100dvh-var(--hdr))] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-line bg-paper-2/55 lg:flex"
     >
       <nav aria-label="Regulator" className="px-3 pt-4">
         <ul className="flex flex-col gap-0.5">

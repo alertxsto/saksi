@@ -54,10 +54,11 @@ function Door({
       id={actor}
       aria-labelledby={`${id}-name`}
       data-door={actor}
-      className="en-door en-shadow min-w-0 scroll-mt-24"
+      className="en-door en-shadow min-w-0 scroll-mt-24 lg:row-span-2 lg:grid lg:grid-rows-subgrid"
       style={{ '--i': index, '--role': meta.accent } as CSSProperties}
     >
-      <div className="flex h-full flex-col">
+      {/* lg: the two halves sit on the doors grid's shared rows, so all three perforations line up */}
+      <div className="flex h-full flex-col lg:contents">
         <div className="en-half-top flex flex-1 flex-col bg-card px-5 pb-6 pt-5 md:px-6">
           <div className="flex items-center gap-3">
             <span aria-hidden="true" className="en-door-disc">
@@ -141,7 +142,8 @@ export function CitizenPanel({
   index?: number
 }) {
   const active = session.status === 'active'
-  const who = active ? `${session.name ?? session.code} (synthetic)` : 'A new synthetic citizen'
+  // no mock person on the door: the synthetic name is introduced inside the citizen app, not here
+  const who = 'A synthetic citizen'
   const device: Row =
     session.status === 'checking'
       ? { k: 'This phone', v: <Checking>Checking…</Checking>, tone: 'muted' }
@@ -161,14 +163,9 @@ export function CitizenPanel({
       rows={[{ k: 'You will be', v: who }, { k: 'You need', v: 'Nothing' }, device]}
       actions={
         active ? (
-          <>
-            <ButtonLink href="/citizen" variant="dark" arrow full>
-              <span className="truncate">{`Continue as ${session.name ?? session.code}`}</span>
-            </ButtonLink>
-            <Button variant="ghost" size="sm" full loading={creating} disabled={creating} onClick={onCreateProfile} className="justify-center">
-              {creating ? 'Starting a new citizen…' : 'Start as a new citizen'}
-            </Button>
-          </>
+          <ButtonLink href="/citizen" variant="dark" arrow full>
+            Open the citizen app
+          </ButtonLink>
         ) : (
           <Button
             variant="dark"
@@ -190,7 +187,22 @@ export function CitizenPanel({
               {error}
             </p>
           ) : null}
-          <p>No real person. In production you would sign in with the national digital ID (IKD).</p>
+          <p>
+            No real person. In production you would sign in with the national digital ID (IKD).
+            {active ? (
+              <>
+                {' '}
+                <button
+                  type="button"
+                  disabled={creating}
+                  onClick={onCreateProfile}
+                  className="underline decoration-line underline-offset-4 transition-colors duration-150 hover:text-ink-2 disabled:opacity-60"
+                >
+                  {creating ? 'Starting a new citizen…' : 'Start as a new citizen'}
+                </button>
+              </>
+            ) : null}
+          </p>
         </>
       }
     />

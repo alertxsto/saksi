@@ -57,7 +57,7 @@ export function AgencyShellView({ wallet, path, children }: { wallet: WalletView
     <div className="ag-root min-h-dvh bg-paper">
       <AppHeader actor="agency" nav={AGENCY_NAV.map(({ href, label }) => ({ href, label }))} right={<WalletPill wallet={wallet} />} />
       <div className="flex">
-      <aside aria-label="Agency workspace" className="no-print sticky top-(--hdr) hidden h-[calc(100dvh-var(--hdr))] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-t border-line bg-paper-2/55 lg:flex">
+      <aside aria-label="Agency workspace" className="no-print sticky top-(--hdr) hidden h-[calc(100dvh-var(--hdr))] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-line bg-paper-2/55 lg:flex">
         <p className="px-5 pt-4 text-[13px] leading-tight text-ink-2">Agency system (simulated)</p>
 
         <div className="mx-3 mt-3 rounded-[14px] bg-card p-3 shadow-[0_0_0_1px_var(--color-line)]">

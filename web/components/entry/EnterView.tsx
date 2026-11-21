@@ -59,7 +59,7 @@ export function EnterLayout({ citizen, controller, as }: { citizen: ReactNode; c
       data-picked={picked === key ? '' : undefined}
       data-suggested={!picked && as === key ? '' : undefined}
       onClickCapture={pick(key)}
-      className="en-slot min-w-0"
+      className="en-slot min-w-0 lg:row-span-2 lg:grid lg:grid-rows-subgrid"
     >
       {node}
     </div>
@@ -77,7 +77,7 @@ export function EnterLayout({ citizen, controller, as }: { citizen: ReactNode; c
       <RealLifeStrip />
 
       <Unpick.Provider value={() => setPicked(null)}>
-        <div ref={doorsRef} data-picking={picked ? '' : undefined} className="en-doors grid gap-4 md:gap-5 lg:grid-cols-3">
+        <div ref={doorsRef} data-picking={picked ? '' : undefined} className="en-doors grid gap-4 md:gap-5 lg:grid-cols-3 lg:grid-rows-[auto_auto] lg:gap-y-0">
           {slot('citizen', citizen)}
           {slot('agency', controller)}
           {slot('regulator', <RegulatorPanel />)}

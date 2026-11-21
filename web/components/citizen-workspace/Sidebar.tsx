@@ -59,7 +59,7 @@ export function WorkspaceSidebarView({
   return (
     <aside
       aria-label="Citizen workspace"
-      className="no-print hidden w-[232px] shrink-0 flex-col overflow-y-auto border-r border-t border-line bg-paper-2/55 @5xl:sticky @5xl:top-(--hdr) @5xl:flex @5xl:h-[calc(100dvh-var(--hdr))]"
+      className="no-print hidden w-[232px] shrink-0 flex-col overflow-y-auto border-r border-line bg-paper-2/55 @5xl:sticky @5xl:top-(--hdr) @5xl:flex @5xl:h-[calc(100dvh-var(--hdr))]"
     >
       <nav aria-label="Citizen" className="px-3 pt-4">
         <ul className="flex flex-col gap-0.5">

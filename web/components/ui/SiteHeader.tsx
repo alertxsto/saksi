@@ -29,6 +29,7 @@ export function SiteHeader({
   aside,
   sheet,
   frame = false,
+  phoneOnly = false,
   style,
   menuId = 'app-menu',
 }: {
@@ -36,6 +37,8 @@ export function SiteHeader({
   aside?: ReactNode
   sheet: (close: () => void) => ReactNode
   frame?: boolean
+  /** App areas: below lg only; the laptop gets WorkspaceBar instead. */
+  phoneOnly?: boolean
   style?: CSSProperties
   menuId?: string
 }) {
@@ -77,7 +80,7 @@ export function SiteHeader({
         ref={ref}
         data-open={open ? '' : undefined}
         style={style}
-        className={`nav app-nav no-print inset-x-0 z-50 px-3 md:px-12 ${frame ? 'sticky top-0 pt-3 md:pt-5' : 'fixed top-3 md:top-5'}`}
+        className={`nav app-nav no-print inset-x-0 z-50 px-3 md:px-12 ${frame ? 'sticky top-0 pt-3 md:pt-5' : 'fixed top-3 md:top-5'} ${phoneOnly ? 'lg:hidden' : ''}`}
       >
         <div className="nav-box relative mx-auto flex h-14 max-w-[1344px] items-center rounded-lg border border-transparent pl-3 pr-1.5 md:pl-4">
           <Link href="/" className="relative z-[1] flex min-h-11 items-center gap-2.5" aria-label="Saksi home">
@@ -107,7 +110,7 @@ export function SiteHeader({
           ) : null}
         </div>
       </header>
-      {frame ? null : <div aria-hidden="true" className="no-print h-(--hdr) shrink-0" />}
+      {frame ? null : <div aria-hidden="true" className={`no-print h-[68px] shrink-0 md:h-[76px] ${phoneOnly ? 'lg:hidden' : ''}`} />}
     </>
   )
 }

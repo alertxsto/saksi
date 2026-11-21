@@ -27,6 +27,7 @@ import { OdoText } from '@/components/landing/OdoText'
 import { Cta } from '@/components/landing/Cta'
 import { RoleChip, ROLE_META, isActor, type Actor } from '@/components/entry/RoleChip'
 import { NAV_LINK, SHEET_LINK, SheetRow, SiteHeader } from './SiteHeader'
+import { WorkspaceBar } from './WorkspaceBar'
 
 export { RoleChip, ROLE_META, type Actor }
 
@@ -75,8 +76,11 @@ export function AppHeader({ actor: actorProp, role, area, nav = [], right, switc
   const actor = inferActor(actorProp, role, area)
   const meta = ROLE_META[actor]
   return (
+    <>
+    {frame ? null : <WorkspaceBar actor={actor} switchHref={switchHref} />}
     <SiteHeader
       frame={frame}
+      phoneOnly={!frame}
       style={{ '--role': meta.accent } as CSSProperties}
       center={
         <>
@@ -117,6 +121,7 @@ export function AppHeader({ actor: actorProp, role, area, nav = [], right, switc
         </>
       )}
     />
+    </>
   )
 }
 
