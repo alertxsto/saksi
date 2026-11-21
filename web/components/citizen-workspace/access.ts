@@ -62,7 +62,7 @@ export function receiptsExport(code: string, receipts: readonly ReceiptOpening[]
     version: 1,
     exportedAt: exportedAt.toISOString(),
     profileCode: code,
-    note: 'Synthetic demo profile. Each receipt can be re-checked against the public chain at /proof.',
+    note: 'Synthetic profile. Each receipt can be re-checked against the public chain at /proof.',
     count: receipts.length,
     receipts,
   }

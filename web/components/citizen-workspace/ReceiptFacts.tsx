@@ -23,7 +23,16 @@ function Changed({ db, chain }: { db: string; chain?: string }) {
  * The receipt as one inset key/value group (riset-ui/35 detail §4): the database's values, with any field
  * this browser's chain check proved wrong struck through next to what the chain sealed.
  */
-export function ReceiptFacts({ opening, check = IDLE }: { opening: ReceiptOpening; check?: ReceiptCheck }) {
+export function ReceiptFacts({
+  opening,
+  check = IDLE,
+  inset = false,
+}: {
+  opening: ReceiptOpening
+  check?: ReceiptCheck
+  /** Rows only, no card of their own: the facts sit inside the receipt ticket (no cards in cards). */
+  inset?: boolean
+}) {
   const altered = alteredFields(check)
   const sealed = sealedEventType(check)
   const whoChanged = controllerAltered(opening, check)
@@ -60,15 +69,18 @@ export function ReceiptFacts({ opening, check = IDLE }: { opening: ReceiptOpenin
   facts.push({ k: 'Fingerprint', v: <FingerprintChip value={opening.txHash} /> })
 
   return (
-    <dl className="overflow-hidden rounded-lg border border-line bg-card">
+    <dl className={inset ? '' : 'overflow-hidden rounded-lg border border-line bg-card'}>
       {facts.map((f, i) => (
-        <div key={f.k} className={`flex min-h-12 items-center gap-4 px-4 py-2.5 ${i ? 'border-t border-line' : ''} ${f.altered ? 'bg-bad-bg/60' : ''}`}>
+        <div
+          key={f.k}
+          className={`flex min-h-12 items-center gap-4 py-2.5 ${inset ? 'px-5' : 'px-4'} ${i ? (inset ? 'border-t border-line/70' : 'border-t border-line') : ''} ${f.altered ? 'bg-bad-bg/60' : ''}`}
+        >
           <dt className={`flex shrink-0 items-center gap-1.5 text-[14px] ${f.altered ? 'font-medium text-bad' : 'text-ink-2'}`}>
             {f.altered ? <IconX size={12} strokeWidth={2.6} aria-hidden="true" /> : null}
             {f.k}
             {f.altered ? <span className="sr-only"> (altered)</span> : null}
           </dt>
-          <dd className="ml-auto min-w-0 text-right text-[15px] text-ink">{f.v}</dd>
+          <dd className="ml-auto min-w-0 break-words text-right text-[15px] text-ink">{f.v}</dd>
         </div>
       ))}
     </dl>

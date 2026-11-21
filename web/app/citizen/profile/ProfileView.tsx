@@ -2,13 +2,12 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
-import { QRCodeSVG } from 'qrcode.react'
 import { useMemo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
+import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
 import { accessTotals, aggregateAccess, downloadReceiptsJson } from '@/components/citizen-workspace/access'
 import { AccessList, AccessTotalsStrip, DataActions, ProfileGroup, RightsList } from '@/components/citizen-workspace/ProfileSections'
 import { Cta } from '@/components/landing/Cta'
-import { DotoValue } from '@/components/ui/DotoValue'
 import { DotIcon } from '@/components/ui/DotIcon'
 import { IconAlert, IconCopy, IconDownload, IconRefresh, IconTrash } from '@/components/ui/icons'
 import { ProfileSkeleton } from '@/components/ui/Skeleton'
@@ -17,8 +16,6 @@ import { useToast } from '@/components/ui/Toast'
 import { checkOf, useAutoVerify, useReceiptChecks } from '@/lib/client/receipt-checks'
 import { forgetSeenReceipts } from '@/lib/client/seen-receipts'
 import { copyText, deleteProfile, toCitizenError, type AutoVerdicts, type CitizenProfile } from '@/lib/data'
-import { SITE_URL } from '@/lib/env'
-import { controllerLinkForCode } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { verdictKind } from '@/lib/receipt-state'
 import type { ReceiptOpening } from '@/lib/shared/types'
@@ -58,7 +55,7 @@ export function ProfileView() {
       setConfirmOpen(false)
       qc.removeQueries({ queryKey: ['receipts'] })
       qc.removeQueries({ queryKey: ['profile'] })
-      toast('Demo profile deleted')
+      toast('Profile deleted')
       router.push('/citizen')
     },
   })
@@ -182,7 +179,7 @@ export function ProfileScreenView({
       <div className="flex flex-col gap-4 @5xl:max-w-[720px] @5xl:px-10 @5xl:py-9">
         <Quiet
           glyph="eye"
-          title="No demo profile yet"
+          title="No profile yet"
           body="Create a synthetic profile to get a code companies can log against."
           action={<Cta href="/citizen">Create profile</Cta>}
         />
@@ -200,28 +197,13 @@ export function ProfileScreenView({
       <div className="flex flex-col gap-6 @5xl:sticky @5xl:top-9">
         <h1 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink">Profile</h1>
 
-        {/* Identity: the code is the one place for Doto in the citizen app. */}
-        <section aria-label="Your code" className="flex flex-col items-center gap-4 rounded-lg border border-line bg-card px-4 pb-4 pt-6">
-          <div className="text-center">
-            <p className="text-[48px] leading-[0.9] text-ink" aria-label={`Code ${code.split('').join(' ')}`}>
-              <DotoValue value={code} className="gap-[0.06em]" />
-            </p>
-            <p className="mt-3 text-[15px] font-medium text-ink">{displayName}</p>
-            <p className="mt-0.5 text-[13px] text-ink-3">Synthetic demo profile · no name, ID number or wallet</p>
+        {/* Identity: the Citizen Pass at full size (riset-ui/36 A). The code (Doto) and the QR live on its stub. */}
+        <section aria-label="Your code" className="flex flex-col gap-3">
+          <CitizenPass code={code} size="full" onCopy={onCopy} {...passStatus(receipts, verdicts)} />
+          <div className="px-1">
+            <p className="text-[15px] font-medium text-ink">{displayName}</p>
+            <p className="mt-0.5 text-[13px] text-ink-2">Synthetic profile · no name, ID number or wallet</p>
           </div>
-          <div className="w-full max-w-[216px] rounded-md bg-paper p-3 @5xl:max-w-[184px]">
-            {/* An absolute link, so any phone camera opens the console with this code filled in. */}
-            <QRCodeSVG
-              value={controllerLinkForCode(SITE_URL, code)}
-              size={512}
-              level="M"
-              bgColor="#F4F2EC"
-              fgColor="#1E1A16"
-              className="h-auto w-full"
-              title={`QR code: opens the controller console with code ${code}`}
-            />
-          </div>
-          <p className="text-center text-[14px] text-ink-2">Show this to a company. Every access comes back to you.</p>
           <Act full icon={<IconCopy size={16} />} onClick={onCopy}>
             Copy code
           </Act>
@@ -262,9 +244,28 @@ export function ProfileScreenView({
 }
 
 
+/** The pass's one-sentence verdict over every receipt on this profile. Red only when a record was altered. */
+function passStatus(receipts: ReceiptOpening[], verdicts: AutoVerdicts | undefined): { verdict: PassVerdict; title: string; subtitle: string } {
+  const v = verdicts ?? {}
+  const altered = receipts.filter((r) => v[r.eventId] === 'altered').length
+  const checking = receipts.filter((r) => v[r.eventId] === 'verifying').length
+  const matched = receipts.filter((r) => v[r.eventId] === 'match').length
+  const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
+  if (altered) return { verdict: 'tamper', title: `${n(altered, 'record was', 'records were')} changed after sealing`, subtitle: 'Your phone caught it, not Saksi’s server.' }
+  if (checking) return { verdict: 'checking', title: `Checking ${n(checking, 'receipt', 'receipts')} against the chain`, subtitle: 'Your phone is checking, not our server.' }
+  if (!receipts.length) return { verdict: 'empty', title: 'No receipts yet', subtitle: 'Show your code to a company to try it.' }
+  if (matched)
+    return {
+      verdict: 'ok',
+      title: matched === receipts.length ? (matched === 1 ? 'Your receipt matches the chain' : `All ${matched} receipts match the chain`) : `${matched} of ${receipts.length} receipts match the chain`,
+      subtitle: 'Checked by your phone, not by Saksi’s server.',
+    }
+  return { verdict: 'empty', title: n(receipts.length, 'receipt on record', 'receipts on record'), subtitle: 'Your phone checks each one once it is sealed.' }
+}
+
 function Quiet({ glyph, title, body, action }: { glyph: 'clock' | 'eye'; title: string; body: string; action?: ReactNode }) {
   return (
-    <div className="anim-rise flex flex-col items-start gap-3 border-y border-line py-6">
+    <div className="anim-rise flex flex-col items-start gap-3 rounded-xl border border-line bg-card p-5">
       <DotIcon name={glyph} size={40} className="text-ink-3" />
       <div>
         <p className="text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">{title}</p>
@@ -303,7 +304,7 @@ function ConfirmDelete({
   const body = (
     <div className="p-5">
       <h2 id="del-title" className="text-[20px] font-medium tracking-[-0.02em]">
-        Delete this demo profile?
+        Delete this profile?
       </h2>
       <p className="mt-2 text-[14px] leading-relaxed text-ink-2">
         Your code <span className="font-mono text-ink">{code}</span> stops working and its receipts leave our database.
