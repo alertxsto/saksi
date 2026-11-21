@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
-import { Suspense } from 'react'
+import { Suspense, useLayoutEffect, useState, type CSSProperties } from 'react'
 import { IconReceipt, IconShield, IconUser } from './icons'
 import '@/app/citizen/stub-list.css'
 
@@ -12,7 +12,33 @@ const TABS = [
   { href: '/citizen/profile', label: 'Profile', Icon: IconUser, match: (p: string) => p.startsWith('/citizen/profile') },
 ]
 
-/** Mobile citizen tab bar, a floating ink pill (riset-ui/36 A): Receipts / Verify / Profile. From 1024 px of citizen-shell width the workspace sidebar replaces it. */
+// Each page mounts its own TabBar, so the last active tab is kept outside React: the indicator then slides
+// from where it was on the previous screen. sessionStorage carries it across reloads.
+const KEY = 'saksi.tabbar'
+let last: number | null = null
+
+function readLast(): number | null {
+  if (last !== null) return last
+  try {
+    const v = sessionStorage.getItem(KEY)
+    return v === null ? null : Number(v)
+  } catch {
+    return null
+  }
+}
+
+function writeLast(i: number) {
+  last = i
+  try {
+    sessionStorage.setItem(KEY, String(i))
+  } catch {}
+}
+
+/**
+ * Mobile citizen tab bar, a floating ink pill (riset-ui/36 A): Receipts / Verify / Profile, icon over an
+ * always-visible label. A paper indicator slides between tabs (280 ms, riset-ui/37 §5 enter curve), also
+ * across navigations. From 1024 px of citizen-shell width the workspace sidebar replaces it.
+ */
 export function TabBar() {
   // usePathname is request data: keep it inside Suspense so dynamic routes can still prerender.
   return (
@@ -27,6 +53,34 @@ function LiveBar() {
 }
 
 function Bar({ path }: { path: string }) {
+  const idx = TABS.findIndex((t) => t.match(path))
+  const [pos, setPos] = useState(idx)
+  const [anim, setAnim] = useState(false)
+
+  // before paint: park the indicator on the previous screen's tab, then let it travel to this one
+  useLayoutEffect(() => {
+    if (idx < 0) return
+    const prev = readLast()
+    writeLast(idx)
+    if (prev === null || prev < 0 || prev === idx) {
+      setPos(idx)
+      return
+    }
+    setAnim(false)
+    setPos(prev)
+    let r2 = 0
+    const r1 = requestAnimationFrame(() => {
+      r2 = requestAnimationFrame(() => {
+        setAnim(true)
+        setPos(idx)
+      })
+    })
+    return () => {
+      cancelAnimationFrame(r1)
+      cancelAnimationFrame(r2)
+    }
+  }, [idx])
+
   return (
     <>
       {/* In-flow spacer: with the shell's bottom padding it keeps the last row clear of the floating bar. */}
@@ -35,20 +89,28 @@ function Bar({ path }: { path: string }) {
         aria-label="Citizen"
         className="no-print pointer-events-none fixed inset-x-0 bottom-[calc(1rem+env(safe-area-inset-bottom))] z-40 flex justify-center px-4 @5xl:hidden"
       >
-        <ul className="pointer-events-auto flex h-[58px] w-full max-w-[320px] items-center gap-1 rounded-pill bg-ink p-1.5 shadow-[0_12px_30px_rgb(30_26_22/0.25)]">
-          {TABS.map(({ href, label, Icon, match }) => {
-            const active = match(path)
+        <ul className="tb-pill pointer-events-auto relative grid h-16 w-full max-w-[340px] grid-cols-3 rounded-pill bg-ink p-1.5 shadow-[0_12px_30px_rgb(30_26_22/0.25)]">
+          {pos >= 0 ? (
+            <li
+              aria-hidden="true"
+              className="tb-ind pointer-events-none absolute inset-y-1.5 left-1.5 w-[calc((100%-12px)/3)] rounded-pill bg-paper"
+              data-anim={anim ? '' : undefined}
+              style={{ '--x': pos } as CSSProperties}
+            />
+          ) : null}
+          {TABS.map(({ href, label, Icon }, i) => {
+            const active = i === idx
             return (
-              <li key={href} className="flex-1">
+              <li key={href} className="relative">
                 <Link
                   href={href}
                   aria-current={active ? 'page' : undefined}
-                  className={`sl-tab flex h-[46px] items-center justify-center gap-2 rounded-pill text-[14px] font-medium focus-visible:outline-offset-[-3px] ${
-                    active ? 'bg-paper text-ink' : 'text-paper/70 hover:text-paper'
+                  className={`sl-tab tb-tab flex h-full flex-col items-center justify-center gap-1 rounded-pill text-[12px] font-medium leading-none focus-visible:outline-offset-[-3px] ${
+                    active ? 'text-ink' : 'text-paper/70 hover:text-paper'
                   }`}
                 >
-                  <Icon size={18} strokeWidth={active ? 2 : 1.75} />
-                  <span className={active ? '' : 'sr-only'}>{label}</span>
+                  <Icon size={19} strokeWidth={active ? 2 : 1.75} />
+                  <span>{label}</span>
                 </Link>
               </li>
             )

@@ -75,3 +75,11 @@
   .sl-live, .sl-rise { animation: none !important; }
   .sl-tab { transition: none; }
 }
+
+/* tab bar: the paper indicator slides between the three tabs (components/ui/TabBar.tsx), 280 ms enter curve */
+.tb-ind { transform: translateX(calc(var(--x, 0) * 100%)); }
+.tb-ind[data-anim] { transition: transform 280ms cubic-bezier(.2,.8,.2,1); }
+.tb-tab { transition: color 200ms cubic-bezier(.2,.8,.2,1); }
+@media (prefers-reduced-motion: reduce) {
+  .tb-ind[data-anim], .tb-tab { transition: none; }
+}
