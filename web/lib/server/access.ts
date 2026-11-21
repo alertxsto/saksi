@@ -7,7 +7,8 @@ import { db } from '../../db/client';
 import { accessEvents as logs, controllers, subjects } from '../../db/schema';
 import { evidenceHash, legalBasisKey, purposeHash } from '../shared/commit';
 import { EVENT_TYPES, LEGAL_BASES, type ReceiptOpening } from '../shared/types';
-import { addresses, blockByHash, events, hash, receipt, rpc } from './chain';
+import { accessAbi } from '../shared/abi';
+import { addresses, blockByHash, events, hash, receipt, unknownTransaction, verifySubmission } from './chain';
 import { decrypt, encrypt, pseudonym, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
@@ -46,6 +47,12 @@ export async function prepareAccess(input: z.output<typeof accessInput>) {
 }
 export async function submitAccess({ id, txHash, submitToken: token }: z.output<typeof submitInput>) {
   requireSubmitToken('access', id, token);
+  const [draft] = await db().select().from(logs).where(eq(logs.id, id));
+  if (!draft) throw missing();
+  if (draft.status === 'pending' && draft.txHash === null) {
+    await verifySubmission(txHash, addresses().journal, accessAbi, ['logAccess'],
+      [hash.parse(draft.controllerId), draft.subjectPseudonym, draft.purposeHash, draft.legalBasisKey, draft.eventType, draft.evidenceHash]);
+  }
   const [row] = await db().update(logs).set({ status: 'submitted', txHash }).where(and(eq(logs.id, id), eq(logs.status, 'pending'), isNull(logs.txHash))).returning({ id: logs.id });
   if (row) return { status: 'submitted' };
   const [existing] = await db().select({ txHash: logs.txHash }).from(logs).where(eq(logs.id, id));
@@ -58,8 +65,14 @@ export async function confirmAccess(id: string) {
   if (!row) throw missing();
   if (row.status === 'anchored' || row.status === 'failed') return { status: row.status, ...(row.failReason && { reason: row.failReason }) };
   if (!row.txHash) throw new HttpError(409, 'TX_NOT_SET', 'Submit a transaction hash first.');
+  const update = and(eq(logs.id, id), eq(logs.status, 'submitted'), eq(logs.txHash, row.txHash));
   const observed = await receipt(hash.parse(row.txHash));
-  if (!observed) return { status: 'submitted' };
+  if (!observed) {
+    if (!await unknownTransaction(row.txHash, row.createdAt)) return { status: 'submitted' };
+    const reason = 'The transaction was not found on Sepolia.';
+    await db().update(logs).set({ status: 'failed', failReason: reason }).where(update);
+    return { status: 'failed', reason };
+  }
   const journal = addresses().journal;
   const matches = observed.status === 'success' && observed.to?.toLowerCase() === journal ? observed.logs.filter((log) => {
     if (log.address.toLowerCase() !== journal || log.removed) return false;
@@ -69,7 +82,6 @@ export async function confirmAccess(id: string) {
         args.purposeHash === row.purposeHash && args.legalBasisKey === row.legalBasisKey && args.eventType === row.eventType;
     } catch { return false; }
   }) : [];
-  const update = and(eq(logs.id, id), eq(logs.status, 'submitted'), eq(logs.txHash, row.txHash));
   const block = matches.length === 1 ? await blockByHash(observed.blockHash) : undefined;
   if (block === null) return { status: 'submitted' };
   const expectedTime = block && decodeEventLog({ abi: [events[0]], data: matches[0].data, topics: matches[0].topics }).args.timestamp;

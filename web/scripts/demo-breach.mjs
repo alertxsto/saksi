@@ -73,7 +73,7 @@ async function castOk(...args) {
   return result.out;
 }
 
-async function api(method, path, body) {
+async function api(method, path, body, retryCodes = []) {
   const response = await fetch(new URL(`/api/${path}`, base), {
     method,
     headers: body === undefined ? {} : { 'content-type': 'application/json', origin: base.origin },
@@ -82,6 +82,7 @@ async function api(method, path, body) {
   const text = await response.text();
   let data;
   try { data = JSON.parse(text); } catch { data = { raw: text.slice(0, 200) }; }
+  if (!response.ok && retryCodes.includes(data?.error?.code)) return { retry: true };
   if (!response.ok) fail(`${method} /api/${path} -> HTTP ${response.status} ${JSON.stringify(data)}`);
   return data;
 }
@@ -170,7 +171,14 @@ async function seal(kind, controllerId, signer) {
     '--rpc-url', rpcUrl, '--async')).split('\n').pop().trim();
   if (!/^0x[0-9a-fA-F]{64}$/.test(txHash)) fail(`cast send did not return a transaction hash: ${txHash}`);
   console.log(`  sent ${fn}() ${txHash}`);
-  const submitted = await api('POST', 'controller/breach/submit', { id: prepared.id, txHash, submitToken: prepared.submitToken });
+  // Submit only accepts a hash Sepolia already shows (the server waits ~8 s); retry while the broadcast propagates.
+  let submitted;
+  for (let attempt = 1; ; attempt++) {
+    submitted = await api('POST', 'controller/breach/submit', { id: prepared.id, txHash, submitToken: prepared.submitToken },
+      attempt < 5 ? ['TX_NOT_VISIBLE'] : []);
+    if (!submitted.retry) break;
+    await sleep(2_000);
+  }
   check(submitted.status === 'submitted', 'submit -> submitted');
 
   let confirmed;

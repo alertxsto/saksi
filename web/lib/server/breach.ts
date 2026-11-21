@@ -7,7 +7,8 @@ import { db } from '../../db/client';
 import { aiRuns, breachReports as reports, controllers } from '../../db/schema';
 import { affectedCountHash, reportHash } from '../shared/commit';
 import type { BreachRow } from '../shared/types';
-import { addresses, blockByHash, events, hash, receipt, rpc } from './chain';
+import { breachAbi } from '../shared/abi';
+import { addresses, blockByHash, events, hash, receipt, rpc, unknownTransaction, verifySubmission } from './chain';
 import { decrypt, encrypt, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
@@ -40,6 +41,13 @@ export async function prepareBreach(data: z.output<typeof prepareBreachInput>) {
 }
 export async function submitBreach({ id, txHash, submitToken: token }: z.output<typeof submitInput>) {
   requireSubmitToken('breach', id, token);
+  const [draft] = await db().select().from(reports).where(eq(reports.id, id));
+  if (!draft) throw missing();
+  if (draft.status === 'pending' && draft.txHash === null) {
+    // The controller screen may switch to anchorLate() after simulating, so either entry point matches.
+    await verifySubmission(txHash, addresses().breach, breachAbi, ['anchor', 'anchorLate'],
+      [hash.parse(draft.controllerId), draft.reportHash, draft.affectedCountHash, BigInt(draft.detectedAt)]);
+  }
   const [row] = await db().update(reports).set({ status: 'submitted', txHash }).where(and(eq(reports.id, id), eq(reports.status, 'pending'), isNull(reports.txHash))).returning({ id: reports.id });
   if (row) return { status: 'submitted' };
   const [existing] = await db().select({ txHash: reports.txHash }).from(reports).where(eq(reports.id, id));
@@ -53,10 +61,14 @@ export async function confirmBreach(id: string) {
   if (row.status === 'anchored') return { status: row.status, mode: row.mode, anchoredAt: row.anchoredAt, lateBySec: row.lateBySec };
   if (row.status === 'failed') return { status: row.status, reason: 'The breach transaction did not match the draft.' };
   if (!row.txHash) throw new HttpError(409, 'TX_NOT_SET', 'Submit a transaction hash first.');
-  const observed = await receipt(hash.parse(row.txHash));
-  if (!observed) return { status: 'submitted' };
-  const target = addresses().breach;
   const condition = and(eq(reports.id, id), eq(reports.status, 'submitted'), eq(reports.txHash, row.txHash));
+  const observed = await receipt(hash.parse(row.txHash));
+  if (!observed) {
+    if (!await unknownTransaction(row.txHash, row.createdAt)) return { status: 'submitted' };
+    await db().update(reports).set({ status: 'failed' }).where(condition);
+    return { status: 'failed', reason: 'The transaction was not found on Sepolia.' };
+  }
+  const target = addresses().breach;
   const matching = observed.status === 'success' && observed.to?.toLowerCase() === target ? observed.logs.flatMap((log) => {
     if (log.address.toLowerCase() !== target || log.removed) return [];
     try {

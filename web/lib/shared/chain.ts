@@ -1,5 +1,5 @@
 import {
-  createPublicClient, decodeEventLog, fallback, getAddress, http, isAddress, zeroAddress,
+  createPublicClient, decodeEventLog, fallback, getAddress, http, isAddress, TransactionNotFoundError, zeroAddress,
   type Address, type Hex,
 } from 'viem';
 import { sepolia } from 'viem/chains';
@@ -73,6 +73,27 @@ async function findReceipt(txHash: Hex, candidates: readonly Node[]) {
 export async function getReceiptRobust(txHash: Hex) {
   const { receipt, rpc } = await findReceipt(txHash, nodes);
   return { receipt, rpc };
+}
+
+// Ask every configured RPC at once (a pending transaction reaches public nodes at different times).
+// `missing` is true only when a Sepolia node answered "no such transaction", never for timeouts or errors.
+export async function getTransactionRobust(txHash: Hex) {
+  let missing = false;
+  try {
+    const transaction = await Promise.any(nodes.map(async (node) => {
+      const [chainId, found] = await Promise.all([
+        node.client.getChainId(),
+        node.client.getTransaction({ hash: txHash }).catch((error: unknown) => {
+          if (error instanceof TransactionNotFoundError) return null;
+          throw error;
+        }),
+      ]);
+      if (chainId !== sepolia.id) throw new Error('Not Sepolia.');
+      if (!found) { missing = true; throw new Error('Not found.'); }
+      return found;
+    }));
+    return { transaction, missing: false };
+  } catch { return { transaction: null, missing }; }
 }
 
 export function createReceiptVerifier(commitments: Commitments, config?: { urls: readonly string[]; journal: Address }) {

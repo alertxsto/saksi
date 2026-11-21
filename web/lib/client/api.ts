@@ -46,6 +46,20 @@ export async function responseObject(response: Response) {
 
 const sleep: Wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+// The server only accepts a hash Sepolia already shows (it waits up to ~8 s). A fresh broadcast can take longer to
+// reach the server's RPCs, so retry a few times on TX_NOT_VISIBLE before handing the user a Reconfirm.
+export async function submission(resource: Resource, body: object, options: { attempts?: number; delayMs?: number; wait?: Wait } = {}) {
+  const { attempts = 4, delayMs = 2_000, wait = sleep } = options;
+  for (let attempt = 1; ; attempt++) {
+    try {
+      return await post(resource, 'submit', body);
+    } catch (error) {
+      if (!(error instanceof TransactionFlowError) || error.apiCode !== 'TX_NOT_VISIBLE' || attempt >= attempts) throw error;
+    }
+    await wait(delayMs);
+  }
+}
+
 // The browser can see a receipt on one load-balanced RPC backend before the server's RPCs do. The server
 // then answers `submitted`, which means "not visible yet", so poll a few times before giving up.
 export async function confirmation(resource: Resource, id: string, options: { attempts?: number; delayMs?: number; wait?: Wait } = {}): Promise<Confirmation> {

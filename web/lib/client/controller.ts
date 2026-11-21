@@ -6,7 +6,7 @@ import { getAccount } from 'wagmi/actions';
 import { stringToHex, type Hash, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
 import { accessAbi, breachAbi, breachAddress, getReceiptRobust, journalAddress, publicClient } from '../shared/chain';
-import { confirmation, invalidResponse, post, responseObject, type Resource } from './api';
+import { confirmation, invalidResponse, post, responseObject, submission, type Resource } from './api';
 import { createTransactionFlow, TransactionFlowError, type TransactionState } from './transactions';
 
 export type RecordAccessInput = {
@@ -82,7 +82,7 @@ function transactions(resource: Resource) {
     async submit(id: string, txHash: Hash) {
       const submitToken = submitTokens.get(`${resource}:${id}`);
       if (!submitToken) throw new TransactionFlowError('api', 'This draft is no longer available in this tab. Prepare the transaction again.');
-      await post(resource, 'submit', { id, txHash, submitToken });
+      await submission(resource, { id, txHash, submitToken });
     },
     async wait(hash: Hash) {
       // B associates the preparation with the original hash, not with a replacement transaction.
