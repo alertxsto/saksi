@@ -12,7 +12,6 @@ import { getControllerRecent, maskCitizenCode, type RecentAccess } from '@/lib/d
 import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { LEGAL_BASES, type RecordStatus } from '@/lib/shared/types'
-import { SimulationNote } from '../RecordAccess'
 import { useControllerWallet } from '../wallet'
 import './access-log.css'
 
@@ -401,7 +400,6 @@ export function AccessLog() {
   return (
     <div>
       <AgencyPageHead title="Access log" description="Every lookup this agency recorded, newest first. Each one is a receipt on the citizen’s phone." />
-      <SimulationNote />
       {ready ? (
         <AccessLogView
           agencyName={wallet.controller?.name ?? 'Your agency'}

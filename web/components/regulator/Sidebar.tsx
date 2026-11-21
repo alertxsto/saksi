@@ -4,8 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import type { ComponentType } from 'react'
-import { RoleChip } from '@/components/entry/RoleChip'
-import { IconArrow, IconClock, IconEye, IconShield, IconUser } from '@/components/ui/icons'
+import { IconClock, IconEye, IconShield, IconUser } from '@/components/ui/icons'
 import { getRegulatorReports, type RegulatorReportsWire } from '@/lib/data'
 
 type IconProps = { size?: number; strokeWidth?: number; className?: string }
@@ -53,8 +52,8 @@ export function useOpenReports(load?: () => Promise<RegulatorReportsWire>): numb
 }
 
 /**
- * Desktop sidebar (from 1024, under the shared AppHeader): five destinations, and a footer with who
- * you are and Switch role. 232 px, the workspace grammar of riset-ui/37 §4.
+ * Desktop sidebar (from 1024, under the shared AppHeader): who you are, then five destinations. Role and
+ * language live in the header's role menu. 232 px, the workspace grammar of riset-ui/37 §4.
  */
 export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; loadReports?: () => Promise<RegulatorReportsWire> }) {
   const path = usePathname()
@@ -66,7 +65,24 @@ export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; 
       aria-label="Regulator workspace"
       className="no-print sticky top-(--hdr) hidden h-[calc(100dvh-var(--hdr))] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-line bg-paper-2/55 lg:flex"
     >
-      <nav aria-label="Regulator" className="px-3 pt-4">
+      <p className="px-5 pt-4 text-[13px] leading-tight text-ink-2">Regulator (simulated)</p>
+
+      <div className="mx-3 mt-3 rounded-[14px] bg-card p-3 shadow-[0_0_0_1px_var(--color-line)]">
+        <div className="flex min-w-0 items-start gap-2.5">
+          <span aria-hidden="true" className="mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-full bg-[#157F3D] text-[12px] font-semibold text-white">
+            R
+          </span>
+          <span className="min-w-0">
+            <span className="line-clamp-2 text-[14px] font-semibold leading-snug text-ink">PDP authority</span>
+            <span className="mt-0.5 block text-[12px] text-ink-3">Every registered agency</span>
+          </span>
+        </div>
+        <p className="mt-2.5 flex items-center gap-1.5 border-t border-line/70 pt-2.5 text-[12px] text-ink-2">
+          <IconEye size={13} /> Read-only · signs reviews
+        </p>
+      </div>
+
+      <nav aria-label="Regulator" className="px-3 pt-5">
         <ul className="flex flex-col gap-0.5">
           {REG_NAV.map(({ key, href, label, Icon }) => {
             const on = current === key
@@ -75,7 +91,7 @@ export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; 
                 <Link
                   href={href}
                   aria-current={on ? 'page' : undefined}
-                  className={`flex h-10 items-center gap-3 rounded-md px-2.5 text-[15px] transition-colors duration-150 ${
+                  className={`flex h-10 items-center gap-3 rounded-[10px] px-2.5 text-[15px] transition-colors duration-150 ${
                     on ? 'bg-ink font-medium text-paper' : 'text-ink-2 hover:bg-ink/[.05] hover:text-ink'
                   }`}
                 >
@@ -98,13 +114,6 @@ export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; 
         </ul>
       </nav>
 
-      <div className="mt-auto flex flex-col gap-3 border-t border-line px-4 pb-5 pt-4">
-        <RoleChip actor="regulator" identity="PDP authority (simulated)" className="max-w-full" />
-        <p className="text-[12px] leading-snug text-ink-3">Reads the witness record. Can only sign a review, never edit a record.</p>
-        <Link href="/enter" className="flex min-h-9 w-fit items-center gap-1.5 text-[13px] font-medium text-ink-2 hover:text-blue">
-          Switch role <IconArrow size={13} />
-        </Link>
-      </div>
     </aside>
   )
 }

@@ -41,7 +41,7 @@ export function RegulatorChrome({
       <Suspense fallback={<div aria-hidden="true" className="hidden shrink-0 lg:block lg:w-[232px]" />}>
         <RegulatorSidebar active={active} loadReports={loadReports} />
       </Suspense>
-      <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-9">
+      <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-10">
         <div className="mx-auto w-full max-w-[1180px]">{children}</div>
       </main>
       </div>

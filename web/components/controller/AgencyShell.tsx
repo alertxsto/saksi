@@ -3,7 +3,6 @@
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Suspense, type ComponentType, type ReactNode } from 'react'
-import { RoleChip } from '@/components/entry/RoleChip'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { CHAIN_NAME, type WalletView } from '@/components/ui/WalletGate'
 import { shortHex } from '@/lib/format'
@@ -100,17 +99,6 @@ export function AgencyShellView({ wallet, path, children }: { wallet: WalletView
           </ul>
         </nav>
 
-        <div className="flex-1" />
-
-        <div className="flex flex-col gap-2 border-t border-line px-4 pb-4 pt-3">
-          <RoleChip actor="agency" identity={name} size="sm" />
-          <Link
-            href="/enter"
-            className="flex h-10 items-center justify-center rounded-[10px] border border-line-strong text-[14px] font-medium text-ink transition-colors duration-150 hover:border-ink hover:bg-ink/[.04]"
-          >
-            Switch role
-          </Link>
-        </div>
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">

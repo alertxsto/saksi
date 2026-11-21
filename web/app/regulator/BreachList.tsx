@@ -96,10 +96,10 @@ export function BreachList({
         />
       </div>
 
-      <section aria-label="Breach notices at a glance" className="grid grid-cols-3 gap-3 print:hidden lg:max-w-[760px] lg:gap-4">
-        <Kpi label="Notices" value={stats ? stats.total : null} hint="Sealed on the public ledger" unknown={q.isError} />
-        <Kpi label="On time" value={stats ? stats.onTime : null} hint="Within 3×24 h" unknown={q.isError} />
-        <Kpi label="Late" value={stats ? stats.late : null} tone={stats?.late ? 'pending' : 'ink'} hint="Recorded by the contract" unknown={q.isError} />
+      <section aria-label="Breach notices at a glance" className="grid grid-cols-3 gap-2.5 print:hidden sm:gap-3 lg:gap-4">
+        <Kpi label="Notices" value={stats ? stats.total : null} hint="Sealed on the public ledger" hintOnPhone={false} unknown={q.isError} />
+        <Kpi label="On time" value={stats ? stats.onTime : null} hint="Within 3×24 h" hintOnPhone={false} unknown={q.isError} />
+        <Kpi label="Late" value={stats ? stats.late : null} tone={stats?.late ? 'pending' : 'ink'} hint="Recorded by the contract" hintOnPhone={false} unknown={q.isError} />
       </section>
 
       {q.isPending ? (
@@ -132,11 +132,10 @@ export function BreachList({
                       type="button"
                       onClick={() => onSelectBreach(r.id)}
                       aria-current={active ? 'true' : undefined}
-                      className={`relative -mx-3 hidden w-[calc(100%+24px)] flex-col gap-2.5 rounded-md px-3 py-4 text-left transition-colors duration-200 lg:flex ${
-                        active ? 'bg-card' : 'hover:bg-card/60'
+                      className={`relative -mx-3 my-1 hidden w-[calc(100%+24px)] flex-col gap-2.5 rounded-[12px] px-3 py-3.5 text-left transition-colors duration-200 lg:flex ${
+                        active ? 'bg-card shadow-[0_0_0_1px_var(--color-line)]' : 'hover:bg-card/60'
                       }`}
                     >
-                      {active ? <span aria-hidden="true" className="absolute -left-1 top-5 size-[7px] rounded-full bg-blue" /> : null}
                       <RowBody r={r} />
                     </button>
                     <Link href={`/regulator/breach/${r.id}`} className="flex flex-col gap-2.5 py-4 lg:hidden">

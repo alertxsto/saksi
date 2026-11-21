@@ -90,6 +90,7 @@ export function Kpi({
   hint,
   tone = 'ink',
   unknown,
+  hintOnPhone = true,
 }: {
   label: string
   value: number | null
@@ -97,10 +98,12 @@ export function Kpi({
   hint: ReactNode
   tone?: KpiTone
   unknown?: boolean
+  /** false: the hint is dropped under 640 px, for three tiles in a row. */
+  hintOnPhone?: boolean
 }) {
   const shown = useCountUp(unknown ? null : value)
   return (
-    <div className="flex min-w-0 flex-col rounded-lg border border-line bg-card px-4 py-4 lg:px-5">
+    <div className={`flex min-w-0 flex-col rounded-lg border border-line bg-card py-4 lg:px-5 ${hintOnPhone ? 'px-4' : 'px-3.5 sm:px-4'}`}>
       <span className="text-[13px] text-ink-2">{label}</span>
       {unknown ? (
         <span className="tnum mt-2 text-[32px] font-semibold leading-none tracking-[-0.02em] text-ink-3">—</span>
@@ -112,7 +115,7 @@ export function Kpi({
           {unit ? <span className="ml-1.5 text-[15px] font-medium tracking-normal text-ink-2">{unit}</span> : null}
         </span>
       )}
-      <span className="mt-2 text-[13px] leading-snug text-ink-3">{hint}</span>
+      <span className={`mt-2 text-[13px] leading-snug text-ink-3 ${hintOnPhone ? '' : 'hidden sm:block'}`}>{hint}</span>
     </div>
   )
 }

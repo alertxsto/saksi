@@ -184,7 +184,7 @@ export function Overview({
 
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-10">
             <section aria-labelledby="attn-h" className="flex min-w-0 flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex min-h-8 items-center justify-between gap-3">
                 <h2 id="attn-h" className="text-[15px] font-semibold text-ink">
                   Needs attention
                 </h2>
@@ -220,7 +220,7 @@ export function Overview({
             </section>
 
             <section aria-labelledby="ag-h" className="flex min-w-0 flex-col gap-3">
-              <div className="flex items-baseline justify-between gap-3">
+              <div className="flex min-h-8 items-center justify-between gap-3">
                 <h2 id="ag-h" className="text-[15px] font-semibold text-ink">
                   Agencies
                 </h2>

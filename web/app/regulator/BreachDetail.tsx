@@ -2,25 +2,25 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode } from 'react'
-import { Badge } from '@/components/ui/Badge'
 import { Button, ButtonLink } from '@/components/ui/Button'
 import { IconArrowUpRight, IconDownload, IconExternal, IconQuestion, IconRefresh } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Timeline72 } from '@/components/ui/Timeline72'
 import { EXPLORER_CAPTION, EXPLORER_HOST } from '@/components/regulator/explorer'
 import { Quiet } from '@/components/regulator/Quiet'
-import { Fact, plainTime, ProofRow, sealedPhrase, TechnicalProof } from '@/components/regulator/Workspace'
+import { Fact, plainTime, ProofRow, sealedPhrase, StandingChip, TechnicalProof } from '@/components/regulator/Workspace'
 import { explorerLink, getBreach, type BreachDetailView } from '@/lib/data'
 import { CHAIN_NAME } from '@/lib/env'
 import { shortHex } from '@/lib/format'
 import type { BreachRow } from '@/lib/shared/types'
 
 
-export function breachBadge(b: BreachRow, size: 'sm' | 'md' = 'sm') {
+/** Same chip grammar as agency standing: amber pill for late, green check + text for on time. */
+export function breachBadge(b: BreachRow) {
   return b.mode === 'late' ? (
-    <Badge kind="LATE" suffix={`${Math.round(b.lateBySec / 3600)} H`} size={size} />
+    <StandingChip s={{ label: `Late · ${Math.round(b.lateBySec / 3600)} h`, tone: 'pending', note: '' }} />
   ) : (
-    <Badge kind="ON_TIME" suffix={`${Math.round(b.hoursUsed)} H`} size={size} />
+    <StandingChip s={{ label: `On time · ${Math.round(b.hoursUsed)} h`, tone: 'ok', note: '' }} className="h-7" />
   )
 }
 
@@ -79,7 +79,11 @@ export function BreachDetail({ b }: { b: BreachDetailView }) {
             <span className="text-[14px] text-ink-2">used of 3×24 h</span>
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-            {late ? <Badge kind="LATE" suffix={`BY ${lateH} H`} /> : <Badge kind="ON_TIME" suffix={`${spare.toFixed(1)} H TO SPARE`} />}
+            {late ? (
+              <StandingChip s={{ label: `Late by ${lateH} h`, tone: 'pending', note: '' }} />
+            ) : (
+              <StandingChip s={{ label: `On time · ${spare.toFixed(1)} h to spare`, tone: 'ok', note: '' }} className="h-7" />
+            )}
             <span className="text-[13px] text-ink-3">Decided by the contract, not by Saksi</span>
           </div>
         </div>
