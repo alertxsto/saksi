@@ -1,0 +1,15 @@
+/contracts/out/
+/contracts/cache/
+/contracts/broadcast/
+node_modules/
+.next/
+coverage/
+*.tsbuildinfo
+.env*
+!.env.example
+.omc/
+.omp/
+.superpowers/
+AGENTS.md
+/docs/
+PRD-*.md

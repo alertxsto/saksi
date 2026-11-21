@@ -1,0 +1,20 @@
+{
+  "name": "saksi-chain-client",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@10.34.4",
+  "engines": { "node": ">=22" },
+  "scripts": { "typecheck": "tsc --noEmit", "test": "vitest run" },
+  "dependencies": {
+    "@tanstack/react-query": "5.108.2",
+    "react": "19.1.10",
+    "viem": "2.58.4",
+    "wagmi": "2.19.5"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.7",
+    "@types/react": "19.1.8",
+    "typescript": "5.9.3",
+    "vitest": "4.1.12"
+  }
+}
