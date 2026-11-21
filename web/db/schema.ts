@@ -4,7 +4,7 @@ const createdAt = () => timestamp('created_at', { withTimezone: true }).notNull(
 const epoch = (name: string) => bigint(name, { mode: 'number' });
 export const status = pgEnum('record_status', ['pending', 'submitted', 'anchored', 'failed']);
 export const mode = pgEnum('breach_mode', ['on_time', 'late']);
-export const feature = pgEnum('ai_feature', ['explain', 'draft']);
+export const feature = pgEnum('ai_feature', ['explain', 'draft', 'anomaly']);
 export const fallback = pgEnum('ai_fallback', ['primary', 'fallback', 'cached', 'template']);
 export const action = pgEnum('tamper_action', ['edit', 'delete', 'restore']);
 export const controllers = pgTable('controllers', {

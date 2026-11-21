@@ -7,6 +7,7 @@ import { hash } from '../../../lib/server/chain';
 import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, sameOrigin, secureCookies, validate } from '../../../lib/server/http';
 import { consume } from '../../../lib/server/rate-limit';
 import { draft, draftInput, draftStream, explain, explainInput } from '../../../lib/server/ai';
+import { auditPriority } from '../../../lib/server/anomaly';
 import { demoReceipts } from '../../../lib/server/demo';
 import { stageStats } from '../../../lib/server/stats';
 import { serviceStatus } from '../../../lib/server/status';
@@ -71,6 +72,11 @@ async function route(request: Request, context: Context): Promise<Response> {
         return json(await reviewReport(body));
       }
       case 'GET regulator/controllers': return json(await controllerRegister());
+      case 'GET regulator/anomalies': {
+        // Answers are cached server-side, so this only guards the database from a loop of reloads.
+        if (!await consume(`anomaly:${clientIp(request)}`, 30)) throw new HttpError(429, 'RATE_LIMITED', 'Too many requests. Wait a minute and try again.');
+        return json(await auditPriority(url.searchParams.get('lang') === 'id' ? 'id' : 'en'));
+      }
       case 'GET stats': return json(await stageStats());
       case 'GET watch': {
         const controllerId = url.searchParams.get('controllerId');

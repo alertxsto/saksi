@@ -5,7 +5,9 @@ import { z } from 'zod';
 // Full strength: high reasoning and no output cap (the model decides how long to think and write). The guardrails
 // live in the prompts and the schemas, not in a starved token budget.
 export const AI_REASONING_EFFORT = 'high' as const;
-export const AI_TIMEOUT_MS = 90_000;
+export const AI_TIMEOUT_MS = 40_000;
+// One request may take AI_TIMEOUT_MS; all attempts together never take longer than this, so a screen never hangs.
+export const AI_TOTAL_MS = 50_000;
 
 // Models often wrap JSON in ``` fences or add a sentence around it; take the outermost object.
 export function extractJson(content: string): unknown {

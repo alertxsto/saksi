@@ -6,6 +6,7 @@ import { useId } from 'react'
 import { Button } from '@/components/ui/Button'
 import { IconArrow, IconRefresh } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
+import { AuditPriority } from '@/components/regulator/AuditPriority'
 import { ago, Calm, Kpi, PageHeader, StandingChip } from '@/components/regulator/Workspace'
 import { standingOf, tampered } from '@/components/regulator/standing'
 import {
@@ -181,6 +182,8 @@ export function Overview({
             />
             <Kpi label="Receipts witnessed" value={witnessed} hint="Sealed on the public ledger" unknown={cq.isError} />
           </section>
+
+          {loadRegister ? null : <AuditPriority />}
 
           <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-10">
             <section aria-labelledby="attn-h" className="flex min-w-0 flex-col gap-3">

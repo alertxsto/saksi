@@ -15,7 +15,7 @@ import { missing } from './http';
 import { controller } from './registry';
 import { draftPrompt, explainPrompt } from './prompts';
 import { contradictsVerdict, templateFor, withVerdict } from './explain-guard';
-import { AI_REASONING_EFFORT, AI_TIMEOUT_MS, draftResult, extractJson, splitDraft } from './ai-output';
+import { AI_REASONING_EFFORT, AI_TIMEOUT_MS, AI_TOTAL_MS, draftResult, extractJson, splitDraft } from './ai-output';
 export { draftResult, extractJson } from './ai-output';
 
 const explainResult = z.strictObject({ text: z.string().trim().min(1).max(1500)
@@ -35,9 +35,9 @@ const providerName = () => {
 };
 
 /** Live text for a streamed call: `reset` when a retry starts over, `delta` for each piece of model output. */
-type Stream = { delta: (text: string) => void; reset: () => void };
+type Stream = { delta: (text: string) => void; reset: () => void; signal?: AbortSignal };
 
-async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: object, schema: z.ZodType<T>, template: T, stream?: Stream) {
+export async function generate<T>(feature: 'explain' | 'draft' | 'anomaly', prompt: string, input: object, schema: z.ZodType<T>, template: T, stream?: Stream) {
   const started = performance.now();
   const promptVersion = evidenceHash(prompt);
   const inputHash = evidenceHash({ promptVersion, input });
@@ -51,8 +51,11 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
   }
   const models = config ? [...new Set([config.model, process.env.AI_FALLBACK_MODEL || (feature === 'draft' ? config.model : '')].filter(Boolean))] : [];
   const attempts = feature === 'draft' && models.length === 1 ? [models[0], models[0]] : models;
+  // One deadline for all attempts together; a closed stream (the agency left the page) stops the model too.
+  const deadline = AbortSignal.timeout(AI_TOTAL_MS);
+  const signal = stream?.signal ? AbortSignal.any([deadline, stream.signal]) : deadline;
   for (const [index, model] of attempts.entries()) {
-    if (!client) break;
+    if (!client || signal.aborted) break;
     let parsed: z.ZodSafeParseResult<T> | undefined;
     try {
       const params = { model, reasoning_effort: AI_REASONING_EFFORT,
@@ -60,13 +63,13 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
       let content = '';
       if (stream) {
         if (index) stream.reset();
-        for await (const part of await client.chat.completions.create({ ...params, stream: true })) {
+        for await (const part of await client.chat.completions.create({ ...params, stream: true }, { signal })) {
           const piece = part.choices[0]?.delta?.content;
           if (piece) { content += piece; stream.delta(piece); }
         }
       } else {
         // stream: false is explicit because some OpenAI-compatible routers stream unless told otherwise.
-        content = (await client.chat.completions.create({ ...params, stream: false })).choices[0]?.message.content ?? '';
+        content = (await client.chat.completions.create({ ...params, stream: false }, { signal })).choices[0]?.message.content ?? '';
       }
       parsed = schema.safeParse(extractJson(content));
     } catch { continue; }
@@ -113,18 +116,23 @@ export async function draft({ controllerId, narrative }: z.output<typeof draftIn
 export async function draftStream({ controllerId, narrative }: z.output<typeof draftInput>): Promise<ReadableStream<Uint8Array>> {
   await controller(controllerId);
   const encoder = new TextEncoder();
+  const closed = new AbortController();
   return new ReadableStream({
     async start(out) {
-      const send = (event: object) => out.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      const send = (event: object) => {
+        if (!closed.signal.aborted) out.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      };
       try {
         const { value, ai, aiRunId } = await generate('draft', draftPrompt, { controllerId, narrative }, draftResult, EMPTY_DRAFT,
-          { delta: (text) => send({ type: 'delta', text }), reset: () => send({ type: 'reset' }) });
+          { delta: (text) => send({ type: 'delta', text }), reset: () => send({ type: 'reset' }), signal: closed.signal });
         send({ type: 'done', ...splitDraft(value), ai, aiRunId });
       } catch (error) {
         console.error('[api] draft stream', error instanceof Error ? error.message : error);
         send({ type: 'error', message: 'Saksi is temporarily unavailable. Try again.' });
       }
-      out.close();
+      if (!closed.signal.aborted) out.close();
     },
+    // The agency closed the page or started a new draft: stop paying for a model answer nobody will read.
+    cancel() { closed.abort(); },
   });
 }

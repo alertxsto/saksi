@@ -743,6 +743,26 @@ export function reviewReport(id: string, signedAt: string, signature: Hex): Prom
   return postJson<ReviewResult>('/api/regulator/reports/review', { id, signedAt, signature })
 }
 
+// ---- regulator: audit priority (rules score, AI explains) -----------------------------------------
+
+export type AuditSignalCode = 'tampered' | 'lateBreach' | 'openReports' | 'outward' | 'burst' | 'offHours' | 'slowSeal' | 'staleDrafts'
+export type AuditItemWire = {
+  id: string
+  name: string
+  status: 'active' | 'revoked'
+  score: number
+  level: 'high' | 'medium' | 'low'
+  signals: { code: AuditSignalCode; value: number; total?: number; points: number }[]
+  reason: string
+  nextStep: string
+}
+export type AuditPriorityWire = { items: AuditItemWire[]; summary: string; ai: AiMeta; watchKnown: boolean; checkedAt: string }
+
+/** GET /api/regulator/anomalies: every agency scored by fixed rules; the AI words the reason and next step in the screen language. */
+export function getAuditPriority(lang: 'en' | 'id' = getLang()): Promise<AuditPriorityWire> {
+  return getJson<AuditPriorityWire>(lang === 'id' ? '/api/regulator/anomalies?lang=id' : '/api/regulator/anomalies')
+}
+
 /** GET /api/regulator/controllers: every controller registered on chain, with live compliance numbers. */
 export function getControllerRegister(): Promise<ControllerRegisterWire> {
   return getJson<ControllerRegisterWire>('/api/regulator/controllers')
