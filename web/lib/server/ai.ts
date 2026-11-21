@@ -16,7 +16,13 @@ import { controller } from './registry';
 import { draftPrompt, explainPrompt } from './prompts';
 
 const explainResult = z.strictObject({ text: z.string().trim().min(1).max(1500)
-  .refine((text) => text.split(/\s+/u).length <= 80) });
+  .refine((text) => text.split(/\s+/u).length <= 120) });
+// Models often wrap JSON in ``` fences or add a sentence around it; take the outermost object.
+export function extractJson(content: string): unknown {
+  const start = content.indexOf('{'), end = content.lastIndexOf('}');
+  if (start === -1 || end <= start) throw new SyntaxError('No JSON object in model output.');
+  return JSON.parse(content.slice(start, end + 1));
+}
 const draftResult = z.strictObject({ dataAffected: z.string().max(1000), whenAndHow: z.string().max(2000),
   actionsTaken: z.string().max(2000), contact: z.string().max(500), detectedAtGuess: z.string().max(100).optional() });
 export const explainInput = z.strictObject({ eventId: z.uuid(), verifyResult: z.object({ status: z.enum(['MATCH', 'MISMATCH', 'NOT_FOUND']) }).passthrough() });
@@ -47,7 +53,7 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
     try {
       const response = await client.chat.completions.create({ model, max_tokens: 700,
         messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) }] });
-      parsed = schema.safeParse(JSON.parse(response.choices[0]?.message.content ?? ''));
+      parsed = schema.safeParse(extractJson(response.choices[0]?.message.content ?? ''));
     } catch { continue; }
     if (parsed.success) return save(parsed.data, { provider, model, fallbackLevel: index ? 'fallback' : 'primary' });
   }

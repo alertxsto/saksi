@@ -15,7 +15,7 @@ export async function createCitizen(ip: string) {
   const window = Math.floor(Date.now() / 60_000);
   const [quota] = await db().insert(citizenRateLimits).values({ key: ip, window, count: 1 }).onConflictDoUpdate({
     target: citizenRateLimits.key, set: { window, count: sql`case when ${citizenRateLimits.window} < ${window} then 1 else ${citizenRateLimits.count} + 1 end` },
-    setWhere: sql`${citizenRateLimits.window} < ${window} or ${citizenRateLimits.count} < 10`,
+    setWhere: sql`${citizenRateLimits.window} < ${window} or ${citizenRateLimits.count} < 30`,
   }).returning({ count: citizenRateLimits.count });
   if (!quota) throw new HttpError(429, 'RATE_LIMITED', 'Please wait before creating another profile.');
   const encrypted = encrypt(randomSalt32());

@@ -19,7 +19,9 @@ async function route(request: Request, context: Context): Promise<Response> {
     switch (request.method + ' ' + path.join('/')) {
       case 'POST citizen/session': {
         await input(request, z.strictObject({}));
-        const ip = request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() || 'local';
+        // Vercel sets x-vercel-forwarded-for; on the VM, Caddy sets x-forwarded-for / x-real-ip.
+        const forwarded = request.headers.get('x-vercel-forwarded-for') ?? request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip');
+        const ip = forwarded?.split(',')[0]?.trim() || 'local';
         return json(await createCitizen(ip), 201);
       }
       case 'GET citizen/receipts': return json(await citizenReceipts());

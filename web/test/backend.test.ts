@@ -24,3 +24,10 @@ test('access preparation accepts encoded legal codes, not display labels', () =>
   expect(accessInput.parse(valid).legalBasisKey).toBe('PDP-20-2-a');
   expect(accessInput.safeParse({ ...valid, legalBasisKey: 'Consent' }).success).toBe(false);
 });
+
+test('extracts model JSON wrapped in code fences or prose', async () => {
+  const { extractJson } = await import('../lib/server/ai');
+  expect(extractJson('```json\n{"text":"ok"}\n```')).toEqual({ text: 'ok' });
+  expect(extractJson('Here you go: {"a":{"b":1}} thanks')).toEqual({ a: { b: 1 } });
+  expect(() => extractJson('no json here')).toThrow();
+});
