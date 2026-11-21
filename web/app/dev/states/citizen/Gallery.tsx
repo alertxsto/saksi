@@ -17,6 +17,7 @@ import { AiPanel } from '@/components/ui/AiPanel'
 import { ReceiptDetailSkeleton } from '@/components/ui/Skeleton'
 import { ToastView } from '@/components/ui/Toast'
 import { MOCK_BLOCK_BASE, mockAllReceipts } from '@/lib/mock'
+import type { ReceiptCheck } from '@/lib/receipt-state'
 import type { AiMeta, ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
 // ---- fixtures (fixed clock so every render is identical) ---------------------------------------
@@ -53,6 +54,22 @@ const ALTERED: VerifyResult = {
   ...BASE,
 }
 const NOT_FOUND: VerifyResult = { status: 'NOT_FOUND', mismatches: [], elapsedMs: 2410, rpc: RPC }
+const EVENT_ALTERED: VerifyResult = {
+  status: 'MISMATCH',
+  mismatches: [{ field: 'eventType', db: 'READ', chain: 'SHARE_THIRD_PARTY' }],
+  elapsedMs: 1320,
+  ...BASE,
+}
+const done = (result: VerifyResult): ReceiptCheck => ({ phase: 'done', result, at: NOW })
+// The tamper demo: a SHARE_THIRD_PARTY receipt whose database row was edited to READ.
+const TAMPERED: ReceiptOpening = { ...ALL[1], eventType: 0 }
+const CHECKED: ReceiptOpening[] = [TAMPERED, ALL[2], ALL[3], ALL[4]]
+const CHECKS: Record<string, ReceiptCheck> = {
+  [TAMPERED.eventId]: done(EVENT_ALTERED),
+  [ALL[2].eventId]: done(MATCH),
+  [ALL[3].eventId]: { phase: 'running' },
+  [ALL[4].eventId]: done(NOT_FOUND),
+}
 
 const AI_TEXT =
   'Contoh Lending Co. recorded this access at the time shown, and nobody has changed the record since. Your phone compared it with the fingerprint sealed on the public chain and every field matched.'
@@ -93,12 +110,23 @@ function Row({ title, note, children }: { title: string; note: string; children:
   )
 }
 
-function Detail({ verify, ai = { state: 'idle' } }: { verify: DetailVerifyState; ai?: DetailAiState }) {
+function Detail({
+  verify,
+  ai = { state: 'idle' },
+  check,
+  opening = OPENING,
+}: {
+  verify: DetailVerifyState
+  ai?: DetailAiState
+  check?: ReceiptCheck
+  opening?: ReceiptOpening
+}) {
   return (
     <ReceiptDetailView
-      opening={OPENING}
+      opening={opening}
       now={NOW}
       verify={verify}
+      check={check}
       ai={ai}
       onVerify={noop}
       onExplain={noop}
@@ -187,7 +215,7 @@ export function CitizenStatesGallery() {
 
       <Row
         title="C2 · Receipts"
-        note="getReceipts() polled every 3 s. Badges: pending/submitted → ON CHAIN, anchored → RECORDED, failed → FAILED. NEW card = freshIds."
+        note="getReceipts() polled every 3 s. Badges: pending/submitted → ON CHAIN, anchored → RECORDED, failed → FAILED. NEW card = freshIds. Each sealed receipt is then checked in this browser (useAutoVerify): MATCH, ALTERED (red card + banner), NOT FOUND."
       >
         <Frame label="ready · new arrival + all badges">
           <List />
@@ -205,6 +233,12 @@ export function CitizenStatesGallery() {
             freshIds={[]}
             error="The Saksi server did not answer in time. Your receipts are safe on chain."
           />
+        </Frame>
+        <Frame label="chain checks · ALTERED + MATCH + CHECKING + NOT FOUND">
+          <List receipts={CHECKED} freshIds={[]} checks={CHECKS} />
+        </Frame>
+        <Frame label="sealed receipt hidden by the company">
+          <List receipts={CHECKED.slice(1)} freshIds={[]} checks={CHECKS} hiddenCount={1} />
         </Frame>
         <Frame label="offline (paused)">
           <List online={false} watching={false} freshIds={[]} />
@@ -241,6 +275,12 @@ export function CitizenStatesGallery() {
         </Frame>
         <Frame label="ALTERED">
           <Detail verify={{ phase: 'done', result: ALTERED }} />
+        </Frame>
+        <Frame label="ALTERED · event type (tamper demo)">
+          <Detail opening={TAMPERED} verify={{ phase: 'done', result: EVENT_ALTERED }} />
+        </Frame>
+        <Frame label="ALTERED · caught in background, before a tap">
+          <Detail opening={TAMPERED} verify={{ phase: 'idle' }} check={done(EVENT_ALTERED)} />
         </Frame>
         <Frame label="NOT FOUND ON THIS NODE (gray)">
           <Detail verify={{ phase: 'done', result: NOT_FOUND }} />
