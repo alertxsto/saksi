@@ -1,5 +1,5 @@
-import { ProofChrome } from '@/components/regulator/Chrome'
+import { ProofFrame } from '@/components/proof/ProofFrame'
 
 export default function ProofLayout({ children }: LayoutProps<'/proof'>) {
-  return <ProofChrome>{children}</ProofChrome>
+  return <ProofFrame>{children}</ProofFrame>
 }

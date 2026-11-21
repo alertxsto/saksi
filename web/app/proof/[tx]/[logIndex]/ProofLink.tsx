@@ -1,21 +1,15 @@
 'use client'
 
+import Link from 'next/link'
 import { useParams } from 'next/navigation'
-import dynamic from 'next/dynamic'
-import { Cta } from '@/components/landing/Cta'
+import type { Hex } from 'viem'
+import { LedgerEntry } from '@/components/proof/LedgerEntry'
 import { NotFoundScreen } from '@/components/system/NotFoundScreen'
-import { RequestedRef } from '@/components/system/RequestedRef'
-import { SystemScreen } from '@/components/system/SystemScreen'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { RiseHeading } from '@/components/regulator/Rise'
-import { decodeOpening } from '@/lib/format'
+import { IconClock } from '@/components/ui/icons'
+import { decodeOpening, shortHex } from '@/lib/format'
 import { useHash } from '@/lib/hooks'
 import { ProofResult } from '../../ProofResult'
-
-const LatticeObject = dynamic(() => import('@/components/landing/lattice/LatticeObject').then((m) => m.LatticeObject), {
-  ssr: false,
-  loading: () => <div className="aspect-square w-full" />,
-})
 
 const TX = /^(0x[0-9a-fA-F]{64}|pending)$/
 const LOG = /^\d{1,6}$/
@@ -23,7 +17,8 @@ const LOG = /^\d{1,6}$/
 /**
  * /proof/[tx]/[logIndex]#<opening>. The opening is read from location.hash only — never sent to a server.
  * - the address itself can't name a sealed record (bad tx / log index): the shared 404 "Nothing sealed here."
- * - the receipt after "#" is missing, damaged or names another tx: "This link is incomplete." (gray)
+ * - no "#" part at all: what the public ledger sealed at that address, with nothing to compare (grey).
+ * - the receipt after "#" is damaged or names another tx: "This link is incomplete." (grey)
  */
 export function ProofLink() {
   const { tx, logIndex } = useParams<{ tx: string; logIndex: string }>()
@@ -32,52 +27,67 @@ export function ProofLink() {
   if (!TX.test(tx) || !LOG.test(logIndex)) return <NotFoundScreen kind="proof" chrome="embedded" />
   if (hash === null) return <Skeleton className="h-96 w-full" />
 
+  if (!hash.replace(/^#/, '') && tx !== 'pending') return <LedgerEntry tx={tx as Hex} logIndex={Number(logIndex)} />
+
   const opening = decodeOpening(hash)
   const consistent =
     opening && (opening.txHash ?? 'pending').toLowerCase() === tx.toLowerCase() && String(opening.logIndex ?? 0) === logIndex
 
-  if (!opening || !consistent) return <ProofIncomplete mismatch={opening !== null} />
+  if (!opening || !consistent) return <ProofIncomplete mismatch={opening !== null} tx={tx} />
 
   return (
-    <div className="flex flex-col gap-10 md:gap-12">
-      <RiseHeading
-        as="h1"
-        lead="A citizen shared this receipt."
-        tail="Check it against the chain."
-        className="text-[34px] leading-[1.04] md:text-[56px]"
-      />
+    <div className="flex flex-col gap-6 md:gap-8">
+      <header className="max-w-[640px]">
+        <h1 className="text-balance text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink md:text-[34px]">
+          A citizen shared this receipt
+        </h1>
+        <p className="mt-2 text-[15px] leading-[1.6] text-ink-2 md:text-[16px]">
+          Your browser is checking it against the public ledger, field by field. Saksi’s server is not involved.
+        </p>
+      </header>
       <ProofResult opening={opening} autoStart />
     </div>
   )
 }
 
 /**
- * "This link is incomplete": the #fragment is missing, damaged, or names another transaction. Same layout as
- * the system screens (404 / reconnecting) so every dead end looks alike; gray, never red.
+ * "This link is incomplete": the #fragment is damaged, or names another transaction. Grey, never red: a broken
+ * link says nothing about tampering.
  */
-export function ProofIncomplete({ mismatch }: { mismatch: boolean }) {
+export function ProofIncomplete({ mismatch, tx }: { mismatch: boolean; tx?: string }) {
   return (
-    <SystemScreen
-      chrome="embedded"
-      art={<LatticeObject shape="receipt" title="A receipt with its details missing" />}
-      title="This link is incomplete."
-      tail="Ask the citizen to share it again."
-      body={
-        mismatch
-          ? 'The receipt inside the link points to a different transaction than the address. Nothing was verified.'
-          : 'The receipt details after “#” are missing or damaged, so there is nothing to compare. This says nothing about tampering.'
-      }
-      meta={<RequestedRef label="Looked for" params={['tx', 'logIndex']} />}
-      actions={
-        <>
-          <Cta href="/proof" className="justify-between max-sm:w-full">
-            Open the verifier
-          </Cta>
-          <Cta href="/" variant="light" className="justify-center max-sm:w-full">
-            Go home
-          </Cta>
-        </>
-      }
-    />
+    <div className="flex max-w-[640px] flex-col gap-6">
+      <header>
+        <h1 className="text-balance text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink md:text-[34px]">This link is incomplete</h1>
+        <p className="mt-2 text-[15px] leading-[1.6] text-ink-2 md:text-[16px]">Ask the citizen to share it again.</p>
+      </header>
+      <div className="flex items-start gap-3 rounded-lg border border-line bg-unknown-bg/70 p-4">
+        <IconClock size={18} className="mt-0.5 shrink-0 text-unknown" />
+        <div className="min-w-0">
+          <p className="text-[16px] font-semibold leading-snug text-ink">Nothing was verified</p>
+          <p className="mt-1 text-[15px] leading-[1.55] text-ink-2">
+            {mismatch
+              ? 'The receipt inside the link points to a different transaction than the address.'
+              : 'The receipt details after “#” are damaged, so there is nothing to compare.'}{' '}
+            <span className="text-ink">This says nothing about tampering.</span>
+          </p>
+          {tx ? <p className="mt-2 truncate font-mono text-[12px] text-ink-3">Looked for {shortHex(tx, 10, 8)}</p> : null}
+        </div>
+      </div>
+      <div className="flex flex-col gap-2 sm:flex-row">
+        <Link
+          href="/proof"
+          className="flex h-12 items-center justify-center rounded-md bg-ink px-6 text-[16px] font-medium text-paper transition-colors duration-150 hover:bg-[#3a332c]"
+        >
+          Open the verifier
+        </Link>
+        <Link
+          href="/"
+          className="flex h-12 items-center justify-center rounded-md border border-line-strong px-6 text-[16px] font-medium text-ink transition-colors duration-150 hover:border-ink"
+        >
+          Go home
+        </Link>
+      </div>
+    </div>
   )
 }

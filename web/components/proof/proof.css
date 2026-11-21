@@ -1,0 +1,109 @@
+/* Public proof / verify page (riset-ui/37 §5). Classes are prefixed pf- so they never collide with the
+   citizen stub-ticket (st-) or list (sl-) styles that this page imports alongside.
+   Motion: each stepper step 250–400 ms, one stamp landing ≤ 600 ms, nothing loops, nothing glows.
+   prefers-reduced-motion: everything is simply there. */
+
+/* ---- stepper ------------------------------------------------------------------------------- */
+
+/* The rail between two step markers fills with ink when the upper step is done. */
+.pf-rail {
+  position: absolute;
+  left: 13px;
+  top: 30px;
+  bottom: -6px;
+  width: 2px;
+  border-radius: 2px;
+  background: var(--color-line);
+  overflow: hidden;
+}
+.pf-rail::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: var(--color-ink);
+  transform: scaleY(0);
+  transform-origin: top;
+  transition: transform 300ms cubic-bezier(.2, .8, .2, 1);
+}
+.pf-rail[data-on]::after { transform: scaleY(1); }
+.pf-rail[data-tone='bad']::after { background: var(--color-bad); }
+
+.pf-mark {
+  transition: background-color 220ms cubic-bezier(.2, .8, .2, 1), border-color 220ms cubic-bezier(.2, .8, .2, 1),
+    color 220ms cubic-bezier(.2, .8, .2, 1);
+}
+/* The check (or cross) draws in once, when its step finishes. */
+.pf-draw {
+  stroke-dasharray: 24;
+  stroke-dashoffset: 0;
+  animation: pf-draw 300ms cubic-bezier(.2, .8, .2, 1) both;
+}
+@keyframes pf-draw {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+/* Step meta text fades in under the label when it changes. */
+.pf-fade { animation: pf-fade 220ms cubic-bezier(.2, .8, .2, 1) both; }
+@keyframes pf-fade {
+  from { opacity: 0; transform: translateY(-2px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- stamp: lands once (1.15 → 1, −14° → −12°), ALTERED adds one 2px shake ----------------- */
+
+.pf-stamp { transform: rotate(-12deg); }
+.pf-stamp svg { mix-blend-mode: multiply; }
+.pf-stamp[data-land] { animation: pf-stamp 560ms cubic-bezier(.2, .8, .2, 1) both; }
+.pf-stamp[data-land][data-tone='bad'] {
+  animation: pf-stamp 560ms cubic-bezier(.2, .8, .2, 1) both, pf-shake 180ms ease-in-out 560ms 1;
+}
+@keyframes pf-stamp {
+  0% { opacity: 0; transform: rotate(-14deg) scale(1.15); }
+  45% { opacity: 1; }
+  70% { transform: rotate(-11.6deg) scale(.985); }
+  100% { opacity: 1; transform: rotate(-12deg) scale(1); }
+}
+@keyframes pf-shake {
+  0%, 100% { transform: rotate(-12deg) translateX(0); }
+  33% { transform: rotate(-12deg) translateX(-2px); }
+  66% { transform: rotate(-12deg) translateX(2px); }
+}
+
+/* ---- content arriving (ticket after a check, diff rows) ----------------------------------- */
+
+.pf-rise { animation: pf-rise 220ms cubic-bezier(.2, .8, .2, 1) both; animation-delay: calc(var(--i, 0) * 60ms); }
+@keyframes pf-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---- technical proof disclosure ----------------------------------------------------------- */
+
+.pf-details > summary { list-style: none; }
+.pf-details > summary::-webkit-details-marker { display: none; }
+.pf-details .pf-chev { transition: transform 220ms cubic-bezier(.2, .8, .2, 1); }
+.pf-details[open] .pf-chev { transform: rotate(180deg); }
+
+/* ---- phone: the primary action sits in a sticky bar above the safe area ------------------- */
+
+.pf-sticky {
+  position: sticky;
+  bottom: 0;
+  z-index: 20;
+  margin-inline: -16px;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: linear-gradient(to bottom, rgb(244 242 236 / 0), var(--color-paper) 28%);
+}
+@media (min-width: 1024px) {
+  .pf-sticky { position: static; margin: 0; padding: 0; background: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pf-draw, .pf-fade, .pf-rise, .pf-stamp[data-land], .pf-stamp[data-land][data-tone='bad'] { animation: none !important; }
+  .pf-rail::after, .pf-mark { transition: none !important; }
+  .pf-stamp { transform: rotate(-12deg); }
+}
+
+@media print {
+  .pf-sticky { display: none; }
+}

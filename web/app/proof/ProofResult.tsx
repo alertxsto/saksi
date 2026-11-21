@@ -1,21 +1,21 @@
 'use client'
 
 import { useQuery } from '@tanstack/react-query'
-import { useState } from 'react'
-import { Badge } from '@/components/ui/Badge'
-import { Chip } from '@/components/ui/Chip'
-import { IconExternal, IconShield } from '@/components/ui/icons'
-import { LedgerReceipt } from '@/components/ui/LedgerReceipt'
-import { VerifyPanel } from '@/components/ui/VerifyResult'
-import { explorerLink, getRpcNodes, verifyOnNode } from '@/lib/data'
-import { EXPLORER_CAPTION } from '@/components/regulator/explorer'
-import { actSentence } from '@/lib/format'
-import { IDLE, receiptHeadline, verdictKind, type ReceiptCheck } from '@/lib/receipt-state'
+import { useId, useState } from 'react'
+import { ProofTicket } from '@/components/proof/ProofTicket'
+import { ProofStepper } from '@/components/proof/ProofStepper'
+import { TechnicalProof } from '@/components/proof/TechnicalProof'
+import { useProofCheck, type ProofCheck } from '@/components/proof/useProofCheck'
+import { IconClock, IconRefresh, IconShield } from '@/components/ui/icons'
+import { getRpcNodes, verifyOnNode, type RpcNode } from '@/lib/data'
+import { IDLE, type ReceiptCheck } from '@/lib/receipt-state'
 import type { ReceiptOpening, VerifyResult } from '@/lib/shared/types'
+import '@/components/proof/proof.css'
 
 /**
- * Ledger + Verify + "Don't trust us" panel, shared by /proof and /proof/[tx]/[logIndex]. Verification runs
- * in this browser against the chosen RPC node; `verify` is only passed by the /dev gallery (mock results).
+ * The public check, shared by /proof and /proof/[tx]/[logIndex]: the receipt as a ticket, the four-step check
+ * and the technical proof. Verification runs in this browser against the chosen RPC node; `verify` is only
+ * passed by the /dev galleries (mock results). Switching node starts a fresh check.
  */
 export function ProofResult({
   opening,
@@ -29,135 +29,198 @@ export function ProofResult({
   const nodes = useQuery({ queryKey: ['rpc-nodes'], queryFn: getRpcNodes, staleTime: Infinity })
   const [node, setNode] = useState('0')
   const [run, setRun] = useState(0)
-  // The link's contents are untrusted until this browser has checked them: no status badge before a verdict.
-  const [check, setCheck] = useState<ReceiptCheck>(IDLE)
-  const head = receiptHeadline(opening, check)
-  const verdict = verdictKind(check)
-
-  const onVerify = (attempt: number) => (verify ? verify(opening, node, attempt) : verifyOnNode(opening, node))
-  const onSwitchRpc = (id: string) => {
+  const onSwitch = (id: string) => {
     setNode(id)
-    setCheck(IDLE)
     setRun((r) => r + 1)
   }
+  return (
+    <ProofSession
+      key={`${node}-${run}`}
+      opening={opening}
+      autoStart={autoStart || run > 0}
+      nodes={nodes.data ?? []}
+      node={node}
+      onSwitch={onSwitch}
+      run={(attempt) => (verify ? verify(opening, node, attempt) : verifyOnNode(opening, node))}
+    />
+  )
+}
+
+function toCheck(c: ProofCheck): ReceiptCheck {
+  if (c.phase === 'running') return { phase: 'running' }
+  if (c.phase === 'done' && c.result) return { phase: 'done', result: c.result, at: 0 }
+  if (c.phase === 'error') return { phase: 'error', error: c.error ?? '', at: 0 }
+  return IDLE
+}
+
+function ProofSession({
+  opening,
+  autoStart,
+  nodes,
+  node,
+  onSwitch,
+  run,
+}: {
+  opening: ReceiptOpening
+  autoStart?: boolean
+  nodes: RpcNode[]
+  node: string
+  onSwitch: (id: string) => void
+  run: (attempt: number) => Promise<VerifyResult>
+}) {
+  const check = useProofCheck({ run, autoStart })
+  const host = nodes.find((n) => n.id === node)?.label ?? 'a public Sepolia node'
+  const ticketCheck = toCheck(check)
+  const result = check.phase === 'done' ? check.result : null
+  const selectId = useId()
+  const label = check.phase === 'idle' ? 'Check against the ledger' : check.phase === 'running' ? 'Checking…' : 'Check again'
+
+  const action = (
+    <button
+      type="button"
+      onClick={check.start}
+      disabled={check.phase === 'running'}
+      className="flex h-12 w-full items-center justify-center gap-2.5 rounded-md bg-ink px-5 text-[16px] font-medium text-paper transition-colors duration-150 hover:bg-[#3a332c] disabled:cursor-progress disabled:opacity-60"
+    >
+      {check.phase === 'idle' ? <IconShield size={17} /> : <IconRefresh size={16} />}
+      {label}
+    </button>
+  )
 
   return (
-    <div className="anim-rise grid grid-cols-1 gap-10 lg:grid-cols-12">
-      <div className="flex min-w-0 flex-col gap-5 lg:col-span-7">
-        {head.claimed ? (
-          <p role="alert" className="rounded-lg border-2 border-bad bg-bad-bg p-3 text-[15px] leading-snug text-ink">
-            <span className="label block text-[11px] font-bold text-bad">The chain disagrees with this receipt</span>
-            <span className="mt-1 block">
-              {head.who} <strong className="font-semibold text-bad">{head.act}</strong>. The receipt says{' '}
-              <span className="line-through decoration-bad decoration-2">{actSentence(opening.eventType)}</span>.
-            </span>
-          </p>
-        ) : null}
-        <LedgerReceipt
-          opening={opening}
-          check={check}
-          header={
-            <div className="flex items-center justify-between gap-2">
-              <span className="label min-w-0 truncate text-ink">Receipt · {opening.eventId}</span>
-              {verdict ? (
-                <Badge kind={verdict} size="sm" />
-              ) : (
-                <Chip icon={<IconShield size={12} />}>Opened from link</Chip>
-              )}
+    <div className="grid grid-cols-1 gap-5 lg:grid-cols-[minmax(0,1fr)_340px] lg:items-start lg:gap-8">
+      {/* Right on desktop, first on the phone: the check, as it runs. */}
+      <section aria-labelledby="pf-steps" className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:col-start-2 lg:row-start-1">
+        <div className="rounded-lg border border-line bg-card px-4 pb-4 pt-4 sm:px-5">
+          <div className="mb-4 flex items-baseline justify-between gap-3">
+            <h2 id="pf-steps" className="text-[15px] font-semibold text-ink">
+              The check
+            </h2>
+            <p className="text-[13px] text-ink-3">In your browser</p>
+          </div>
+          <ProofStepper check={check} opening={opening} node={host} />
+          {nodes.length > 1 ? (
+            <div className="mt-4 flex items-center gap-2 border-t border-line pt-3">
+              <label htmlFor={selectId} className="shrink-0 text-[13px] text-ink-2">
+                Don’t trust this node?
+              </label>
+              <select
+                id={selectId}
+                value={node}
+                onChange={(e) => onSwitch(e.target.value)}
+                disabled={check.phase === 'running'}
+                className="h-9 min-w-0 flex-1 truncate rounded-md border border-line-strong bg-paper px-2 font-mono text-[12px] text-ink focus-visible:outline-2 focus-visible:outline-blue"
+              >
+                {nodes.map((n) => (
+                  <option key={n.id} value={n.id}>
+                    {n.label}
+                  </option>
+                ))}
+              </select>
             </div>
-          }
-        />
-        <VerifyPanel
-          key={`${node}-${run}`}
-          opening={opening}
-          autoStart={autoStart || run > 0}
-          run={onVerify}
-          onCheck={setCheck}
-        />
+          ) : null}
+          <div className="mt-4 hidden lg:block">{action}</div>
+        </div>
+        <div className="hidden lg:block">
+          <TechnicalProof
+            txHash={opening.txHash}
+            logIndex={opening.logIndex}
+            blockNumber={result?.blockNumber}
+            confirmations={result?.confirmations}
+            node={host}
+            raw={rawFields(opening)}
+          />
+        </div>
+      </section>
+
+      <div className="flex min-w-0 flex-col gap-4 lg:col-start-1 lg:row-start-1">
+        <ProofTicket opening={opening} check={ticketCheck} />
+        <div aria-live="polite">
+          <Verdict check={check} host={host} canSwitch={nodes.length > 1} />
+        </div>
+        <div className="lg:hidden">
+          <TechnicalProof
+            txHash={opening.txHash}
+            logIndex={opening.logIndex}
+            blockNumber={result?.blockNumber}
+            confirmations={result?.confirmations}
+            node={host}
+            raw={rawFields(opening)}
+          />
+        </div>
+        <div className="pf-sticky lg:hidden">{action}</div>
       </div>
+    </div>
+  )
+}
 
-      <aside className="flex min-w-0 flex-col gap-6 self-start lg:sticky lg:top-24 lg:col-span-5">
-        <section aria-labelledby="node-pick">
-          <h2 id="node-pick" className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
-            Don’t trust us <span className="text-ink-2">· pick another node</span>
-          </h2>
-          <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">The same record, read through someone else’s RPC node. Switching runs the check again.</p>
-          <fieldset className="mt-4 min-w-0 border-b border-line" disabled={!nodes.data?.length}>
-            <legend className="sr-only">RPC node</legend>
-            {nodes.data?.length ? (
-              nodes.data.map((n) => {
-                const on = n.id === node
-                return (
-                  <label
-                    key={n.id}
-                    className={`group relative -mx-3 flex min-h-12 cursor-pointer items-center gap-3 rounded-md border-t border-line px-3 transition-colors duration-200 first:border-t-0 ${
-                      on ? 'bg-card' : 'hover:bg-card/60'
-                    }`}
-                  >
-                    <input type="radio" name="rpc" value={n.id} checked={on} onChange={() => onSwitchRpc(n.id)} className="peer sr-only" />
-                    <span
-                      aria-hidden="true"
-                      className={`flex size-[18px] shrink-0 items-center justify-center rounded-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue ${
-                        on ? 'border-ink' : 'border-line-strong group-hover:border-ink-3'
-                      }`}
-                    >
-                      {on ? <span className="size-2 rounded-full bg-blue" /> : null}
-                    </span>
-                    <span className={`min-w-0 flex-1 truncate font-mono text-[14px] ${on ? 'text-ink' : 'text-ink-2'}`}>{n.label}</span>
-                    {on ? <span className="label text-[11px] text-ink-3">In use</span> : null}
-                  </label>
-                )
-              })
-            ) : (
-              <p className="flex min-h-12 items-center gap-3 border-t border-line font-mono text-[14px] text-ink-2">
-                <span aria-hidden="true" className="size-[18px] rounded-full border border-dashed border-line-strong" />
-                {nodes.isPending ? 'Loading nodes…' : 'No RPC node configured'}
-              </p>
-            )}
-          </fieldset>
-        </section>
+function rawFields(o: ReceiptOpening): Record<string, unknown> {
+  return {
+    txHash: o.txHash,
+    logIndex: o.logIndex,
+    eventType: o.eventType,
+    legalBasisKey: o.legalBasisKey,
+    subjectPseudonym: o.subjectPseudonym,
+    purposeText: o.purposeText,
+    purposeSalt: o.purposeSalt,
+    evidence: o.evidence,
+  }
+}
 
-        <details className="group overflow-hidden rounded-lg border border-line bg-card">
-          <summary className="label flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-ink hover:text-blue">
-            Raw log · what your browser compares
-            <span aria-hidden="true" className="text-[16px] transition-transform duration-200 group-open:rotate-45">+</span>
-          </summary>
-          <pre className="max-h-72 overflow-auto border-t border-line bg-vault p-4 font-mono text-[11px] leading-relaxed text-vault-ink">
-            {JSON.stringify(
-              {
-                txHash: opening.txHash,
-                logIndex: opening.logIndex,
-                eventType: opening.eventType,
-                legalBasisKey: opening.legalBasisKey,
-                subjectPseudonym: opening.subjectPseudonym,
-                purposeText: opening.purposeText,
-                purposeSalt: opening.purposeSalt,
-                evidence: opening.evidence,
-              },
-              null,
-              2,
-            )}
-          </pre>
-        </details>
+const secs = (ms: number) => (ms / 1000).toFixed(1)
 
-        {opening.txHash ? (
-          <a
-            href={explorerLink('tx', opening.txHash)}
-            target="_blank"
-            rel="noreferrer"
-            className="group flex min-h-12 items-center justify-between gap-3 border-y border-line text-ink transition-colors hover:text-blue"
-          >
-            <span className="flex flex-col">
-              <span className="label">Open the transaction</span>
-              <span className="font-mono text-[11px] text-ink-3">{EXPLORER_CAPTION}</span>
-            </span>
-            <IconExternal size={15} className="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
-          </a>
-        ) : null}
-        <p className="label text-[11px] leading-relaxed text-ink-2">
-          The receipt details stay in the link after “#”. Browsers never send that part to any server.
+/** The readable verdict under the ticket (the stamp is decorative; this line carries it). */
+function Verdict({ check, host, canSwitch }: { check: ProofCheck; host: string; canSwitch: boolean }) {
+  if (check.phase === 'error') {
+    return (
+      <div role="alert" className="pf-rise flex items-start gap-3 rounded-lg border border-line bg-unknown-bg/70 p-4">
+        <IconClock size={18} className="mt-0.5 shrink-0 text-unknown" />
+        <p className="text-[15px] leading-[1.55] text-ink-2">
+          <span className="font-semibold text-ink">The ledger did not answer.</span> {check.error || 'Check your connection.'} Nothing was decided.
         </p>
-      </aside>
+      </div>
+    )
+  }
+  const r = check.phase === 'done' ? check.result : null
+  if (!r) return null
+  if (r.status === 'MATCH') {
+    return (
+      <div className="pf-rise px-1">
+        <p className="text-[19px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+          Matches the sealed record. <span className="text-ink-2">Nothing changed since the ledger sealed it.</span>
+        </p>
+        <p className="mt-1.5 text-[13px] text-ink-3">
+          Checked in your browser in {secs(r.elapsedMs)} s, not by Saksi’s server · {host}
+        </p>
+      </div>
+    )
+  }
+  if (r.status === 'MISMATCH') {
+    const n = r.mismatches.length
+    return (
+      <div className="pf-rise px-1">
+        <p className="text-[19px] font-semibold leading-snug tracking-[-0.01em] text-ink">
+          <span className="text-bad">Changed after sealing.</span>{' '}
+          <span className="text-ink-2">
+            {n === 1 ? 'One field no longer matches' : `${n} fields no longer match`} what the ledger sealed.
+          </span>
+        </p>
+        <p className="mt-1.5 text-[13px] text-ink-3">
+          Checked in your browser in {secs(r.elapsedMs)} s, not by Saksi’s server · {host}
+        </p>
+      </div>
+    )
+  }
+  return (
+    <div className="pf-rise flex items-start gap-3 rounded-lg border border-line bg-unknown-bg/70 p-4">
+      <IconClock size={18} className="mt-0.5 shrink-0 text-unknown" />
+      <div className="min-w-0">
+        <p className="text-[16px] font-semibold leading-snug text-ink">Not found on this node yet</p>
+        <p className="mt-1 text-[15px] leading-[1.55] text-ink-2">
+          <span className="text-ink">This is not proof of tampering.</span> The node may be slow, or the transaction may still be
+          mining. {canSwitch ? 'Try another node above, or check again in a moment.' : 'Check again in a moment.'}
+        </p>
+      </div>
     </div>
   )
 }
