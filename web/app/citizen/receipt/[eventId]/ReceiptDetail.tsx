@@ -403,8 +403,10 @@ export function ReceiptDetailView({
       <BackLink />
 
       {/* The receipt as one ticket (riset-ui/36 A): who, the verb as big type, the status; tear line; the facts. */}
-      <div className={`relative ${altered ? 'st-shadow-bad' : 'st-shadow'}`}>
-        <article aria-labelledby="receipt-title">
+      {/* Clip sideways only: the stamp lands from 1.9x and must never make the page scroll horizontally. */}
+      <div className="-mx-4 overflow-x-clip px-4">
+        <div className={`relative ${altered ? 'st-shadow-bad' : 'st-shadow'}`}>
+          <article aria-labelledby="receipt-title">
           <div className="st-half-top relative rounded-t-xl bg-card px-5 pb-6 pt-5">
             <div className={`flex flex-col gap-4 ${stamp ? 'pr-[92px]' : ''}`}>
               <div className="flex min-w-0 items-center gap-3">
@@ -455,7 +457,8 @@ export function ReceiptDetailView({
           <section aria-label="Receipt details" className="st-half-bottom rounded-b-xl bg-card py-1.5">
             <ReceiptFacts opening={opening} check={check} inset />
           </section>
-        </article>
+          </article>
+        </div>
       </div>
 
       {result ? (

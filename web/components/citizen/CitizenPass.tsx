@@ -65,7 +65,7 @@ export function CitizenPass({ code, verdict, title, subtitle, size, onCopy }: Ci
     <div className="st-shadow">
       <section
         aria-label="Your receipts status"
-        className={`st-ticket grain relative overflow-hidden rounded-xl bg-vault text-vault-ink ${tamper ? 'ring-1 ring-inset ring-bad-v/40' : ''}`}
+        className={`st-ticket relative overflow-hidden rounded-xl bg-vault text-vault-ink ${tamper ? 'ring-1 ring-inset ring-bad-v/40' : ''}`}
         style={{ '--notch': `${notch}px` } as CSSProperties}
       >
         <div className={`relative z-[1] flex flex-col ${compact ? 'p-4' : 'p-5'}`} style={{ height: notch }}>

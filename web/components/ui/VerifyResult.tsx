@@ -411,7 +411,7 @@ function TicketResult({
           </h2>
           <p className="mt-1 text-[15px] leading-[1.55] text-ink-2">
             <span className="text-ink">This is not proof of tampering.</span> The node{' '}
-            <span className="break-all font-mono text-[13px] text-ink">{rpcLabel(result.rpc)}</span> may be slow, or the transaction may still be mining.
+            <span className="break-words font-mono text-[13px] text-ink">{rpcLabel(result.rpc)}</span> may be slow, or the transaction may still be mining.
           </p>
         </div>
       </div>
