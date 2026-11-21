@@ -3,7 +3,7 @@ import { FingerprintChip } from '@/components/ui/FingerprintChip'
 import { IconCheck, IconClock, IconSpinner, IconX } from '@/components/ui/icons'
 import { basisLabel, eventVerb, formatWIB } from '@/lib/format'
 import { alteredFields, controllerAltered, IDLE, sealedEventType, type ReceiptCheck, type ReceiptStateKind } from '@/lib/receipt-state'
-import type { ReceiptOpening } from '@/lib/shared/types'
+import { DATA_CATEGORY_LABELS, type DataCategory, type ReceiptOpening } from '@/lib/shared/types'
 
 const sentence = (s: string) => s.charAt(0) + s.slice(1).toLowerCase()
 
@@ -51,7 +51,8 @@ export function ReceiptFacts({ opening, check = IDLE }: { opening: ReceiptOpenin
     },
   ]
   if (system || categories.length) {
-    const text = [system, categories.join(', ')].filter(Boolean).join(' · ')
+    const named = categories.map((c) => DATA_CATEGORY_LABELS[c as DataCategory] ?? c).join(', ')
+    const text = [named, system].filter(Boolean).join(' · ')
     facts.push({ k: 'Data used', v: altered.has('evidence') ? <Changed db={text} /> : text, altered: altered.has('evidence') })
   }
   facts.push({ k: 'Sealed', v: opening.status === 'anchored' ? formatWIB(opening.createdAt) : <span className="text-pending">Sealing on chain…</span> })
