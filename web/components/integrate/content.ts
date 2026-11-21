@@ -9,8 +9,9 @@ import { CONTRACTS, SITE_URL } from '@/lib/env'
  */
 
 const journal = CONTRACTS.AccessJournal ?? '0x<AccessJournal address>'
-// The demo controller registered on Sepolia; a real agency gets its own id bound to its own key.
-export const DEMO_CONTROLLER_ID = controllerId('demo-spare')
+// A fictional public-sector controller registered on Sepolia; a real agency gets its own id bound to its own key.
+export const DEMO_CONTROLLER_SLUG = 'rsud-contoh'
+export const DEMO_CONTROLLER_ID = controllerId(DEMO_CONTROLLER_SLUG)
 
 export const TS_SNIPPET = `import { createWalletClient, http, type Hex } from 'viem'
 import { privateKeyToAccount } from 'viem/accounts'
@@ -56,8 +57,10 @@ async function retrying<T>(step: () => Promise<T | undefined>): Promise<T> {
   throw new Error('Sepolia is slow right now; call confirm again later.')
 }
 
+type DataCategory = 'identity' | 'address' | 'contact' | 'financial' | 'health' | 'employment' | 'biometric' | 'other'
+
 // Call this from the code path that opens a citizen record.
-export async function sealAccess(citizenCode: string, purposeText: string) {
+export async function sealAccess(citizenCode: string, purposeText: string, dataCategories: DataCategory[], operatorRef = 'officer') {
   // 1. Saksi returns commitments only, plus a token bound to this draft.
   const { id, submitToken, args } = await saksi<Prepared>('prepare', {
     controllerId: CONTROLLER_ID,
@@ -65,6 +68,9 @@ export async function sealAccess(citizenCode: string, purposeText: string) {
     purposeText, // shown to the citizen; only its salted hash goes on chain
     legalBasisKey: 'PDP-20-2-e', // UU PDP Art. 20(2)(e): public task
     eventType: 0, // 0 READ · 1 UPDATE · 2 EXPORT · 3 SHARE_THIRD_PARTY
+    system: 'agency-backend', // where the record was opened; omit it and Saksi uses your registered name
+    dataCategories, // e.g. ['identity', 'health']: what the officer opened, shown on the citizen's receipt
+    operatorRef, // a desk or role reference, never a name
   })
 
   // 2. Your key signs. Saksi never holds it, so it can neither forge nor hide your entries.
@@ -90,7 +96,10 @@ export const CURL_SNIPPET = `curl -X POST ${SITE_URL}/api/controller/access/prep
     "subjectCode": "JVHULK",
     "purposeText": "Officer opened the record to process a service request",
     "legalBasisKey": "PDP-20-2-e",
-    "eventType": 0
+    "eventType": 0,
+    "system": "agency-backend",
+    "dataCategories": ["identity", "contact"],
+    "operatorRef": "officer"
   }'`
 
 export const RESPONSE_SNIPPET = `HTTP/1.1 201 Created
@@ -109,8 +118,9 @@ export const RESPONSE_SNIPPET = `HTTP/1.1 201 Created
 
 export const RUN_SNIPPET = `cd web
 CONTROLLER_PRIVATE_KEY=0x… \\
-CONTROLLER_SLUG=demo-spare \\
+CONTROLLER_SLUG=${DEMO_CONTROLLER_SLUG} \\
 CITIZEN_CODE=JVHULK \\
+DATA_CATEGORIES=identity,health \\
 node scripts/agency-example.mjs`
 
 export const RUN_OUTPUT = `prepared  4c21a490-f991-4fc9-8af5-da591968d586
@@ -126,7 +136,7 @@ export const ON_CHAIN = [
   { field: 'purposeHash', type: 'bytes32', what: 'Why. keccak256 of the purpose text and a random salt.' },
   { field: 'legalBasisKey', type: 'bytes32', what: 'On what basis. The UU PDP Art. 20(2) key, PDP-20-2-a to f, as text.' },
   { field: 'eventType', type: 'uint8', what: 'What was done. 0 read, 1 update, 2 export, 3 shared with a third party.' },
-  { field: 'evidenceHash', type: 'bytes32', what: 'keccak256 of the canonical JSON evidence descriptor.' },
+  { field: 'evidenceHash', type: 'bytes32', what: 'keccak256 of the canonical JSON evidence descriptor: system, data categories, officer reference, request time and a nonce.' },
   { field: 'timestamp', type: 'uint64', what: 'When. The block time, set by the chain, not by you or Saksi.' },
 ] as const
 

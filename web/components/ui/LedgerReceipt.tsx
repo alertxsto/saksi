@@ -37,7 +37,7 @@ export function Ledger({
                 {r.altered ? <span className="sr-only"> (altered)</span> : null}
               </dt>
               <span aria-hidden="true" className="leader self-center text-ink-3" />
-              <dd className={`min-w-0 text-right ${r.strong ? 'font-bold text-ink' : 'text-ink'}`}>{r.v}</dd>
+              <dd className={`min-w-0 text-right [overflow-wrap:anywhere] ${r.strong ? 'font-bold text-ink' : 'text-ink'}`}>{r.v}</dd>
             </div>
           ))}
         </dl>

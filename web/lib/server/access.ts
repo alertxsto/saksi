@@ -6,7 +6,7 @@ import { z } from 'zod';
 import { db } from '../../db/client';
 import { accessEvents as logs, controllers, subjects } from '../../db/schema';
 import { evidenceHash, legalBasisKey, purposeHash } from '../shared/commit';
-import { EVENT_TYPES, LEGAL_BASES, type ReceiptOpening } from '../shared/types';
+import { DATA_CATEGORIES, EVENT_TYPES, LEGAL_BASES, type DataCategory, type ReceiptOpening } from '../shared/types';
 import { accessAbi } from '../shared/abi';
 import { addresses, blockByHash, events, hash, receipt, unknownTransaction, verifySubmission } from './chain';
 import { decrypt, encrypt, pseudonym, randomSalt32 } from './crypto';
@@ -15,7 +15,12 @@ import { controller } from './registry';
 import { requireSubmitToken, submitToken, submitTokenFormat } from './submit-token';
 
 export const citizenCode = z.string().trim().toUpperCase().regex(/^[A-HJ-NP-Z2-9]{6}$/);
-export const accessInput = z.strictObject({ controllerId: hash, subjectCode: citizenCode, purposeText: z.string().trim().min(1).max(500), legalBasisKey: z.enum(Object.keys(LEGAL_BASES) as (keyof typeof LEGAL_BASES)[]), eventType: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]) });
+export const accessInput = z.strictObject({ controllerId: hash, subjectCode: citizenCode, purposeText: z.string().trim().min(1).max(500), legalBasisKey: z.enum(Object.keys(LEGAL_BASES) as (keyof typeof LEGAL_BASES)[]), eventType: z.union([z.literal(0), z.literal(1), z.literal(2), z.literal(3)]),
+  // Optional so older clients keep working. They describe the access itself and are hashed into the on-chain evidence.
+  system: z.string().trim().min(1).max(80).optional(),
+  dataCategories: z.array(z.enum(DATA_CATEGORIES)).min(1).max(DATA_CATEGORIES.length).optional(),
+  // A role or desk reference ("officer", "desk-07"), never a name or ID number: short token characters only.
+  operatorRef: z.string().trim().regex(/^[A-Za-z0-9][A-Za-z0-9._-]{0,31}$/, 'Use a short reference such as desk-07, not a name.').optional() });
 export const submitInput = z.strictObject({ id: z.uuid(), txHash: hash, submitToken: submitTokenFormat });
 export const confirmInput = z.strictObject({ id: z.uuid() });
 export type AccessRow = typeof logs.$inferSelect;
@@ -29,15 +34,27 @@ export function readOpening(row: AccessRow, controllerName: string): ReceiptOpen
     txHash: row.txHash && hash.parse(row.txHash) || null, logIndex: row.logIndex, status: row.status, createdAt: row.createdAt.toISOString(),
   };
 }
+/** Used only when a client sends no categories (older clients): the narrowest set each action implies. */
+const DEFAULT_CATEGORIES: Record<z.output<typeof accessInput>['eventType'], DataCategory[]> = {
+  0: ['identity'], 1: ['identity', 'contact'], 2: ['identity', 'contact'], 3: ['identity', 'contact'],
+};
+/**
+ * The evidence descriptor whose canonical hash goes on chain. Every field comes from the request or the controller's
+ * on-chain registration; `system` falls back to the registered controller name, `operatorRef` to "officer".
+ */
+export function accessEvidence(input: z.output<typeof accessInput>, controllerName: string, eventId: string, nonce: string, requestedAt: Date) {
+  return { v: 2, eventId, nonce, controllerId: input.controllerId, system: input.system ?? controllerName,
+    dataCategories: input.dataCategories ? DATA_CATEGORIES.filter((c) => input.dataCategories?.includes(c)) : DEFAULT_CATEGORIES[input.eventType],
+    operatorRef: input.operatorRef ?? 'officer', requestedAt: requestedAt.toISOString() };
+}
 export async function prepareAccess(input: z.output<typeof accessInput>) {
   const [subject] = await db().select().from(subjects).where(and(eq(subjects.code, input.subjectCode), isNotNull(subjects.pseudonymSaltEnc)));
   if (!subject?.pseudonymSaltEnc || !subject.pseudonymSaltIv) throw new HttpError(404, 'UNKNOWN_CITIZEN', "We couldn't find that citizen code");
-  await controller(input.controllerId);
+  const registered = await controller(input.controllerId);
   const id = randomUUID(), salt = randomSalt32();
   const subjectPseudonym = pseudonym(input.controllerId, subject.id, hash.parse(decrypt(subject.pseudonymSaltEnc, subject.pseudonymSaltIv)));
   const purpose = purposeHash(input.purposeText, salt), basis = legalBasisKey(input.legalBasisKey);
-  const evidence = { v: 1, eventId: id, nonce: randomSalt32(), controllerId: input.controllerId, system: 'core-banking',
-    dataCategories: [['account profile'], ['contact preferences'], ['transaction history'], ['account profile', 'account activity']][input.eventType], operatorRef: 'synthetic-operator', requestedAt: new Date().toISOString() };
+  const evidence = accessEvidence(input, registered.name, id, randomSalt32(), new Date());
   const commitment = evidenceHash(evidence);
   const encryptedPurpose = encrypt(input.purposeText), encryptedSalt = encrypt(salt), encryptedEvidence = encrypt(JSON.stringify(evidence));
   await db().insert(logs).values({ id, controllerId: input.controllerId, subjectId: subject.id, subjectPseudonym,

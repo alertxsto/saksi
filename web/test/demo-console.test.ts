@@ -129,13 +129,42 @@ describe('toDemoReceipts', () => {
 describe('tamper edit and restore', () => {
   // The only numeric parameter of the tamper mutation is the event_type it writes.
   const writtenType = (call: number) => new PgDialect().sqlToQuery(execute.mock.calls[call][0]).params.filter((value) => typeof value === 'number');
+  // What the CTE's insert into tamper_log returns.
+  const logged = (before: unknown, after: unknown) => [{ id: ids[2], target_id: ids[0], before_hash: evidenceHash(before), after_hash: evidenceHash(after), at: '2026-11-22T01:00:00.000Z' }];
 
   test.each([[3, 0], [0, 3], [1, 0], [2, 0]])('edit flips event type %i to %i', async (from, to) => {
     vi.stubEnv('DATA_KEY', dataKey);
     const live = snapshot(ids[0], from, '2026-11-21T03:00:00+00:00', 'a');
-    execute.mockResolvedValueOnce([{ snapshot: live }]).mockResolvedValueOnce([]).mockResolvedValueOnce([{ target_id: ids[0] }]);
-    await expect(tamper({ action: 'edit', eventId: ids[0] })).resolves.toEqual({ action: 'edit', eventId: ids[0] });
+    const after = { ...live, event_type: to };
+    execute.mockResolvedValueOnce([{ snapshot: live }]).mockResolvedValueOnce([]).mockResolvedValueOnce(logged(live, after));
+    const report = await tamper({ action: 'edit', eventId: ids[0] });
+    expect(report).toMatchObject({ action: 'edit', eventId: ids[0], rowHash: { before: evidenceHash(live), after: evidenceHash(after) },
+      log: { id: ids[2], at: '2026-11-22T01:00:00.000Z' } });
+    expect(report.changes).toEqual([{ field: 'event_type', before: expect.stringMatching(new RegExp(`^${from} · `)), after: expect.stringMatching(new RegExp(`^${to} · `)) }]);
     expect(writtenType(2)).toEqual([to]);
+  });
+
+  test('the report shows the parameterised statement and never the snapshot, ciphertext or purpose', async () => {
+    vi.stubEnv('DATA_KEY', dataKey);
+    const live = { ...snapshot(ids[0], 3, '2026-11-21T03:00:00+00:00', 'a'), purpose_text_enc: 'SECRET-CIPHERTEXT' };
+    execute.mockResolvedValueOnce([{ snapshot: live }]).mockResolvedValueOnce([]).mockResolvedValueOnce(logged(live, { ...live, event_type: 0 }));
+    const report = await tamper({ action: 'edit', eventId: ids[0] });
+    expect(report.statement).toBe(new PgDialect().sqlToQuery(execute.mock.calls[2][0]).sql.replace(/\s+/g, ' ').trim().replace(/\s+(?=(with|insert into|select|update|delete from|where|and|on conflict|returning)\b)/gi, '\n'));
+    expect(report.statement).toMatch(/^with changed as \(\nupdate access_events a set event_type = \$1/);
+    expect(report.statement).toContain('insert into tamper_log');
+    expect(JSON.stringify(report)).not.toMatch(/SECRET-CIPHERTEXT|purpose_text|"iv\./);
+    expect(report.params).toEqual([{ name: 'event_type', value: '0 · Read' }, { name: 'id', value: ids[0] }]);
+  });
+
+  test('delete reports the row going from present to absent with no after hash', async () => {
+    vi.stubEnv('DATA_KEY', dataKey);
+    const live = snapshot(ids[0], 3, '2026-11-21T03:00:00+00:00', 'a');
+    execute.mockResolvedValueOnce([{ snapshot: live }]).mockResolvedValueOnce(logged(live, null));
+    const report = await tamper({ action: 'delete', eventId: ids[0] });
+    expect(report.statement).toMatch(/^with changed as \(\ndelete from access_events a\nwhere id = \$1::uuid/);
+    expect(report.changes).toEqual([{ field: 'row', before: 'present', after: 'absent' }]);
+    expect(report.rowHash).toEqual({ before: evidenceHash(live), after: null });
+    expect(report.params).toEqual([{ name: 'id', value: ids[0] }]);
   });
 
   test('an edited row must be restored before it is edited again', async () => {
@@ -151,8 +180,9 @@ describe('tamper edit and restore', () => {
     const saved = encrypt(canonicalize(original));
     execute.mockResolvedValueOnce([{ snapshot: edited }])
       .mockResolvedValueOnce([{ snapshot: `${saved.iv}.${saved.ciphertext}`, after_hash: evidenceHash(edited) }])
-      .mockResolvedValueOnce([{ target_id: ids[0] }]);
-    await expect(tamper({ action: 'restore', eventId: ids[0] })).resolves.toEqual({ action: 'restore', eventId: ids[0] });
+      .mockResolvedValueOnce(logged(edited, original));
+    await expect(tamper({ action: 'restore', eventId: ids[0] })).resolves.toMatchObject({ action: 'restore', eventId: ids[0],
+      changes: [{ field: 'event_type', before: '0 · Read', after: '1 · Update' }] });
     expect(writtenType(2)).toEqual([1]);
   });
 });

@@ -6,6 +6,15 @@ import { controllers } from '../../db/schema';
 import { events, rpc, addresses, deployBlock } from './chain';
 import { HttpError } from './http';
 import { controllerId } from '../shared/commit';
+const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+/**
+ * The registry stores only the id and a display name. Recover the slug when the id is keccak256("ctrl:" + slug) of the
+ * name, with or without a trailing note such as "(fiktif)"; otherwise the id itself stands in as the unique slug.
+ */
+export function inferSlug(id: Hex, name: string) {
+  const candidates = [slugify(name), slugify(name.replace(/\s*\([^)]*\)\s*$/, ''))];
+  return candidates.find((slug) => slug && controllerId(slug) === id) ?? id;
+}
 export async function controller(id: Hex) {
   const [local] = await db().select().from(controllers).where(eq(controllers.id, id));
   if (local) return local;
@@ -26,8 +35,7 @@ export async function controller(id: Hex) {
     if (last?.eventName === 'ControllerRevoked') break;
     if (last?.eventName === 'ControllerRegistered') {
       const name = last.args.name;
-      const inferredSlug = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
-      const row = { id, name, slug: controllerId(inferredSlug) === id ? inferredSlug : id, eoa: last.args.eoa.toLowerCase(), registryTx: last.transactionHash };
+      const row = { id, name, slug: inferSlug(id, name), eoa: last.args.eoa.toLowerCase(), registryTx: last.transactionHash };
       await db().insert(controllers).values(row).onConflictDoNothing({ target: controllers.id });
       return row;
     }

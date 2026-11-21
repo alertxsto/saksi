@@ -208,6 +208,201 @@ export const SOURCES = [
       'Responden yang melaporkan pernah mengalami kebocoran data pribadi berasal dari 34 provinsi di Indonesia, total berjumlah 3.246 orang ... skor rata-rata 6,05 dari skala 10.',
     note: '28.7% is computed as 3,246 / 11,305. The survey predates UU PDP (2022).',
   },
+  {
+    id: 'uu-pdp-32',
+    claim:
+      'UU PDP Article 32 gives every data subject the right to see their data together with its processing record, within 3 × 24 hours of asking. A Saksi receipt delivers that record without the citizen having to ask.',
+    figure: 'Access to data "beserta rekam jejak pemrosesan"; within 3 × 24 hours of the request',
+    title: 'UU No. 27 Tahun 2022 tentang Pelindungan Data Pribadi, Pasal 32',
+    url: 'https://pasal.id/peraturan/uu/uu-no-27-tahun-2022/pasal-32',
+    publisher: 'Pasal.id (text of UU 27/2022)',
+    date: '2022-10-17',
+    quote:
+      'Pengendali Data Pribadi wajib memberikan akses kepada Subjek Data Pribadi terhadap Data Pribadi yang diproses beserta rekam jejak pemrosesan Data Pribadi ... paling lambat 3 x 24 (tiga kali dua puluh empat) jam terhitung sejak Pengendali Data Pribadi menerima permintaan akses.',
+  },
+  {
+    id: 'pp-33-2026',
+    claim:
+      'UU PDP’s implementing regulation, PP 33/2026, was signed on 16 July 2026 and takes effect on 16 January 2027.',
+    figure: 'Signed 16 Jul 2026; in force 16 Jan 2027',
+    title: 'PP Pelindungan Data Pribadi Berlaku Januari 2027, Ini Aturan Baru Data Anak',
+    url: 'https://katadata.co.id/finansial/makro/6a9979b7c5745/pp-pelindungan-data-pribadi-berlaku-januari-2027-ini-aturan-baru-data-anak',
+    publisher: 'Katadata',
+    date: '2026-09-03',
+    quote: 'Aturan ini berlaku enam bulan sejak diundangkan atau pada 16 Januari 2027.',
+    note: 'Press report; the official PP text was not opened.',
+  },
+  {
+    id: 'pdp-perpres-submitted-2026',
+    claim:
+      'As of 4 November 2026, the Presidential Regulation creating the PDP agency had only been submitted to the President; Komdigi carries out the agency’s functions until it exists.',
+    figure: 'Draft Perpres submitted via the State Secretariat; agency not yet formed (4 Nov 2026)',
+    title: 'Komdigi: Perpres Lembaga Pengawas PDP Masuk Tahap Final',
+    url: 'https://katadata.co.id/digital/teknologi/6aec368e80c97/komdigi-perpres-lembaga-pengawas-pdp-masuk-tahap-final',
+    publisher: 'Katadata, quoting Muchtarul Huda, Komdigi',
+    date: '2026-11-05',
+    quote: 'Sudah diajukan kepada Presiden melalui Kementerian Sekretariat Negara',
+  },
+  {
+    id: 'dukcapil-7833-2026',
+    claim:
+      '7,833 institutions had agreements with Dukcapil to use population data as of November 2026, verifying citizens’ identity against the national NIK database.',
+    figure: '7,833 institutions (as of 3 Nov 2026)',
+    title: 'Kemendagri Perluas Jangkauan IKD, 7.833 Lembaga Sudah Kerja Sama',
+    url: 'https://www.jawapos.com/nasional/2611090427/kemendagri-perluas-jangkauan-ikd-7833-lembaga-sudah-kerja-sama',
+    publisher: 'JawaPos, citing Kemendagri data',
+    date: '2026-11-10',
+    quote: 'Sampai November tahun ini, sudah 7.833 lembaga bekerja sama.',
+    note: 'The figure is the outlet’s narration of Kemendagri data, not a direct quote from an official.',
+  },
+  {
+    id: 'dukcapil-hits-2025',
+    claim:
+      'By the end of 2025, institutions had queried Dukcapil’s population data 18.94 billion times; 2,283 active users made 2.57 billion queries in 2025 alone.',
+    figure: '7,419 institutions and 18.94 billion hits cumulative; 2,283 active users and 2.57 billion hits in 2025',
+    title: 'Kinerja Ditjen Dukcapil Tahun 2025 Lampaui Target',
+    url: 'https://rmol.id/politik/read/2026/08/03/716970/kinerja-ditjen-dukcapil-tahun-2025-lampaui-target',
+    publisher: 'RMOL, reporting Dirjen Dukcapil Teguh Setyabudi at Rakornas Dukcapil 2026',
+    date: '2026-08-03',
+    quote:
+      'Hingga 31 Desember 2025, tercatat ada 2.283 lembaga pengguna aktif, melampaui target nasional yang dipatok 1.300 lembaga ... sebanyak 7.419 lembaga telah memanfaatkan layanan data kependudukan',
+    note: 'Secondary outlet; the official Dukcapil release was not found.',
+  },
+  {
+    id: 'dukcapil-knows-who',
+    claim:
+      'Dukcapil can see which institution looked up which citizen, but citizens have no matching view. The record exists; only the controller can read it.',
+    figure: 'Access is password-based and visible to Dukcapil (2019)',
+    title: 'Hanya Akses Verifikasi, Ombudsman Anggap Sistem Pemanfaatan Data Kependudukan Aman',
+    url: 'https://ombudsman.go.id/pers/r/hanya-akses-verifikasi-ombudsman-anggap-sistem-pemanfaatan-data-kependudukan-aman',
+    publisher: 'Ombudsman RI, quoting Dirjen Dukcapil Zudan Arif Fakrulloh',
+    date: '2019-07-25',
+    quote: 'Yang mengakses itu ada passwordnya kan, kita tahu siapa sedang mengambil data siapa',
+    note: 'Dates from 2019. "No citizen view" means we found no public channel, not that one is officially ruled out.',
+  },
+  {
+    id: 'kpu-2023-unanswered',
+    claim:
+      'When 204 million voter records were alleged to have leaked in 2023, Kominfo had to send the election commission a second letter citing UU PDP’s three-day rule, and still had no answer.',
+    figure: 'Second letter sent; no clarification after about a week (5 Dec 2023)',
+    title: '204 Juta Data Pemilih Diduga Bocor, Kominfo: KPU Belum Klarifikasi',
+    url: 'https://inet.detik.com/security/d-7073750/204-juta-data-pemilih-diduga-bocor-kominfo-kpu-belum-klarifikasi',
+    publisher: 'detikInet, quoting Semuel A. Pangerapan, Kominfo',
+    date: '2023-12-05',
+    quote:
+      'Ini yang kami tunggu, kami lagi mengirim surat kedua, KPU wajib membalas ... sesuai aturan dari Undang-Undang PDP harusnya KPU memberi kabar tiga hari.',
+    note: 'The leak itself was never confirmed. UU PDP’s transition period ran until October 2024.',
+  },
+  {
+    id: 'dukcapil-337m-denial-2023',
+    claim:
+      'When 337 million population records were alleged to have leaked in 2023, Dukcapil disputed it by saying the data’s format did not match its database. Outsiders had no way to check.',
+    figure: 'Denial based on a data-format mismatch; audit with BSSN still in progress',
+    title: 'Dirjen Dukcapil: Format data diduga bocor berbeda dengan database',
+    url: 'https://www.antaranews.com/berita/3638547/dirjen-dukcapil-format-data-diduga-bocor-berbeda-dengan-database',
+    publisher: 'ANTARA, quoting Dirjen Dukcapil Teguh Setyabudi',
+    date: '2023-07-17',
+    quote:
+      'data yang ada di Breachforums dilihat dari format elemen datanya tidak sama dengan yang terdapat di database kependudukan',
+  },
+  {
+    id: 'pdns-backup-2024',
+    claim:
+      'After the 2024 PDNS ransomware attack, the head of BSSN told Parliament that only about 2% of the data had been backed up and that the root problem was governance.',
+    figure: 'About 2% of PDNS 2 data backed up',
+    title: 'Akui Data tak Selamat Usai Diserang Hacker, BSSN Ungkap PDNS tak Punya Back Up',
+    url: 'https://news.republika.co.id/berita/sfqm5d409/akui-data-tak-selamat-usai-diserang-hacker-bssn-ungkap-pdns-tak-punya-back-up',
+    publisher: 'Republika, quoting BSSN head Hinsa Siburian at DPR Komisi I',
+    date: '2024-06-27',
+    quote: 'hanya sekitar 2 persen data dari PDNS 2 yang sudah tercadangkan',
+  },
+  {
+    id: 'pp-71-2019-22',
+    claim:
+      'Every electronic system operator in Indonesia, government agencies included, must already keep an audit trail of all system activity for supervision, dispute resolution and verification (PP 71/2019 Article 22).',
+    figure: 'Art. 22(1)–(2); Art. 2(3) puts government "Instansi" in scope',
+    title: 'PP No. 71 Tahun 2019 tentang Penyelenggaraan Sistem dan Transaksi Elektronik, Pasal 22',
+    url: 'https://peraturan.go.id/files/LN185-PP71.pdf',
+    publisher: 'Pemerintah RI (via peraturan.go.id)',
+    date: '2019-10-04',
+    quote:
+      'Penyelenggara Sistem Elektronik wajib menyediakan rekam jejak audit terhadap seluruh kegiatan penyelenggaraan Sistem Elektronik. ... digunakan untuk keperluan pengawasan, penegakan hukum, penyelesaian sengketa, verifikasi, pengujian, dan pemeriksaan lainnya.',
+  },
+  {
+    id: 'pojk-11-2022',
+    claim:
+      'Banks must already keep an IT audit trail for supervision, dispute resolution and verification, and notify OJK within 24 hours of a significant IT incident (POJK 11/2022 Articles 54 and 60).',
+    figure: 'Art. 54(2) audit trail; Art. 60(1) initial notice within 24 hours, full report within 5 working days',
+    title: 'POJK Nomor 11/POJK.03/2022 tentang Penyelenggaraan Teknologi Informasi oleh Bank Umum',
+    url: 'https://peraturan.go.id/files/pojk11-2022.pdf',
+    publisher: 'Otoritas Jasa Keuangan (via peraturan.go.id)',
+    date: '2022-07-06',
+    quote:
+      'Bank wajib memastikan ketersediaan jejak audit atas seluruh kegiatan penyelenggaraan TI untuk keperluan pengawasan, penegakan hukum, penyelesaian sengketa, verifikasi, pengujian, dan pemeriksaan lain.',
+  },
+  {
+    id: 'bssn-4-2021-logs',
+    claim:
+      'Government (SPBE) web applications must already protect their logs from unauthorised access and modification (Peraturan BSSN 4/2021 Article 27(6)(e)). Saksi makes that protection checkable.',
+    figure: 'Art. 27(6)(d) log scope for investigations; (e) protection against unauthorised modification; (g) time sync',
+    title: 'Peraturan BSSN Nomor 4 Tahun 2021 tentang Pedoman Manajemen Keamanan Informasi SPBE dan Standar Teknis dan Prosedur Keamanan SPBE',
+    url: 'https://peraturan.go.id/files/bn541-2021.pdf',
+    publisher: 'Badan Siber dan Sandi Negara (via peraturan.go.id)',
+    date: '2021-05-19',
+    quote: 'mengatur pelindungan log aplikasi dari akses dan modifikasi yang tidak sah',
+  },
+  {
+    id: 'estonia-tracker-16',
+    claim:
+      'Even Estonia’s Data Tracker showed citizens queries from only 16 of the country’s hundreds of databases in 2025, and the state holds the logs.',
+    figure: '16 databases (Aug 2025); "hundreds" in total',
+    title: 'Andmejälgija infot näeb vaid 16 andmekogu kohta',
+    url: 'https://www.err.ee/1609768860/andmejalgija-infot-naeb-vaid-16-andmekogu-kohta0',
+    publisher: 'ERR (Estonian Public Broadcasting)',
+    date: '2025-08-12',
+    quote:
+      'Praegu näeb enda kohta päritud andmete kohta infot andmejälgijas vaid 16 andmekogust. ... Kokku on neid sadu.',
+    note: 'The publication date was decoded from the page timestamp.',
+  },
+  {
+    id: 'georgia-bitcoin-registry',
+    claim:
+      'Georgia’s public land registry anchors a hash of each land transaction on the Bitcoin public chain while the records stay with the registry: a government precedent for Saksi’s design.',
+    figure: 'Transaction hash ("digital receipt") anchored to Bitcoin',
+    title: 'Project Capsule: Georgia Land Titling System',
+    url: 'https://www.newamerica.org/insights/project-capsule-georgia-land-titling-system/',
+    publisher: 'New America',
+    date: '2020-12-15',
+    quote:
+      'uploads an immutable hash, or digital receipt, of a land transaction to the Bitcoin blockchain',
+    note: 'Whether the system is still operating in 2026 was not confirmed.',
+  },
+  {
+    id: 'apjii-2026-protection',
+    claim:
+      'In APJII’s 2026 national survey, 21.4% of Indonesians said they had never done anything to protect their personal data, and only 25.9% applied basic protection.',
+    figure: 'n = 8,700, 38 provinces, 1 Feb – 15 Mar 2026, ±1.1%; 21.4% none; 25.9% basic protection',
+    title: 'Survei APJII: Kasus Kejahatan Siber di Indonesia Menurun',
+    url: 'https://www.metrotvnews.com/read/KRXCQlwa-survei-apjii-kasus-kejahatan-siber-di-indonesia-menurun',
+    publisher: 'Metro TV News (data: APJII, Survei Internet Indonesia 2026)',
+    date: '2026-05-22',
+    quote:
+      '21,4 persen responden mengaku sama sekali tidak tahu atau bahkan tidak pernah melakukan upaya apa pun',
+    note: 'Press report of the APJII survey; the report itself was not opened.',
+  },
+  {
+    id: 'cfds-ugm-2021',
+    claim:
+      'In a 2021 CfDS UGM survey of 2,401 people, 78.7% were very worried that companies, the government or third parties would misuse their personal data.',
+    figure: 'n = 2,401, 34 provinces, 21 Oct – 1 Nov 2021; 78.7% very worried',
+    title: 'Survei CfDS UGM: Masih Sedikit Masyarakat yang Mafhum Data Pribadi',
+    url: 'https://ugm.ac.id/id/berita/22036-survei-cfds-ugm-masih-sedikit-masyarakat-yang-mafhum-data-pribadi/',
+    publisher: 'Universitas Gadjah Mada (CfDS FISIPOL)',
+    date: '2021-12-02',
+    quote:
+      '78,7% responden sangat khawatir data pribadi mereka disalahgunakan oleh perusahaan, pemerintah, maupun pihak ketiga',
+    note: 'The quote is the page’s figure as summarised by the fetch tool, not a single copied sentence. Predates UU PDP; online sample.',
+  },
 ] as const satisfies readonly Source[]
 
 export type SourceId = (typeof SOURCES)[number]['id']
