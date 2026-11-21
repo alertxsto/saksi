@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { Suspense, type ReactNode } from 'react'
 import { AppHeader } from '@/components/ui/AppHeader'
 import { TabBar } from '@/components/ui/TabBar'
 import type { RegulatorReportsWire } from '@/lib/data'
@@ -29,16 +29,21 @@ export function RegulatorChrome({
 }) {
   return (
     <div className="lg:flex lg:min-h-dvh">
-      <RegulatorSidebar active={active} loadReports={loadReports} />
+      {/* usePathname inside: dynamic routes (breach/[id]) need a Suspense boundary under cacheComponents. */}
+      <Suspense fallback={<div aria-hidden="true" className="hidden shrink-0 lg:block lg:w-[232px]" />}>
+        <RegulatorSidebar active={active} loadReports={loadReports} />
+      </Suspense>
       <div className="contents print:hidden lg:hidden">
-        <AppHeader
-          actor="regulator"
-          identity="PDP authority (simulated)"
-          role="Regulator"
-          area="regulator"
-          nav={NAV}
-          right={<span className="text-[13px] text-ink-3">Read-only · signed review only</span>}
-        />
+        <Suspense fallback={null}>
+          <AppHeader
+            actor="regulator"
+            identity="PDP authority (simulated)"
+            role="Regulator"
+            area="regulator"
+            nav={NAV}
+            right={<span className="text-[13px] text-ink-3">Read-only · signed review only</span>}
+          />
+        </Suspense>
       </div>
       <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-9">
         <div className="mx-auto w-full max-w-[1180px]">{children}</div>
