@@ -47,3 +47,20 @@ export const tamperLog = pgTable('tamper_log', {
 export const citizenRateLimits = pgTable('citizen_rate_limits', {
   key: text().primaryKey(), window: epoch('window').notNull(), count: integer().notNull(),
 });
+// Citizen reports to the regulator. The access row is copied in (controller, event type, chain position, sealed time)
+// and event_id has no foreign key on purpose: the presenter console deletes and re-inserts access_events rows by id
+// (lib/server/tamper.ts), and a report must survive exactly that, since a deleted record is what it may be about.
+export const reportReason = pgEnum('report_reason', ['not_me', 'object', 'altered']);
+export const reportStatus = pgEnum('report_status', ['open', 'reviewed']);
+export const citizenReports = pgTable('citizen_reports', {
+  id: uuid().primaryKey().defaultRandom(), eventId: uuid('event_id').notNull(), subjectId: uuid('subject_id').notNull().references(() => subjects.id),
+  controllerId: text('controller_id').notNull().references(() => controllers.id), eventType: smallint('event_type').notNull(),
+  txHash: text('tx_hash'), logIndex: integer('log_index'), sealedAt: epoch('sealed_at'),
+  reason: reportReason().notNull(), note: text(), serverVerdict: text('server_verdict').notNull(),
+  status: reportStatus().default('open').notNull(), createdAt: createdAt(),
+  reviewedAt: timestamp('reviewed_at', { withTimezone: true }), reviewedBy: text('reviewed_by'),
+}, (t) => [index('report_by_status').on(t.status, t.createdAt), index('report_by_controller').on(t.controllerId, t.status),
+  uniqueIndex('report_open_once').on(t.eventId, t.reason).where(sql`${t.status} = 'open'`),
+  check('report_note_length', sql`${t.note} is null or char_length(${t.note}) <= 280`),
+  check('report_verdict', sql`${t.serverVerdict} in ('MATCH', 'ALTERED', 'NOT_FOUND', 'DELETED')`),
+  check('report_event_type', sql`${t.eventType} between 0 and 3`)]);

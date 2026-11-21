@@ -48,6 +48,13 @@ export async function citizenId() {
   if (!id) throw new HttpError(401, 'SESSION_REQUIRED', 'Create a citizen profile first.');
   return id;
 }
+// Always answers (never 401), so a first visit can ask before loading receipts and the console stays clean.
+export async function citizenSession(): Promise<{ signedIn: boolean; code?: string }> {
+  const id = await readSession();
+  if (!id) return { signedIn: false };
+  const [subject] = await db().select({ code: subjects.code, salt: subjects.pseudonymSaltEnc }).from(subjects).where(eq(subjects.id, id));
+  return subject?.salt ? { signedIn: true, code: subject.code } : { signedIn: false };
+}
 export async function citizenReceipts() {
   const id = await citizenId();
   const [subject] = await db().select().from(subjects).where(eq(subjects.id, id));

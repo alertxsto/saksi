@@ -1,7 +1,8 @@
 import { z } from 'zod';
 import { accessInput, confirmAccess, confirmInput, prepareAccess, recentAccess, submitAccess, submitInput } from '../../../lib/server/access';
 import { breachDetails, confirmBreach, listBreaches, prepareBreach, prepareBreachInput, submitBreach } from '../../../lib/server/breach';
-import { createCitizen, citizenReceipts, deleteCitizen } from '../../../lib/server/citizen';
+import { createCitizen, citizenId, citizenReceipts, citizenSession, deleteCitizen } from '../../../lib/server/citizen';
+import { controllerRegister } from '../../../lib/server/controller-register';
 import { hash } from '../../../lib/server/chain';
 import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, sameOrigin, secureCookies, validate } from '../../../lib/server/http';
 import { consume } from '../../../lib/server/rate-limit';
@@ -9,6 +10,7 @@ import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai
 import { demoReceipts } from '../../../lib/server/demo';
 import { stageStats } from '../../../lib/server/stats';
 import { serviceStatus } from '../../../lib/server/status';
+import { createReport, listReports, registryAdmin, reportInput, reviewInput, reviewReport } from '../../../lib/server/reports';
 import { tamper, tamperInput } from '../../../lib/server/tamper';
 import { watch } from '../../../lib/server/watch';
 export const maxDuration = 30;
@@ -35,7 +37,12 @@ async function route(request: Request, context: Context): Promise<Response> {
         await input(request, z.strictObject({}));
         return json(await createCitizen(clientIp(request), secureCookies(request)), 201);
       }
+      case 'GET citizen/session': return json(await citizenSession());
       case 'GET citizen/receipts': return json(await citizenReceipts());
+      case 'POST citizen/report': {
+        const subject = await citizenId();
+        return json(await createReport(subject, await input(request, reportInput), clientIp(request)), 201);
+      }
       case 'DELETE citizen/session': await deleteCitizen(); return new Response(null, { status: 204 });
       case 'POST controller/access/prepare': {
         const body = await input(request, accessInput);
@@ -53,6 +60,17 @@ async function route(request: Request, context: Context): Promise<Response> {
       case 'POST controller/breach/submit': return json(await submitBreach(await input(request, submitInput)));
       case 'POST controller/breach/confirm': return json(await confirmBreach((await input(request, confirmInput)).id));
       case 'GET regulator/breaches': return json(await listBreaches());
+      case 'GET regulator/reports': {
+        // The admin address only labels who may sign; listing never depends on the chain answering.
+        const [list, admin] = await Promise.all([listReports(), registryAdmin().catch(() => null)]);
+        return json({ ...list, admin });
+      }
+      case 'POST regulator/reports/review': {
+        const body = await input(request, reviewInput);
+        if (!await consume(`review:${clientIp(request)}`, 30)) throw new HttpError(429, 'RATE_LIMITED', 'Too many review attempts. Wait a minute and try again.');
+        return json(await reviewReport(body));
+      }
+      case 'GET regulator/controllers': return json(await controllerRegister());
       case 'GET stats': return json(await stageStats());
       case 'GET watch': {
         const controllerId = url.searchParams.get('controllerId');
