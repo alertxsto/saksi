@@ -56,7 +56,7 @@ die() { printf '[deploy] %sERROR%s %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
 usage() { sed -n '2,23p' "$KIT_DIR/deploy.sh" | sed 's/^# \{0,1\}//'; }
 git_root() { git -C "$SAKSI_ROOT" "$@"; }
 # SAKSI_TAG on the command line wins over deploy/.env.
-compose() { SAKSI_TAG=$1 SAKSI_ENV_FILE=$ENV_FILE docker compose --project-directory "$COMPOSE_DIR" -f "$COMPOSE_DIR/compose.yaml" "${@:2}"; }
+compose() { SAKSI_TAG=$1 SAKSI_ENV_FILE=$ENV_FILE POSTGRES_PASSWORD=$(env_value POSTGRES_PASSWORD) docker compose --project-directory "$COMPOSE_DIR" -f "$COMPOSE_DIR/compose.yaml" "${@:2}"; }
 image_exists() { docker image inspect "$IMAGE:$1" >/dev/null 2>&1; }
 
 history_note() {

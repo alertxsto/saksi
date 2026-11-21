@@ -6,8 +6,6 @@ const nextConfig = {
   // standalone layout to .next/standalone/<subdir>/server.js.
   outputFileTracingRoot: import.meta.dirname,
   poweredByHeader: false,
-  // The Docker kit copies .next/standalone into the runtime image.
-  output: 'standalone',
   cacheComponents: true,
   partialPrefetching: true,
   turbopack: {

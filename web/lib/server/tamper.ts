@@ -12,7 +12,7 @@ const conflict = () => new HttpError(409, 'TAMPER_CONFLICT', 'The demo row chang
 type Snapshot = Record<string, unknown>;
 
 export async function tamper({ action, eventId }: z.output<typeof tamperInput>) {
-  const { rows: [live] } = await db().execute<{ snapshot: Snapshot }>(sql`
+  const [live] = await db().execute<{ snapshot: Snapshot }>(sql`
     select to_jsonb(a) as snapshot from access_events a where id = ${eventId}::uuid and status = 'anchored'
   `);
   const before = live?.snapshot ?? null;
@@ -25,7 +25,7 @@ export async function tamper({ action, eventId }: z.output<typeof tamperInput>) 
     if (!before) throw missing();
     after = null;
   } else {
-    const { rows: [entry] } = await db().execute<{ snapshot: string; after_hash: string }>(sql`
+    const [entry] = await db().execute<{ snapshot: string; after_hash: string }>(sql`
       select before_snapshot_enc as snapshot, after_hash from tamper_log
       where target_table = ${table} and target_id = ${eventId}::uuid and action in ('edit', 'delete')
       order by at desc, id desc limit 1
@@ -51,6 +51,6 @@ export async function tamper({ action, eventId }: z.output<typeof tamperInput>) 
     select ${table}, id, ${action}::tamper_action, ${encrypted.iv + '.' + encrypted.ciphertext},
       ${evidenceHash(before)}, ${evidenceHash(after)} from changed returning target_id
   `);
-  if (!change.rows.length) throw conflict();
+  if (!change.length) throw conflict();
   return { action, eventId };
 }

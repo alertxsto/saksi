@@ -183,7 +183,7 @@ check_env_file() {
   perms=$(stat -c %a "$ENV_FILE" 2>/dev/null) || true
   if [[ -z $perms || ${perms: -2} == 00 ]]; then pass "env file" "$ENV_FILE${perms:+ (mode $perms)}"
   else warn "env file" "mode $perms, readable by others (chmod 600 $ENV_FILE)"; fi
-  for name in DATABASE_URL SUBJECT_KEY DATA_KEY SESSION_SECRET DEMO_ADMIN_TOKEN NEXT_PUBLIC_RPC_PRIMARY \
+  for name in POSTGRES_PASSWORD DATABASE_URL SUBJECT_KEY DATA_KEY SESSION_SECRET DEMO_ADMIN_TOKEN NEXT_PUBLIC_RPC_PRIMARY \
       NEXT_PUBLIC_REGISTRY_ADDRESS NEXT_PUBLIC_JOURNAL_ADDRESS NEXT_PUBLIC_BREACH_ADDRESS NEXT_PUBLIC_DEPLOY_BLOCK; do
     [[ -n $(env_value "$name") ]] || missing+=("$name")
   done

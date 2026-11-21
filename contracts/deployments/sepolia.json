@@ -1,0 +1,14 @@
+{
+  "chainId": 11155111,
+  "deployBlock": 12181663,
+  "deployer": "0x5678B387056c7571813f8acF934dD145D9f98C9D",
+  "contracts": {
+    "ControllerRegistry": "0x3d9dE4717a7398d24239b8370b23DCAd7a07f737",
+    "AccessJournal": "0xAb9b73586610697deb7Ae59A59e991f5177CB263",
+    "BreachReport": "0x71Ff16F068A845F3D3dfd63584a31A9de86fE462"
+  },
+  "controllers": {
+    "demo-one": "0xe4788AcC311c6135A848f82823456F06f2bb74E0",
+    "demo-two": "0xc524444F4c376BE75f18810EE7cFCEE67618e8FE"
+  }
+}
