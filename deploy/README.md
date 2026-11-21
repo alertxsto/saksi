@@ -147,7 +147,7 @@ Formatnya `KEY=value` polos, tanpa `export`. File ini dibaca oleh `docker compos
 | `NEXT_PUBLIC_JOURNAL_ADDRESS` | ya | Alamat kontrak journal. |
 | `NEXT_PUBLIC_BREACH_ADDRESS` | ya | Alamat kontrak breach. |
 | `NEXT_PUBLIC_DEPLOY_BLOCK` | ya | Nomor blok deployment kontrak (awal pemindaian log). |
-| `NEXT_PUBLIC_SITE_URL` | tidak | Belum dibaca kode dan bukan build arg, jadi belum berpengaruh. |
+| `NEXT_PUBLIC_SITE_URL` | ya | URL publik tanpa garis miring akhir, mis. `https://saksiku.web.id`. Build arg: menjadi isi QR di landing dan di profil warga, serta `metadataBase`. Kosong = `http://localhost:3401`, jadi QR tidak bisa dibuka dari ponsel. |
 | `DATABASE_URL` | ya | Connection string **Neon**. App memakai driver Neon HTTP, jadi Postgres biasa tidak bisa dipakai. |
 | `SUBJECT_KEY` | ya | 64 karakter hex (`openssl rand -hex 32`). Kunci HMAC pseudonim subjek. Jangan diganti setelah ada data. |
 | `DATA_KEY` | ya | 64 karakter hex. Kunci AES-256-GCM data terenkripsi. Jangan diganti setelah ada data. |
