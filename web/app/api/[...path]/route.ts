@@ -16,6 +16,14 @@ type Context = { params: Promise<{ path: string[] }> };
 async function limitPrepare(request: Request) {
   if (!await consume(`prepare:${clientIp(request)}`, 20)) throw new HttpError(429, 'RATE_LIMITED', 'Too many drafts from this network. Wait a minute and try again.');
 }
+// AI calls cost provider quota and draft is unauthenticated, so cap each network and every client together.
+const aiLimits = { draft: { perIp: 6, global: 60 }, explain: { perIp: 20, global: 120 } } as const;
+async function limitAi(request: Request, feature: keyof typeof aiLimits) {
+  const { perIp, global } = aiLimits[feature];
+  if (!await consume(`ai-${feature}:${clientIp(request)}`, perIp) || !await consume(`ai-${feature}:all`, global)) {
+    throw new HttpError(429, 'RATE_LIMITED', 'Too many AI requests. Wait a minute and try again.');
+  }
+}
 async function route(request: Request, context: Context): Promise<Response> {
   const { path } = await context.params;
   const url = new URL(request.url);
@@ -56,8 +64,16 @@ async function route(request: Request, context: Context): Promise<Response> {
       case 'GET demo/receipts':
         requireDemoToken(request);
         return json(await demoReceipts());
-      case 'POST ai/explain': return json(await explain(await input(request, explainInput)));
-      case 'POST controller/breach/draft': return json(await draft(await input(request, draftInput)));
+      case 'POST ai/explain': {
+        const body = await input(request, explainInput);
+        await limitAi(request, 'explain');
+        return json(await explain(body));
+      }
+      case 'POST controller/breach/draft': {
+        const body = await input(request, draftInput);
+        await limitAi(request, 'draft');
+        return json(await draft(body));
+      }
       case 'GET status':
         requireDemoToken(request);
         return json(await serviceStatus());
