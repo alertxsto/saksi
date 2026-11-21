@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/Button'
 import { Chip } from '@/components/ui/Chip'
 import { IconLock } from '@/components/ui/icons'
 import { ReceiptCard } from '@/components/ui/ReceiptCard'
+import { normalizeCitizenCode } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import {
   EVENT_LABELS,
@@ -126,7 +127,7 @@ export function RecordAccessForm({
           <input
             id={ids.code}
             value={v.subjectCode}
-            onChange={(e) => set({ subjectCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) })}
+            onChange={(e) => set({ subjectCode: normalizeCitizenCode(e.target.value) })}
             inputMode="text"
             autoComplete="off"
             autoCapitalize="characters"
