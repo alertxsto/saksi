@@ -21,7 +21,7 @@ const LINK =
 /**
  * zaro A.7 nav: transparent at rest, white 80% + 4 px blur + hairline after 100 px, vault colours while a
  * [data-surface="vault"] block sits under it, and it slides away while the dark closer is on screen.
- * Below lg the links live in a menu sheet that drops out of the nav box: same surface, links centred,
+ * Below lg the links live in a compact menu sheet that drops out of the nav box: same surface, a two-column grid of 44 px links,
  * 56 px rows, words rise in (riset-ui/32).
  * Links are centred exactly (05 §4); hover is the odometer roll. `base` prefixes the section anchors when
  * the nav sits on another page (e.g. "/" on /why, so "#how" becomes "/#how").
@@ -134,15 +134,15 @@ export function Nav({ base = '' }: { base?: string }) {
       </div>
 
       <div id="nav-menu" className="nav-menu mx-auto max-w-[1344px] lg:hidden" hidden={!open}>
-        <div className="nav-sheet mt-2 rounded-lg border px-3 pb-3 pt-2">
+        <div className="nav-sheet mt-2 rounded-lg border p-2">
           <nav aria-label="Sections">
-            <ul>
+            <ul className="nav-grid grid grid-cols-2 gap-x-1">
               {LINKS.map(([href, label], i) => (
                 <li key={href} className="nav-sheet-row" style={{ '--i': i } as CSSProperties}>
                   <a
                     href={href.startsWith("#") ? `${base}${href}` : href}
                     onClick={(e) => go(e, href)}
-                    className="nav-sheet-link flex min-h-14 items-center justify-center rounded-md text-[22px] font-medium tracking-[-0.02em] transition-colors duration-150"
+                    className="nav-sheet-link flex min-h-11 items-center rounded-md px-3 text-[16px] font-medium tracking-[-0.01em] transition-colors duration-150"
                   >
                     {label}
                   </a>
@@ -152,19 +152,17 @@ export function Nav({ base = '' }: { base?: string }) {
                 <Link
                   href="/enter"
                   onClick={() => setOpen(false)}
-                  className="nav-sheet-link flex min-h-14 items-center justify-center rounded-md text-[22px] font-medium tracking-[-0.02em] transition-colors duration-150"
+                  className="nav-sheet-link flex min-h-11 items-center rounded-md px-3 text-[16px] font-medium tracking-[-0.01em] transition-colors duration-150"
                 >
                   Sign in
                 </Link>
               </li>
             </ul>
           </nav>
-          <div className="nav-sheet-row mt-2 grid grid-cols-2 gap-2" style={{ '--i': LINKS.length + 1 } as CSSProperties}>
-            <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-12! w-full justify-center px-3!">
+          {/* "Open the app" already sits in the bar above, so the sheet keeps one quiet action */}
+          <div className="nav-sheet-row mt-1 border-t border-line pt-2" style={{ '--i': LINKS.length + 1 } as CSSProperties}>
+            <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-11! w-full justify-center px-3!">
               Verify a receipt
-            </Cta>
-            <Cta href="/enter" size="md" className="nav-cta h-12! w-full justify-between">
-              Open the app
             </Cta>
           </div>
         </div>

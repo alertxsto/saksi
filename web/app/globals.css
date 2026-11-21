@@ -1048,6 +1048,7 @@ html.lenis, html.lenis body { height: auto; }
 .nav-sheet-link { color: var(--color-ink); }
 .nav-sheet-link:hover, .nav-sheet-link:focus-visible { background: var(--color-paper-2); }
 .nav-sheet li + li { border-top: 1px solid var(--color-line); }
+.nav-sheet .nav-grid li { border-top: 0; }
 .nav-sheet-row { animation: blur-rise 520ms var(--ease-out-expo) both; animation-delay: calc(60ms + var(--i, 0) * 40ms); }
 .nav[data-vault][data-open] .nav-box { background: rgb(36 33 29 / 0.94); border-color: var(--color-vault-line); }
 .nav[data-vault] .nav-sheet { background: rgb(36 33 29 / 0.96); border-color: var(--color-vault-line); color: var(--color-vault-ink); box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.6); }

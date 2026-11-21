@@ -110,7 +110,7 @@ export function AppHeader({ actor: actorProp, role, area, nav = [], right, switc
             </SheetRow>
           ) : null}
           <SheetRow i={nav.length + 1} className={nav.length || right ? 'mt-3' : 'mt-1'}>
-            <Cta href={switchHref} size="md" className="nav-cta h-12! w-full justify-between">
+            <Cta href={switchHref} size="md" className="nav-cta h-11! w-full justify-between">
               Switch role
             </Cta>
           </SheetRow>

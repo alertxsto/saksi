@@ -10,7 +10,7 @@
  *
  * Slots: `center` (absolutely centred, like the landing links), `aside` (desktop-only quiet link before the
  * menu button, like the landing's "Sign in"), `sheet(close)` (the menu sheet body; full width on phones,
- * a 400 px panel on the right from lg). An in-flow spacer keeps content clear of the fixed bar; pages and
+ * a compact 320 px panel on the right at every width). An in-flow spacer keeps content clear of the fixed bar; pages and
  * sticky sidebars use `var(--hdr)` (68 / 76 px) for the same offset.
  * `frame` (gallery frames): sticky instead of fixed, so several headers can sit on one page.
  */
@@ -101,7 +101,7 @@ export function SiteHeader({
 
         <div id={menuId} className="nav-menu mx-auto max-w-[1344px]" hidden={!open}>
           {open ? (
-            <div className="nav-sheet mt-2 rounded-lg border px-3 pb-3 pt-2 lg:ml-auto lg:max-w-[400px]">{sheet(() => setOpen(false))}</div>
+            <div className="nav-sheet ml-auto mt-2 max-w-[320px] rounded-lg border p-2">{sheet(() => setOpen(false))}</div>
           ) : null}
         </div>
       </header>
@@ -110,9 +110,9 @@ export function SiteHeader({
   )
 }
 
-/** One centred 56 px sheet row, the landing menu's link. */
+/** One 44 px sheet row, the landing menu's link. */
 export const SHEET_LINK =
-  'nav-sheet-link flex min-h-14 items-center justify-center rounded-md text-[22px] font-medium tracking-[-0.02em] transition-colors duration-150'
+  'nav-sheet-link flex min-h-11 items-center rounded-md px-3 text-[16px] font-medium tracking-[-0.01em] transition-colors duration-150'
 
 export function SheetRow({ i, children, className = '' }: { i: number; children: ReactNode; className?: string }) {
   return (

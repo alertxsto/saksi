@@ -22,7 +22,7 @@ saksiku.web.id {
 		Referrer-Policy "strict-origin-when-cross-origin"
 		X-Frame-Options "DENY"
 		Cross-Origin-Opener-Policy "same-origin"
-		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		Permissions-Policy "camera=(self), microphone=(), geolocation=(), payment=(), usb=()"
 		# Next.js App Router streams inline <script> chunks, so script-src needs 'unsafe-inline'
 		# (nonces would need middleware). MetaMask talks to the page through window.ethereum, so
 		# the only third-party fetches are the public Sepolia RPC origins.
