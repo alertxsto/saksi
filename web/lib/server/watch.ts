@@ -3,10 +3,12 @@ import { eq } from 'drizzle-orm';
 import type { AbiEvent, Hex, Log } from 'viem';
 import { db } from '../../db/client';
 import { accessEvents, controllers } from '../../db/schema';
-import { evidenceHash, purposeHash } from '../shared/commit';
+import { controllerId as slugId, evidenceHash, purposeHash } from '../shared/commit';
 import { EVENT_TYPES, type ReceiptOpening, type WatchRow } from '../shared/types';
 import { readOpening } from './access';
 import { addresses, deployBlock, events, hash, rpc } from './chain';
+import { HttpError } from './http';
+import { controller } from './registry';
 
 type AccessLog = Log<bigint, number, false, typeof events[0], true, readonly [typeof events[0]], 'AccessLogged'>;
 type Cursor = { next: bigint; logs: AccessLog[] };
@@ -61,9 +63,20 @@ async function scan(controllerId?: Hex) {
   return { logs, head };
 }
 
+const demoControllers = new Set(['demo-one', 'demo-two', 'demo-spare'].map(slugId));
+// A filtered scan costs RPC calls and a slot in the window cache, so only controllers Saksi knows get one.
+// The demo controllers are inserted lazily on first use; for them registry.ts reads the registry once and stores the row.
+export async function knownController(id: Hex) {
+  const [row] = await db().select({ id: controllers.id }).from(controllers).where(eq(controllers.id, id));
+  if (row) return;
+  if (demoControllers.has(id)) { await controller(id); return; }
+  throw new HttpError(404, 'UNKNOWN_CONTROLLER', 'Controller is not registered.');
+}
+
 export async function watch(controllerId?: Hex) {
   // Resolve the database client first: if it throws, the chain scan has not started and cannot reject unobserved.
   const database = db();
+  if (controllerId) await knownController(controllerId);
   const [{ logs, head }, records, orgs] = await Promise.all([
     scan(controllerId),
     database.select({ row: accessEvents, name: controllers.name }).from(accessEvents)
