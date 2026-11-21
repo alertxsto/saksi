@@ -1,6 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useMemo } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Chip, LiveDot, TwoTone } from '@/components/ui/Chip'
@@ -13,9 +14,11 @@ import { ReceiptCardSkeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
 import { VaultSeal } from '@/components/ui/VaultSeal'
+import { checkOf, useAutoVerify, useReceiptChecks } from '@/lib/client/receipt-checks'
 import { copyText, createProfile, getReceipts, toCitizenError, type CitizenError } from '@/lib/data'
 import { timeBucket } from '@/lib/format'
 import { useNow, useOnline } from '@/lib/hooks'
+import { IDLE, receiptKind, type ReceiptCheck } from '@/lib/receipt-state'
 import type { ReceiptOpening } from '@/lib/shared/types'
 
 // First time each receipt id was seen in this tab. Lives outside React so render stays pure.
@@ -206,10 +209,16 @@ function ReceiptList() {
     retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 1,
   })
 
+  const receipts = q.data?.receipts ?? EMPTY_RECEIPTS
+  const pseudonyms = q.data?.pseudonyms
+  // Every sealed receipt is re-checked against the chain from this browser; nothing trusts the server.
+  useAutoVerify(receipts, useMemo(() => pseudonyms?.map((p) => p.pseudonym) ?? [], [pseudonyms]))
+  const store = useReceiptChecks()
+  const checks = Object.fromEntries(receipts.map((r) => [r.eventId, checkOf(store.checks, r)]))
+
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
   if (q.isError && toCitizenError(q.error).code === 'NO_SESSION') return <Onboarding />
 
-  const receipts = q.data?.receipts ?? []
   const code = q.data?.profile.code ?? ''
   const freshIds = receipts
     .filter((r) => {
@@ -237,6 +246,8 @@ function ReceiptList() {
       online={online}
       watching={online && !q.isError}
       freshIds={freshIds}
+      checks={checks}
+      hiddenCount={q.data ? store.hidden.length : 0}
       error={q.isError ? toCitizenError(q.error).message : null}
       retrying={q.isFetching}
       onCopy={() => void onCopy()}
@@ -248,6 +259,7 @@ function ReceiptList() {
 export type ReceiptListState = 'loading' | 'error' | 'empty' | 'ready'
 
 const BUCKETS = ['NOW', 'TODAY', 'EARLIER'] as const
+const EMPTY_RECEIPTS: ReceiptOpening[] = []
 
 export function ReceiptListView({
   state,
@@ -257,6 +269,8 @@ export function ReceiptListView({
   online,
   watching,
   freshIds,
+  checks = {},
+  hiddenCount = 0,
   error,
   retrying,
   demoHint,
@@ -272,6 +286,10 @@ export function ReceiptListView({
   watching: boolean
   /** eventIds that arrived in the last 10 s: slide-in, blue border, "NEW · JUST ARRIVED". */
   freshIds: string[]
+  /** This browser's chain check per eventId (for the receipt's current content). Missing = not checked. */
+  checks?: Record<string, ReceiptCheck>
+  /** Sealed receipts for this profile found on chain that the company no longer shows. */
+  hiddenCount?: number
   error?: string | null
   retrying?: boolean
   demoHint?: boolean
@@ -280,6 +298,9 @@ export function ReceiptListView({
 }) {
   const fresh = receipts.filter((r) => freshIds.includes(r.eventId))
   const anchored = receipts.filter((r) => r.status === 'anchored').length
+  const checkFor = (r: ReceiptOpening) => checks[r.eventId] ?? IDLE
+  const altered = receipts.filter((r) => receiptKind(r, checkFor(r)) === 'ALTERED')
+  const matched = receipts.filter((r) => receiptKind(r, checkFor(r)) === 'MATCH').length
 
   return (
     <div className="flex flex-col gap-5">
@@ -287,22 +308,55 @@ export function ReceiptListView({
 
       <ProfileCard code={code} onCopy={onCopy} />
 
+      {altered.length || hiddenCount ? (
+        <section role="alert" className="anim-shake relative rounded-xl border-2 border-bad bg-bad p-4 text-white">
+          <RegMarks className="bg-bad" size={8} />
+          <p className="label flex items-center gap-2 text-[12px] font-bold">
+            <IconAlert size={15} strokeWidth={2.4} /> Your phone caught a change
+          </p>
+          <p className="display mt-2 text-[22px] leading-[1.15]">
+            {altered.length
+              ? `${altered.length === 1 ? 'One receipt no longer matches' : `${altered.length} receipts no longer match`} what the chain sealed.`
+              : null}
+            {altered.length && hiddenCount ? ' ' : null}
+            {hiddenCount
+              ? `${hiddenCount === 1 ? 'One sealed receipt is' : `${hiddenCount} sealed receipts are`} missing from the company’s records.`
+              : null}
+          </p>
+          <p className="mt-2 text-[14px] leading-relaxed text-white/90">
+            Checked in this browser against a public node, not by our server.
+            {altered.length ? ' Open the red receipt to see which field changed.' : ''}
+          </p>
+        </section>
+      ) : null}
+
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="label flex items-center gap-2 text-ink">
           <LiveDot tone={watching ? 'blue' : 'pending'} ping={watching} />
           {watching ? 'Watching · every 3 s' : 'Paused'}
         </p>
         {state === 'ready' ? (
-          <p className="label flex items-center gap-1.5 text-[11px] text-ok">
-            <IconShield size={13} strokeWidth={2.2} />
-            {anchored} on chain · {receipts.length} shown
-          </p>
+          altered.length ? (
+            <p className="label flex items-center gap-1.5 text-[11px] text-bad">
+              <IconAlert size={13} strokeWidth={2.2} />
+              {altered.length} altered · {matched} match · {receipts.length} shown
+            </p>
+          ) : (
+            <p className="label flex items-center gap-1.5 text-[11px] text-ok">
+              <IconShield size={13} strokeWidth={2.2} />
+              {matched ? `${matched} match the chain` : `${anchored} on chain`} · {receipts.length} shown
+            </p>
+          )
         ) : null}
       </div>
 
       {/* polite announcement for receipts that just arrived */}
       <p aria-live="polite" className="sr-only">
         {fresh.map((r) => `New receipt: ${r.controllerName} ${r.eventType === 3 ? 'shared' : 'accessed'} your data.`).join(' ')}
+      </p>
+      {/* assertive announcement when a chain check proves a receipt altered */}
+      <p aria-live="assertive" className="sr-only">
+        {altered.map((r) => `Receipt from ${r.controllerName} was altered: it no longer matches the chain.`).join(' ')}
       </p>
 
       {state === 'loading' ? (
@@ -344,7 +398,7 @@ export function ReceiptListView({
                 <ul className="flex flex-col gap-2.5">
                   {items.map((r) => (
                     <li key={r.eventId}>
-                      <ReceiptCard opening={r} now={now} isNew={freshIds.includes(r.eventId)} />
+                      <ReceiptCard opening={r} now={now} isNew={freshIds.includes(r.eventId)} check={checkFor(r)} />
                     </li>
                   ))}
                 </ul>
@@ -364,7 +418,9 @@ export function ReceiptListView({
         <h2 className="text-[16px] font-medium tracking-[-0.01em] text-ink">What a receipt proves</h2>
         <p className="mt-2 text-[14px] leading-relaxed text-ink-2">
           Each receipt is a fingerprint sealed on a public chain. If anyone edits the record later, your phone will see
-          it. <Badge kind="RECORDED" size="sm" className="ml-1 align-middle" /> means sealed.
+          it. <Badge kind="RECORDED" size="sm" className="ml-1 align-middle" /> means the company says it sealed it. Your
+          phone then checks each one: <Badge kind="MATCH" size="sm" className="align-middle" /> unchanged,{' '}
+          <Badge kind="ALTERED" size="sm" className="align-middle" /> edited after sealing.
         </p>
         <p className="label mt-3 flex items-center gap-1.5 text-[11px] text-ink-2">
           <IconLock size={13} /> Only a fingerprint goes on chain · no names
