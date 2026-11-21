@@ -29,8 +29,10 @@
     "app/**/*.tsx",
     "db/**/*.ts",
     "drizzle.config.ts",
+    "instrumentation.ts",
     "lib/**/*.ts",
     "test/**/*.ts",
+    "scripts/**/*.ts",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts"
   ],

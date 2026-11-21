@@ -1,0 +1,137 @@
+{
+  "version": 1,
+  "notice": "All narratives are fictional and synthetic. Organisations, people, addresses and counts are invented; contact addresses use the reserved .example top-level domain.",
+  "keywordSyntax": "Each keyword is case- and accent-insensitive substring match against the drafted field; 'a|b' accepts either alternative. Output is drafted in English, so Indonesian narratives list English and Indonesian alternatives.",
+  "cases": [
+    {
+      "id": "bucket-leak",
+      "kind": "public storage bucket",
+      "language": "id",
+      "narrative": "[SINTETIS] Laporan internal PT Kopi Sintetis Nusantara (fiktif). Pada 3 Maret 2026 pukul 09.15 WIB tim kami menerima email dari seorang peneliti keamanan bahwa bucket penyimpanan objek kami bisa diakses publik. Bucket itu berisi file CSV program loyalitas dengan sekitar 12.400 baris: nama, alamat email, nomor telepon, dan tanggal lahir anggota. Bucket menjadi publik sejak perubahan konfigurasi pada 20 Februari 2026. Kami sudah mengubah bucket menjadi privat, memeriksa log akses, dan merotasi kunci akses penyimpanan. Pertanyaan dapat dikirim ke privasi@kopi-sintetis.example.",
+      "expected": {
+        "dataAffected": ["name|nama", "email", "phone|telepon", "birth|lahir", "12,400|12.400|12400"],
+        "whenAndHow": ["bucket|storage", "public|publik", "researcher|peneliti", "configuration|config|konfigurasi"],
+        "actionsTaken": ["private|privat", "log", "rotat|rotas"],
+        "contact": ["privasi@kopi-sintetis.example"]
+      },
+      "detectedAt": { "date": "2026-03-03", "time": "09:15" }
+    },
+    {
+      "id": "phishing",
+      "kind": "credential phishing",
+      "language": "en",
+      "narrative": "[SYNTHETIC] Incident note from Arunika Synthetic Clinic (fictional). On 11 April 2026 at 14:40 WIB our identity provider raised an impossible-travel alert for a receptionist account. The receptionist had typed her password into a fake Microsoft 365 login page sent by email that morning. The attacker had access to the shared front-desk mailbox for about 6 hours. The mailbox holds appointment confirmations containing patient names, appointment dates and the name of the treating doctor. No medical records are stored in email. We reset the password, revoked all active sessions, removed a forwarding rule the attacker created, enforced multi-factor authentication for all staff and scheduled phishing awareness training. Contact our data protection officer at dpo@arunika-clinic.example.",
+      "expected": {
+        "dataAffected": ["patient|pasien", "name", "appointment"],
+        "whenAndHow": ["phishing|fake|spoof", "password|credential", "mailbox|email account|inbox", "6 hours|six hours"],
+        "actionsTaken": ["password", "session|revok", "forwarding|rule", "multi-factor|mfa|two-factor|2fa", "training"],
+        "contact": ["dpo@arunika-clinic.example"]
+      },
+      "detectedAt": { "date": "2026-04-11", "time": "14:40" }
+    },
+    {
+      "id": "insider",
+      "kind": "insider exfiltration",
+      "language": "id",
+      "narrative": "[SINTETIS] Koperasi Simpan Pinjam Sintetis Makmur (fiktif). Sistem pencegahan kebocoran data (DLP) memberi peringatan pada 7 Mei 2026 pukul 16.05 WIB: seorang karyawan layanan pelanggan menyalin data 830 anggota ke flashdisk USB pribadi. Data tersebut berisi nama, NIK, dan sisa saldo pinjaman. Hasil wawancara menunjukkan karyawan berniat menjual data ke pihak penagih utang. Akun karyawan langsung dinonaktifkan, flashdisk diamankan, kasus dilaporkan ke polisi, dan kami meninjau ulang hak akses seluruh staf layanan pelanggan. Hubungi Pejabat Pelindungan Data kami di pdp@ksp-sintetis.example.",
+      "expected": {
+        "dataAffected": ["name|nama", "nik|national id|identity number|identification number|id number", "loan|pinjaman", "830"],
+        "whenAndHow": ["employee|staff|karyawan|insider", "usb|flash|removable", "copied|copy|export|transfer|salin|menyalin"],
+        "actionsTaken": ["disabled|deactivat|suspend|revok|nonaktif", "police|polisi", "review|audit|tinjau|meninjau"],
+        "contact": ["pdp@ksp-sintetis.example"]
+      },
+      "detectedAt": { "date": "2026-05-07", "time": "16:05" }
+    },
+    {
+      "id": "ransomware",
+      "kind": "ransomware with exfiltration",
+      "language": "en",
+      "narrative": "[SYNTHETIC] Lintas Fiktif Logistics (fictional) status update. Ransomware encrypted our main file server overnight. Our on-call engineer was paged by a monitoring alert and confirmed the encryption on Saturday 6 June 2026 at 03:20 WIB. The attackers left a note claiming they exfiltrated shipping manifests; the manifests contain recipient names, delivery addresses and phone numbers for roughly 41,000 parcels. We isolated the affected network segment, restored the server from offline backups, engaged an external forensics firm to confirm what was copied, and we are not paying the ransom. Questions: security@lintas-fiktif.example.",
+      "expected": {
+        "dataAffected": ["name", "address", "phone", "41,000|41.000|41000"],
+        "whenAndHow": ["ransomware", "encrypt", "file server", "exfiltrat|stolen|copied|stole"],
+        "actionsTaken": ["isolat|disconnect", "backup", "forensic", "ransom"],
+        "contact": ["security@lintas-fiktif.example"]
+      },
+      "detectedAt": { "date": "2026-06-06", "time": "03:20" }
+    },
+    {
+      "id": "misdirected-email",
+      "kind": "misdirected email",
+      "language": "id",
+      "narrative": "[SINTETIS] PT Sinar Contoh Abadi (fiktif). Seorang staf HR mengirim lampiran spreadsheet penggajian ke alamat email eksternal yang salah karena fitur isi otomatis (autocomplete) memilih kontak yang mirip. Spreadsheet berisi nama, gaji bulanan, dan nomor rekening bank 54 karyawan. Kami belum bisa memastikan kapan kesalahan ini pertama kali diketahui. Staf mencoba menarik kembali email, lalu menghubungi penerima yang sudah mengonfirmasi secara tertulis bahwa email dan lampiran telah dihapus. Fitur autocomplete untuk domain eksternal kini dimatikan. Kontak: hr-privasi@sinar-contoh.example.",
+      "expected": {
+        "dataAffected": ["salary|gaji|payroll", "bank account|account number|rekening", "54"],
+        "whenAndHow": ["email|e-mail", "wrong|incorrect|misdirect|unintended|salah", "autocomplete|auto-complete|autofill"],
+        "actionsTaken": ["recall|retract|menarik", "delet|hapus", "autocomplete|auto-complete|autofill"],
+        "contact": ["hr-privasi@sinar-contoh.example"]
+      },
+      "detectedAt": null
+    },
+    {
+      "id": "lost-laptop",
+      "kind": "lost unencrypted laptop",
+      "language": "en",
+      "narrative": "[SYNTHETIC] Bumi Demo Insurance (fictional). A regional sales manager reported on 19 July 2026 at 21:30 WIB that his work laptop was left in a taxi earlier that evening. The laptop held a local spreadsheet of 2,150 policyholders with names, policy numbers and dates of birth. Full-disk encryption was not enabled on this device because of an expired policy exception. We issued a remote wipe command (the device has not come online yet), changed the manager's passwords, filed a police report and are enforcing disk encryption on every company laptop. Contact privacy@bumi-demo.example.",
+      "expected": {
+        "dataAffected": ["policy", "name", "birth", "2,150|2.150|2150"],
+        "whenAndHow": ["laptop", "taxi", "not enabled|unencrypt|not encrypted|without encryption|no encryption|lacked"],
+        "actionsTaken": ["wipe", "password", "police", "encrypt"],
+        "contact": ["privacy@bumi-demo.example"]
+      },
+      "detectedAt": { "date": "2026-07-19", "time": "21:30" }
+    },
+    {
+      "id": "api-key-leak",
+      "kind": "leaked API key",
+      "language": "id",
+      "narrative": "[SINTETIS] DompetUji (aplikasi fintech fiktif). Pemindaian rahasia otomatis menemukan kunci API produksi di repositori Git publik pada 2 Agustus 2026 jam 10.45 WIB. Seorang developer tidak sengaja melakukan commit kunci tersebut pada 31 Juli 2026. Kunci itu bisa membaca profil pelanggan: nama, nomor HP, dan alamat email. Log menunjukkan tiga alamat IP tak dikenal memanggil API sebanyak 1.900 kali. Kunci sudah dicabut dan diganti, riwayat repositori dibersihkan, alamat IP tersebut diblokir, dan pemeriksaan rahasia pre-commit diwajibkan. Kontak keamanan: keamanan@dompetuji.example.",
+      "expected": {
+        "dataAffected": ["name|nama", "phone|mobile|hp", "email"],
+        "whenAndHow": ["api key|api-key|kunci api", "public|publik", "repositor|git", "1,900|1.900|1900"],
+        "actionsTaken": ["revok|cabut|disabled|invalidat", "rotat|replac|ganti|new key", "block|blokir", "pre-commit"],
+        "contact": ["keamanan@dompetuji.example"]
+      },
+      "detectedAt": { "date": "2026-08-02", "time": "10:45" }
+    },
+    {
+      "id": "vendor-breach",
+      "kind": "processor (vendor) breach",
+      "language": "en",
+      "narrative": "[SYNTHETIC] Pasar Sampel (fictional online marketplace). Our email marketing vendor, MailContoh (fictional), told us by email on 25 August 2026 that an attacker had accessed its platform and copied customer lists. Our list contained subscriber email addresses, first names and the product categories each subscriber follows. Passwords and payment data are never shared with the vendor. We suspended all data synchronisation to the vendor, requested its forensic report, started a review of the processing agreement and will warn customers about possible phishing emails. Contact help@pasar-sampel.example.",
+      "expected": {
+        "dataAffected": ["email", "first name|name", "categor|preference|interest"],
+        "whenAndHow": ["vendor|third-party|third party|processor|mailcontoh", "attacker|unauthori|breach|compromis|accessed"],
+        "actionsTaken": ["suspend|paus|stop|halt", "forensic|report", "agreement|contract", "phishing"],
+        "contact": ["help@pasar-sampel.example"]
+      },
+      "detectedAt": { "date": "2026-08-25" }
+    },
+    {
+      "id": "sql-injection",
+      "kind": "SQL injection",
+      "language": "id",
+      "narrative": "[SINTETIS] Portal pendaftaran Sekolah Demo Harapan (fiktif). Log firewall aplikasi web menunjukkan serangan SQL injection melalui formulir pencarian pada 9 September 2026 pukul 01.12 sampai 01.40 WIB. Admin baru mengetahui serangan itu pada pagi harinya pukul 07.30 WIB saat melihat query yang tidak biasa. Penyerang mengunduh tabel calon siswa sekitar 3.700 baris berisi nama siswa, nama orang tua, alamat rumah, dan nomor telepon orang tua. Portal langsung dimatikan, query diganti menjadi parameterized query, kredensial database direset, dan uji penetrasi pihak ketiga sudah dijadwalkan. Hubungi admin-pdp@sekolah-demo.example.",
+      "expected": {
+        "dataAffected": ["student|siswa|applicant", "parent|orang tua", "address|alamat", "phone|telepon", "3,700|3.700|3700"],
+        "whenAndHow": ["sql injection|sql-injection|sqli", "search|pencarian", "form|formulir"],
+        "actionsTaken": ["offline|shut down|taken down|disabled|dimatikan", "parameteri", "credential|kredensial|password", "penetration|pentest|pen test|penetrasi"],
+        "contact": ["admin-pdp@sekolah-demo.example"]
+      },
+      "detectedAt": { "date": "2026-09-09", "time": "07:30" }
+    },
+    {
+      "id": "misconfigured-backup",
+      "kind": "exposed database backup",
+      "language": "en",
+      "narrative": "[SYNTHETIC] SehatSampel (fictional fitness app). During an internal audit on 30 September 2026 at 13:00 WIB we found a database backup file on a staging web server that had directory listing enabled. The backup contained user email addresses, bcrypt-hashed passwords, and daily step counts and body weight entries. Web server logs show the file was downloaded twice by an external IP address during the previous two weeks. We removed the file, disabled directory listing, forced a password reset for every user and rebuilt the staging environment behind access controls. Reach our Data Protection Officer at dpo@sehatsampel.example.",
+      "expected": {
+        "dataAffected": ["email", "password", "hash|bcrypt", "weight|step"],
+        "whenAndHow": ["backup", "directory listing|listing", "staging", "download"],
+        "actionsTaken": ["remov|delet", "disabl", "password reset|reset", "access control|restrict"],
+        "contact": ["dpo@sehatsampel.example"]
+      },
+      "detectedAt": { "date": "2026-09-30", "time": "13:00" }
+    }
+  ]
+}

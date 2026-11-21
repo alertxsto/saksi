@@ -4,7 +4,7 @@
   "type": "module",
   "packageManager": "pnpm@10.34.4",
   "engines": { "node": ">=22" },
-  "scripts": { "dev": "next dev", "build": "next build", "start": "next start", "typecheck": "tsc --noEmit", "test": "vitest run", "db:push": "drizzle-kit push" },
+  "scripts": { "dev": "next dev", "build": "next build", "start": "next start", "typecheck": "tsc --noEmit", "test": "vitest run", "db:push": "drizzle-kit push", "ai:eval": "tsx scripts/ai-eval.ts" },
   "dependencies": {
     "@tanstack/react-query": "5.108.2",
     "canonicalize": "^2.1.0",
@@ -25,6 +25,7 @@
     "@types/react": "19.1.8",
     "@types/react-dom": "^19.0.0",
     "drizzle-kit": "^0.31.0",
+    "tsx": "4.23.15",
     "typescript": "5.9.3",
     "vitest": "4.1.12"
   }
