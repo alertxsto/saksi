@@ -24,7 +24,7 @@ export function ReceiptsSplit({
 }) {
   const open = focus === 'pane'
   return (
-    <div className="flex flex-1 flex-col @5xl:grid @5xl:grid-cols-[380px_minmax(0,1fr)] @7xl:grid-cols-[420px_minmax(0,1fr)] @5xl:items-start">
+    <div className="flex flex-1 flex-col @5xl:grid @5xl:grid-cols-[380px_minmax(0,1fr)] @7xl:grid-cols-[440px_minmax(0,1fr)] @5xl:items-start">
       <div
         className={`${open ? 'hidden @5xl:flex' : 'flex'} min-w-0 flex-col @5xl:min-h-dvh @5xl:px-6 @5xl:pb-16 @5xl:pt-7`}
       >
