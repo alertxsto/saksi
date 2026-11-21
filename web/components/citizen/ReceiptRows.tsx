@@ -59,11 +59,14 @@ export function ReceiptRow({
   now,
   isNew,
   verdict,
+  selected = false,
 }: {
   opening: ReceiptOpening
   now: number
   isNew?: boolean
   verdict?: AutoVerdict
+  /** Open in the laptop detail pane. */
+  selected?: boolean
 }) {
   const altered = verdict === 'altered'
   const href = `/citizen/receipt/${opening.eventId}${altered ? '?check=1' : ''}`
@@ -71,9 +74,10 @@ export function ReceiptRow({
     <Link
       href={href}
       data-verdict={verdict ?? 'none'}
+      aria-current={selected ? 'page' : undefined}
       className={`group relative -mx-2 flex gap-3.5 rounded-lg px-2 py-4 transition-colors duration-150 ${
-        altered ? 'cz-tamper' : isNew ? 'cz-row-in bg-blue-bg/45' : 'hover:bg-card'
-      }`}
+        altered ? 'cz-tamper' : isNew ? 'cz-row-in bg-blue-bg/45' : selected ? 'bg-card' : 'hover:bg-card'
+      } ${selected ? 'ws-row-selected' : ''}`}
     >
       {altered || isNew ? (
         <span aria-hidden="true" className={`absolute inset-y-3 left-0 w-[3px] rounded-pill ${altered ? 'bg-bad' : 'bg-blue'}`} />

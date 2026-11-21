@@ -59,7 +59,8 @@ export function ReceiptDetail() {
 
 function BackLink() {
   return (
-    <Link href="/citizen" className="label -ml-2 flex min-h-11 w-fit items-center gap-2 px-2 text-ink-2 hover:text-blue">
+    // Laptop: the pane has its own close button and the list stays beside it.
+    <Link href="/citizen" className="label -ml-2 flex min-h-11 w-fit items-center gap-2 px-2 text-ink-2 hover:text-blue @5xl:hidden">
       <IconArrow size={14} className="rotate-180" /> Receipts
     </Link>
   )
@@ -227,7 +228,7 @@ function Detail({ opening, reload }: { opening: ReceiptOpening; reload: () => Pr
       <dialog
         ref={sheet}
         aria-labelledby="limits-title"
-        className="anim-sheet m-0 mt-auto max-h-[85dvh] w-full max-w-full rounded-t-xl bg-paper p-0 backdrop:bg-ink/50 sm:mx-auto sm:max-w-[430px]"
+        className="anim-sheet m-0 mt-auto max-h-[85dvh] w-full max-w-full rounded-t-xl bg-paper p-0 backdrop:bg-ink/50 sm:mx-auto sm:max-w-[430px] lg:mb-auto lg:max-w-[480px] lg:rounded-xl"
         onClick={(e) => {
           if (e.target === e.currentTarget) e.currentTarget.close()
         }}

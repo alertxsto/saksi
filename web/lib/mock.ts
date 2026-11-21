@@ -708,3 +708,19 @@ export const CONTROLLER_DRAFT_FIXTURE: { fields: Pasal46Fields; meta: AiMeta } =
   },
   meta: { provider: 'example-provider', model: 'example-large', fallbackLevel: 'primary', latencyMs: 1544 },
 }
+
+// ── CITIZEN WORKSPACE ── fixtures for /dev/states/citizen/workspace (laptop master–detail + profile).
+// mockAllReceipts plus a third synthetic company and a repeat visit, so "who has opened your data" has
+// more than one access per company. Gallery only; real pages read GET /api/citizen/receipts.
+
+export function mockWorkspaceReceipts(now = Date.now(), code = 'DEMO42'): ReceiptOpening[] {
+  const all = mockAllReceipts(now, code)
+  const arta = { controllerId: fakeHex('ctrl:arta-insurance'), controllerName: 'Arta Insurance (fictional)' }
+  const at = (min: number) => new Date(now - min * 60_000).toISOString()
+  const extra: ReceiptOpening[] = [
+    { ...all[4], ...arta, eventId: 'evt_A4RT1N', eventType: 0, purposeText: 'Policy renewal quote', txHash: fakeHex('tx:evt_A4RT1N'), createdAt: at(60 * 30) },
+    { ...all[4], ...arta, eventId: 'evt_A7RT2X', eventType: 2, purposeText: 'Claims audit export', txHash: fakeHex('tx:evt_A7RT2X'), createdAt: at(60 * 24 * 6) },
+    { ...all[1], eventId: 'evt_R3P9LD', eventType: 0, purposeText: 'Repayment reminder', txHash: fakeHex('tx:evt_R3P9LD'), createdAt: at(60 * 24 * 2) },
+  ]
+  return [...all, ...extra].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+}
