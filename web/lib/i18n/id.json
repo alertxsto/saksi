@@ -1995,5 +1995,7 @@
  "Every registered agency": "Semua instansi terdaftar",
  "Read-only · signs reviews": "Hanya baca, bisa meninjau",
  "signs reviews": "tanda tangan tinjauan",
- "Total": "Total"
+ "Total": "Total",
+ "The AI only helps write a personal data breach notice. Describe the incident in your own words.": "AI hanya membantu menyusun pemberitahuan kebocoran data pribadi. Ceritakan insidennya dengan kata-kata Anda sendiri.",
+ "The draft stopped before it finished. Try again.": "Draf berhenti sebelum selesai. Coba lagi."
 }

@@ -7,7 +7,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import OpenAI from 'openai';
-import { AI_MAX_TOKENS, AI_TIMEOUT_MS } from '../lib/server/ai-output';
+import { AI_REASONING_EFFORT, AI_TIMEOUT_MS } from '../lib/server/ai-output';
 import { draftPrompt } from '../lib/server/prompts';
 import { controllerId, evidenceHash } from '../lib/shared/commit';
 import { evalCaseFile, formatMarkdown, gradeOutput, summarize, type CaseRun } from './ai-eval-lib';
@@ -35,7 +35,7 @@ for (const model of models) {
     const started = performance.now();
     let content: string | undefined, error: string | undefined;
     try {
-      const response = await client.chat.completions.create({ model, stream: false, max_tokens: AI_MAX_TOKENS,
+      const response = await client.chat.completions.create({ model, stream: false, reasoning_effort: AI_REASONING_EFFORT,
         messages: [{ role: 'system', content: draftPrompt },
           { role: 'user', content: JSON.stringify({ controllerId: evalControllerId, narrative: evalCase.narrative }) }] });
       content = response.choices[0]?.message.content ?? '';
@@ -56,7 +56,7 @@ writeFileSync(resultsUrl, JSON.stringify({
   generatedAt: new Date().toISOString(),
   endpointHost,
   promptVersion: evidenceHash(draftPrompt),
-  maxTokens: AI_MAX_TOKENS,
+  reasoningEffort: AI_REASONING_EFFORT,
   timeoutMs: AI_TIMEOUT_MS,
   attemptsPerCase: 1,
   caseCount: cases.length,

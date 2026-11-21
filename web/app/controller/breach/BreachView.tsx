@@ -346,7 +346,11 @@ export function BreachView({
                           </span>
                         ) : null}
                       </div>
-                      {drafting ? (
+                      {drafting && fields?.[f.k] ? (
+                        <p className="ctl-stream mt-2 min-h-[76px] whitespace-pre-wrap rounded-[12px] border border-line bg-paper px-3.5 py-3 text-[15px] leading-relaxed text-ink">
+                          {fields[f.k]}
+                        </p>
+                      ) : drafting ? (
                         <div className="mt-3 flex flex-col gap-2" aria-hidden="true">
                           <Skeleton className="h-4 w-full" />
                           <Skeleton className="h-4 w-4/5" />

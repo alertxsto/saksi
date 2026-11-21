@@ -185,3 +185,18 @@
   .ag-check path { animation: none !important; stroke-dashoffset: 0; }
   .ag-meter > span, .ag-nav-link, .ag-input, .ag-chip, .ag-tr, .ag-pick { transition: none !important; }
 }
+
+/* AI draft streaming in: a soft caret after the text that is still being written */
+.ctl-stream::after {
+  content: "";
+  display: inline-block;
+  width: 7px;
+  height: 1.05em;
+  margin-left: 2px;
+  vertical-align: -0.15em;
+  border-radius: 2px;
+  background: var(--color-ai, currentColor);
+  animation: ctl-caret 900ms steps(2, start) infinite;
+}
+@keyframes ctl-caret { to { visibility: hidden; } }
+@media (prefers-reduced-motion: reduce) { .ctl-stream::after { animation: none; } }

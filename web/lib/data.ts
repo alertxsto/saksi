@@ -298,6 +298,100 @@ export async function getControllerRecent(controllerId: Hex): Promise<RecentAcce
   return rows.map(toRecentAccess).slice(0, 10)
 }
 
+const DRAFT_KEYS = ['dataAffected', 'whenAndHow', 'actionsTaken', 'contact'] as const
+
+/**
+ * The four parts as far as the model has written them: reads each string value out of incomplete JSON
+ * (`{"dataAffected":"Nama, NIK, dan nom`), unescaping what has arrived. Keys not reached yet are left out.
+ */
+export function partialDraft(text: string): Partial<Pasal46Fields> {
+  const out: Partial<Pasal46Fields> = {}
+  for (const k of DRAFT_KEYS) {
+    const m = new RegExp(`"${k}"\\s*:\\s*"`).exec(text)
+    if (!m) continue
+    let raw = ''
+    for (let i = m.index + m[0].length; i < text.length; i++) {
+      const c = text[i]
+      if (c === '\\') {
+        if (i + 1 >= text.length) break
+        raw += c + text[i + 1]
+        i++
+        continue
+      }
+      if (c === '"') break
+      raw += c
+    }
+    try {
+      out[k] = JSON.parse(`"${raw.replace(/\\u[0-9a-fA-F]{0,3}$/, '')}"`)
+    } catch {
+      out[k] = raw
+    }
+  }
+  return out
+}
+
+/** Why the AI returned nothing: the narrative was not a personal-data incident (a coding request, an unrelated question). */
+export const DRAFT_OUT_OF_SCOPE = 'The AI only helps write a personal data breach notice. Describe the incident in your own words.'
+
+/**
+ * POST /api/controller/breach/draft/stream: the same draft, streamed. `onPartial` receives the parts as they are written
+ * (after a retry it starts again from empty). Resolves with the validated draft, or throws the server's message.
+ */
+export async function draftBreachStream(
+  narrative: string,
+  controllerId: Hex,
+  onPartial: (fields: Partial<Pasal46Fields>) => void,
+): Promise<BreachDraft & { outOfScope?: boolean }> {
+  let res: Response
+  try {
+    res = await fetch('/api/controller/breach/draft/stream', {
+      method: 'POST',
+      credentials: 'same-origin',
+      cache: 'no-store',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ controllerId, narrative }),
+    })
+  } catch {
+    throw new ApiClientError(0, 'NETWORK', 'Could not reach the Saksi server. Check your connection.')
+  }
+  if (!res.ok || !res.body) {
+    const body = (await res.json().catch(() => null)) as { error?: { code: string; message: string } } | null
+    throw new ApiClientError(res.status, body?.error?.code ?? 'HTTP_ERROR', body?.error?.message ?? `The server answered with status ${res.status}.`)
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let text = ''
+  for (;;) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    let cut: number
+    while ((cut = buffer.indexOf('\n\n')) !== -1) {
+      const line = buffer.slice(0, cut).trim()
+      buffer = buffer.slice(cut + 2)
+      if (!line.startsWith('data:')) continue
+      const event = JSON.parse(line.slice(5)) as
+        | { type: 'delta'; text: string }
+        | { type: 'reset' }
+        | ({ type: 'done'; outOfScope?: boolean } & DraftWire)
+        | { type: 'error'; message: string }
+      if (event.type === 'delta') {
+        text += event.text
+        onPartial(partialDraft(text))
+      } else if (event.type === 'reset') {
+        text = ''
+        onPartial({})
+      } else if (event.type === 'error') {
+        throw new ApiClientError(503, 'UNAVAILABLE', event.message)
+      } else {
+        return { ...toBreachDraft(event), ...(event.outOfScope ? { outOfScope: true } : {}) }
+      }
+    }
+  }
+  throw new ApiClientError(503, 'UNAVAILABLE', 'The draft stopped before it finished. Try again.')
+}
+
 /** POST /api/controller/breach/draft → Pasal 46 fields + AI provenance (provider, model, fallback level). */
 export async function draftBreach(narrative: string, controllerId: Hex): Promise<BreachDraft> {
   return toBreachDraft(await postJson<DraftWire>('/api/controller/breach/draft', { controllerId, narrative }))

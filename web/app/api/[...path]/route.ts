@@ -6,14 +6,14 @@ import { controllerRegister } from '../../../lib/server/controller-register';
 import { hash } from '../../../lib/server/chain';
 import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, sameOrigin, secureCookies, validate } from '../../../lib/server/http';
 import { consume } from '../../../lib/server/rate-limit';
-import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai';
+import { draft, draftInput, draftStream, explain, explainInput } from '../../../lib/server/ai';
 import { demoReceipts } from '../../../lib/server/demo';
 import { stageStats } from '../../../lib/server/stats';
 import { serviceStatus } from '../../../lib/server/status';
 import { createReport, listReports, registryAdmin, reportInput, reviewInput, reviewReport } from '../../../lib/server/reports';
 import { tamper, tamperInput } from '../../../lib/server/tamper';
 import { watch } from '../../../lib/server/watch';
-export const maxDuration = 30;
+export const maxDuration = 120;
 type Context = { params: Promise<{ path: string[] }> };
 // Prepare writes a draft for any citizen code and answers 404 for unknown codes, so cap it per client IP.
 async function limitPrepare(request: Request) {
@@ -94,6 +94,12 @@ async function route(request: Request, context: Context): Promise<Response> {
         const body = await input(request, draftInput);
         await limitAi(request, 'draft');
         return json(await draft(body));
+      }
+      case 'POST controller/breach/draft/stream': {
+        const body = await input(request, draftInput);
+        await limitAi(request, 'draft');
+        return new Response(await draftStream(body), { headers: { 'content-type': 'text/event-stream; charset=utf-8',
+          'cache-control': 'no-cache, no-transform', 'x-accel-buffering': 'no' } });
       }
       case 'GET status':
         requireDemoToken(request);

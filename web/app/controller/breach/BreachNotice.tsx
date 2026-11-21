@@ -7,7 +7,7 @@ import { txViewFromState } from '@/components/ui/TxStepper'
 import { WalletGate } from '@/components/ui/WalletGate'
 import { useAnchorBreach } from '@/lib/client/controller'
 import type { TransactionState } from '@/lib/client/transactions'
-import { draftBreach, type BreachNoticeInput } from '@/lib/data'
+import { DRAFT_OUT_OF_SCOPE, draftBreachStream, type BreachNoticeInput } from '@/lib/data'
 import { useHydrated } from '@/lib/hooks'
 import { breachAbi, breachAddress, publicClient } from '@/lib/shared/chain'
 import type { Pasal46Fields } from '@/lib/shared/types'
@@ -114,7 +114,13 @@ export function BreachNotice() {
     }
     setDraft((d) => ({ ...d, status: 'loading', error: undefined }))
     try {
-      const out = await draftBreach(narrative, controllerId)
+      // The four parts fill in while the model writes; the validated result replaces them at the end.
+      const out = await draftBreachStream(narrative, controllerId, (partial) => setFields({ ...EMPTY_FIELDS, ...partial }))
+      if (out.outOfScope) {
+        setFields(null)
+        setDraft({ status: 'error', meta: out.meta, error: DRAFT_OUT_OF_SCOPE })
+        return
+      }
       setFields(out.fields)
       setEdited({})
       setAiRunId(out.aiRunId)

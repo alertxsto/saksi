@@ -15,7 +15,7 @@ import { missing } from './http';
 import { controller } from './registry';
 import { draftPrompt, explainPrompt } from './prompts';
 import { contradictsVerdict, EXPLAIN_TEMPLATE, withVerdict } from './explain-guard';
-import { AI_MAX_TOKENS, AI_TIMEOUT_MS, draftResult, extractJson, splitDraft } from './ai-output';
+import { AI_REASONING_EFFORT, AI_TIMEOUT_MS, draftResult, extractJson, splitDraft } from './ai-output';
 export { draftResult, extractJson } from './ai-output';
 
 const explainResult = z.strictObject({ text: z.string().trim().min(1).max(1500)
@@ -33,7 +33,10 @@ const providerName = () => {
   try { return new URL(process.env.AI_BASE_URL ?? '').hostname || 'ai'; } catch { return 'ai'; }
 };
 
-async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: object, schema: z.ZodType<T>, template: T) {
+/** Live text for a streamed call: `reset` when a retry starts over, `delta` for each piece of model output. */
+type Stream = { delta: (text: string) => void; reset: () => void };
+
+async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: object, schema: z.ZodType<T>, template: T, stream?: Stream) {
   const started = performance.now();
   const promptVersion = evidenceHash(prompt);
   const inputHash = evidenceHash({ promptVersion, input });
@@ -51,10 +54,20 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
     if (!client) break;
     let parsed: z.ZodSafeParseResult<T> | undefined;
     try {
-      // stream: false is explicit because some OpenAI-compatible routers stream unless told otherwise.
-      const response = await client.chat.completions.create({ model, stream: false, max_tokens: AI_MAX_TOKENS,
-        messages: [{ role: 'system', content: prompt }, { role: 'user', content: JSON.stringify(input) }] });
-      parsed = schema.safeParse(extractJson(response.choices[0]?.message.content ?? ''));
+      const params = { model, reasoning_effort: AI_REASONING_EFFORT,
+        messages: [{ role: 'system' as const, content: prompt }, { role: 'user' as const, content: JSON.stringify(input) }] };
+      let content = '';
+      if (stream) {
+        if (index) stream.reset();
+        for await (const part of await client.chat.completions.create({ ...params, stream: true })) {
+          const piece = part.choices[0]?.delta?.content;
+          if (piece) { content += piece; stream.delta(piece); }
+        }
+      } else {
+        // stream: false is explicit because some OpenAI-compatible routers stream unless told otherwise.
+        content = (await client.chat.completions.create({ ...params, stream: false })).choices[0]?.message.content ?? '';
+      }
+      parsed = schema.safeParse(extractJson(content));
     } catch { continue; }
     if (parsed.success) return save(parsed.data, { provider: providerName(), model, fallbackLevel: index ? 'fallback' : 'primary' });
   }
@@ -83,9 +96,34 @@ export async function explain({ eventId }: z.output<typeof explainInput>) {
   return { text: withVerdict(status, value.text), ai };
 }
 
+const EMPTY_DRAFT = { dataAffected: '', whenAndHow: '', actionsTaken: '', contact: '' };
+
 export async function draft({ controllerId, narrative }: z.output<typeof draftInput>) {
   await controller(controllerId);
-  const { value, ai, aiRunId } = await generate('draft', draftPrompt, { controllerId, narrative }, draftResult,
-    { dataAffected: '', whenAndHow: '', actionsTaken: '', contact: '' });
+  const { value, ai, aiRunId } = await generate('draft', draftPrompt, { controllerId, narrative }, draftResult, EMPTY_DRAFT);
   return { ...splitDraft(value), ai, aiRunId };
+}
+
+/**
+ * Same draft, streamed as server-sent events so the four parts fill in while the model writes:
+ * `delta` (raw model text), `reset` (a retry starts over), then `done` (the validated result, as POST draft returns it)
+ * or `error`. The controller is checked before the stream opens, so an unknown controller still gets a plain 404.
+ */
+export async function draftStream({ controllerId, narrative }: z.output<typeof draftInput>): Promise<ReadableStream<Uint8Array>> {
+  await controller(controllerId);
+  const encoder = new TextEncoder();
+  return new ReadableStream({
+    async start(out) {
+      const send = (event: object) => out.enqueue(encoder.encode(`data: ${JSON.stringify(event)}\n\n`));
+      try {
+        const { value, ai, aiRunId } = await generate('draft', draftPrompt, { controllerId, narrative }, draftResult, EMPTY_DRAFT,
+          { delta: (text) => send({ type: 'delta', text }), reset: () => send({ type: 'reset' }) });
+        send({ type: 'done', ...splitDraft(value), ai, aiRunId });
+      } catch (error) {
+        console.error('[api] draft stream', error instanceof Error ? error.message : error);
+        send({ type: 'error', message: 'Saksi is temporarily unavailable. Try again.' });
+      }
+      out.close();
+    },
+  });
 }

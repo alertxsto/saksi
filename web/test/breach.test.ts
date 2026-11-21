@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest';
 vi.mock('server-only', () => ({}));
 import { draftResult, splitDraft } from '../lib/server/ai-output';
 import { breachWindow, prepareBreachInput, regulatorList, view } from '../lib/server/breach';
-import { toBreachDetail, toBreachDraft, type BreachDetailWire } from '../lib/data';
+import { partialDraft, toBreachDetail, toBreachDraft, type BreachDetailWire } from '../lib/data';
 import type { BreachRow } from '../lib/shared/types';
 
 const H = 3600;
@@ -85,5 +85,19 @@ describe('regulator view', () => {
     const wire: BreachDetailWire = { ...row, pasal46: parts, ai: null, reportHash: `0x${'11'.repeat(32)}`, discoveryAt: row.detectedAt, deadline: row.detectedAt + 72 * H };
     expect(toBreachDetail(wire, null).reportHash).toBe(`0x${'11'.repeat(32)}`);
     expect(toBreachDetail({ ...wire, reportHash: undefined }, null).reportHash).toBeNull();
+  });
+});
+
+describe('AI draft guardrail and streaming', () => {
+  test('an out-of-scope request returns four empty parts and the flag, never the model text', () => {
+    const off = draftResult.parse({ dataAffected: 'print("hi")', whenAndHow: '', actionsTaken: '', contact: '', outOfScope: true });
+    expect(splitDraft(off)).toEqual({ fields: { dataAffected: '', whenAndHow: '', actionsTaken: '', contact: '' }, outOfScope: true });
+  });
+
+  test('partial JSON from the stream fills the parts written so far', () => {
+    expect(partialDraft('{"dataAffected":"Nama, NIK')).toEqual({ dataAffected: 'Nama, NIK' });
+    expect(partialDraft('{"dataAffected":"A \\"b\\"","whenAndHow":"Kemarin\\n jam')).toEqual({ dataAffected: 'A "b"', whenAndHow: 'Kemarin\n jam' });
+    expect(partialDraft('{"dataAffected":"x\\')).toEqual({ dataAffected: 'x' });
+    expect(partialDraft('```json\n{"contact":"dpo@x.example"}')).toEqual({ contact: 'dpo@x.example' });
   });
 });
