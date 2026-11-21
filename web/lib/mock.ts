@@ -1,4 +1,9 @@
-// Synthetic data + an in-browser mock "server" so every screen works without the backend.
+// FIXTURES FOR THE /dev DESIGN GALLERIES ONLY.
+// Imported only by app/dev/** (every /dev route returns 404 in production, see app/dev/layout.tsx).
+// Product screens never import this file: they read the real API and the chain through lib/data.ts.
+// lib/no-mock-imports.test.ts fails if any file outside app/dev/** (or a test) imports it.
+//
+// Synthetic data + an in-browser mock "server" so every gallery state renders without the backend.
 // All people, companies and hashes here are fictional. Types come from lib/shared/types.ts.
 //
 // Timeline of the demo (from the moment the page first asks for data):
