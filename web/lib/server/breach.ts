@@ -7,7 +7,8 @@ import { db } from '../../db/client';
 import { aiRuns, breachReports as reports, controllers } from '../../db/schema';
 import { affectedCountHash, reportHash } from '../shared/commit';
 import type { BreachRow } from '../shared/types';
-import { addresses, blockByHash, events, hash, receipt, rpc } from './chain';
+import { breachAbi } from '../shared/abi';
+import { addresses, blockByHash, events, hash, receipt, rpc, unknownTransaction, verifySubmission } from './chain';
 import { decrypt, encrypt, randomSalt32 } from './crypto';
 import { HttpError, missing } from './http';
 import { controller } from './registry';
@@ -16,10 +17,15 @@ import { requireSubmitToken, submitToken } from './submit-token';
 export const pasal46 = z.strictObject({ dataAffected: z.string().trim().min(1).max(1000), whenAndHow: z.string().trim().min(1).max(2000), actionsTaken: z.string().trim().min(1).max(2000), contact: z.string().trim().min(1).max(500) });
 export const prepareBreachInput = z.strictObject({ controllerId: hash, fields: pasal46, detectedAt: z.int().nonnegative(), affectedCount: z.int().nonnegative(), aiRunId: z.uuid().optional() });
 const windowSeconds = 72 * 3600;
+// Mirrors BreachReport.anchor(): on time while the block timestamp is <= detectedAt + 72 h, late after it.
+export function breachWindow(detectedAt: number, now: number) {
+  const deadline = detectedAt + windowSeconds;
+  return { deadline, mode: now <= deadline ? 'on_time' as const : 'late' as const, hoursLeft: (deadline - now) / 3600 };
+}
 export async function prepareBreach(data: z.output<typeof prepareBreachInput>) {
   await controller(data.controllerId);
   const head = await rpc().getBlock({ blockTag: 'latest' });
-  const now = Number(head.timestamp), deadline = data.detectedAt + windowSeconds;
+  const now = Number(head.timestamp), { deadline, mode, hoursLeft } = breachWindow(data.detectedAt, now);
   if (data.detectedAt > now) throw new HttpError(400, 'FUTURE_DETECTION', 'Detection time cannot be in the future.');
   const [run] = data.aiRunId ? await db().select().from(aiRuns).where(and(eq(aiRuns.id, data.aiRunId), eq(aiRuns.feature, 'draft'))) : [];
   if (data.aiRunId && !run) throw new HttpError(404, 'AI_RUN_NOT_FOUND', 'Draft provenance was not found.');
@@ -28,14 +34,20 @@ export async function prepareBreach(data: z.output<typeof prepareBreachInput>) {
     detectedAtClaimed: data.detectedAt, pasal46: data.fields, ai: run ? { model: run.model, promptVersionHash: run.promptVersion, outputHash: run.outputHash } : null };
   const commitment = reportHash(report), salt = randomSalt32(), countHash = affectedCountHash(data.affectedCount, salt);
   const encrypted = encrypt(JSON.stringify(report)), count = encrypt(String(data.affectedCount)), countSalt = encrypt(salt);
-  const mode = now <= deadline ? 'on_time' : 'late';
   await db().insert(reports).values({ id, controllerId: data.controllerId, reportJsonEnc: encrypted.ciphertext, reportIv: encrypted.iv, reportHash: commitment,
     affectedCountEnc: count.iv + '.' + count.ciphertext, countSaltEnc: countSalt.iv + '.' + countSalt.ciphertext, affectedCountHash: countHash,
     detectedAt: data.detectedAt, mode, aiRunId: data.aiRunId });
-  return { id, submitToken: submitToken('breach', id), args: [data.controllerId, commitment, countHash, data.detectedAt] as const, mode, deadline, hoursLeft: (deadline - now) / 3600 };
+  return { id, submitToken: submitToken('breach', id), args: [data.controllerId, commitment, countHash, data.detectedAt] as const, mode, deadline, hoursLeft };
 }
 export async function submitBreach({ id, txHash, submitToken: token }: z.output<typeof submitInput>) {
   requireSubmitToken('breach', id, token);
+  const [draft] = await db().select().from(reports).where(eq(reports.id, id));
+  if (!draft) throw missing();
+  if (draft.status === 'pending' && draft.txHash === null) {
+    // The controller screen may switch to anchorLate() after simulating, so either entry point matches.
+    await verifySubmission(txHash, addresses().breach, breachAbi, ['anchor', 'anchorLate'],
+      [hash.parse(draft.controllerId), draft.reportHash, draft.affectedCountHash, BigInt(draft.detectedAt)]);
+  }
   const [row] = await db().update(reports).set({ status: 'submitted', txHash }).where(and(eq(reports.id, id), eq(reports.status, 'pending'), isNull(reports.txHash))).returning({ id: reports.id });
   if (row) return { status: 'submitted' };
   const [existing] = await db().select({ txHash: reports.txHash }).from(reports).where(eq(reports.id, id));
@@ -49,10 +61,14 @@ export async function confirmBreach(id: string) {
   if (row.status === 'anchored') return { status: row.status, mode: row.mode, anchoredAt: row.anchoredAt, lateBySec: row.lateBySec };
   if (row.status === 'failed') return { status: row.status, reason: 'The breach transaction did not match the draft.' };
   if (!row.txHash) throw new HttpError(409, 'TX_NOT_SET', 'Submit a transaction hash first.');
-  const observed = await receipt(hash.parse(row.txHash));
-  if (!observed) return { status: 'submitted' };
-  const target = addresses().breach;
   const condition = and(eq(reports.id, id), eq(reports.status, 'submitted'), eq(reports.txHash, row.txHash));
+  const observed = await receipt(hash.parse(row.txHash));
+  if (!observed) {
+    if (!await unknownTransaction(row.txHash, row.createdAt)) return { status: 'submitted' };
+    await db().update(reports).set({ status: 'failed' }).where(condition);
+    return { status: 'failed', reason: 'The transaction was not found on Sepolia.' };
+  }
+  const target = addresses().breach;
   const matching = observed.status === 'success' && observed.to?.toLowerCase() === target ? observed.logs.flatMap((log) => {
     if (log.address.toLowerCase() !== target || log.removed) return [];
     try {
@@ -75,20 +91,25 @@ export async function confirmBreach(id: string) {
   await db().update(reports).set({ status: 'anchored', mode, anchoredAt, lateBySec, logIndex: index }).where(condition);
   return { status: 'anchored', mode, anchoredAt, lateBySec };
 }
-function view(row: typeof reports.$inferSelect, controllerName: string): BreachRow {
+export function view(row: typeof reports.$inferSelect, controllerName: string): BreachRow {
   return { id: row.id, controllerName, title: 'Synthetic breach report', detectedAt: row.detectedAt, anchoredAt: row.anchoredAt,
     mode: row.mode, lateBySec: row.lateBySec ?? 0, hoursUsed: row.anchoredAt === null ? 0 : (row.anchoredAt - row.detectedAt) / 3600,
     txHash: row.txHash && hash.parse(row.txHash) || null, status: row.status };
 }
+// The regulator sees sealed notices only. A draft that was prepared but never anchored (rejected signature,
+// reverted or abandoned transaction) has no on-chain time, so it must not read as "on time · 0 h".
+export function regulatorList(rows: BreachRow[]) {
+  const sealed = rows.filter((row) => row.status === 'anchored');
+  return { rows: sealed, stats: { total: sealed.length, onTime: sealed.filter((row) => row.mode === 'on_time').length, late: sealed.filter((row) => row.mode === 'late').length } };
+}
 export async function listBreaches() {
-  const data = await db().select({ row: reports, name: controllers.name }).from(reports).innerJoin(controllers, eq(reports.controllerId, controllers.id)).orderBy(desc(reports.createdAt));
-  const rows = data.map(({ row, name }) => view(row, name));
-  const anchored = rows.filter((row) => row.status === 'anchored');
-  return { rows, stats: { total: rows.length, onTime: anchored.filter((row) => row.mode === 'on_time').length, late: anchored.filter((row) => row.mode === 'late').length } };
+  const data = await db().select({ row: reports, name: controllers.name }).from(reports).innerJoin(controllers, eq(reports.controllerId, controllers.id))
+    .where(eq(reports.status, 'anchored')).orderBy(desc(reports.createdAt));
+  return regulatorList(data.map(({ row, name }) => view(row, name)));
 }
 export async function breachDetails(id: string) {
   const [item] = await db().select({ row: reports, name: controllers.name }).from(reports).innerJoin(controllers, eq(reports.controllerId, controllers.id)).where(eq(reports.id, id));
-  if (!item) throw missing();
+  if (!item || item.row.status !== 'anchored') throw missing();
   const report = z.object({ pasal46, ai: z.object({ model: z.string(), promptVersionHash: hash, outputHash: hash }).nullable() }).parse(JSON.parse(decrypt(item.row.reportJsonEnc, item.row.reportIv)));
-  return { ...view(item.row, item.name), ...report, discoveryAt: item.row.detectedAt, deadline: item.row.detectedAt + windowSeconds };
+  return { ...view(item.row, item.name), ...report, reportHash: hash.parse(item.row.reportHash), discoveryAt: item.row.detectedAt, deadline: item.row.detectedAt + windowSeconds };
 }

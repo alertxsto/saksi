@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { recordKind } from '@/lib/receipt-state'
 import { IconAlert, IconCheck, IconClock, IconMinus, IconQuestion, IconSpark, IconSpinner, IconX } from './icons'
 
 export type Tone = 'ok' | 'bad' | 'unknown' | 'pending' | 'ai' | 'blue' | 'neutral'
@@ -35,6 +36,7 @@ export type StatusKind =
   | 'DELETED'
   | 'NOT_ANCHORED'
   | 'NEW'
+  | 'CHECKING'
 
 const kinds: Record<StatusKind, { tone: Tone; label: string; icon: ReactNode }> = {
   RECORDED: { tone: 'ok', label: 'RECORDED', icon: <IconCheck size={14} strokeWidth={2.4} /> },
@@ -48,6 +50,7 @@ const kinds: Record<StatusKind, { tone: Tone; label: string; icon: ReactNode }> 
   DELETED: { tone: 'bad', label: 'DELETED', icon: <IconMinus size={14} strokeWidth={2.4} /> },
   NOT_ANCHORED: { tone: 'pending', label: 'NOT ANCHORED', icon: <IconAlert size={14} strokeWidth={2.2} /> },
   NEW: { tone: 'blue', label: 'NEW', icon: <IconSpark size={14} strokeWidth={2.2} /> },
+  CHECKING: { tone: 'blue', label: 'CHECKING', icon: <IconSpinner size={14} strokeWidth={2.4} /> },
 }
 
 /** Status badge: icon + mono bold text, never colour alone. */
@@ -80,9 +83,9 @@ export function Badge({
   )
 }
 
-/** Map a receipt status to its badge. */
+/** Map a receipt status to its badge (the database's own claim; see lib/receipt-state.ts for chain verdicts). */
 export function receiptBadgeKind(status: 'pending' | 'submitted' | 'anchored' | 'failed'): StatusKind {
-  return status === 'anchored' ? 'RECORDED' : status === 'failed' ? 'FAILED' : 'ON_CHAIN'
+  return recordKind(status)
 }
 
 export function toneClasses(tone: Tone, onVault = false) {

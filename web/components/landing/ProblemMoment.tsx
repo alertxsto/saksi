@@ -1,14 +1,22 @@
 'use client'
 
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { Cite } from '@/components/ui/Cite'
 import { matches, PIN_QUERY, progress, pin, range, REDUCED_QUERY, subscribe } from '@/lib/motion/scroll'
+import type { SourceId } from '@/lib/sources'
 
-const STATEMENT: { t: string; tone: 'mute' | 'ink' }[] = [
-  { t: 'Your access log lives in the company’s own database.', tone: 'mute' },
+const STATEMENT: { t: string; tone: 'mute' | 'ink'; cite?: readonly SourceId[] }[] = [
+  { t: 'Your access log lives in the company’s own database.', tone: 'mute', cite: ['uu-pdp-31', 'djp-npwp-2024'] },
   { t: 'Any insider can edit a row.', tone: 'ink' },
   { t: 'You would never know.', tone: 'mute' },
 ]
 const N_WORDS = STATEMENT.reduce((n, s) => n + s.t.split(' ').length, 0)
+
+// Real-world receipts for the statement above (lib/sources.ts), printed under the till roll.
+const EVIDENCE: { k: string; v: string; cite: readonly SourceId[] }[] = [
+  { k: 'Dark web · 2024', v: '56,128,160 records exposed', cite: ['bssn-dark-web-2024'] },
+  { k: 'Tax office · 2024', v: 'Denied a leak with own logs', cite: ['djp-npwp-2024'] },
+]
 
 const BEFORE = 'SHARED WITH THIRD PARTY'
 const AFTER = 'READ'
@@ -147,6 +155,7 @@ export function ProblemMoment() {
                     </span>
                   </span>
                 ))}
+                {s.cite ? <Cite ids={s.cite} /> : null}
               </span>
             ))}
           </p>
@@ -195,6 +204,18 @@ export function ProblemMoment() {
                 <p ref={coverRef} className="pm-cover normal-case tracking-normal text-ink">
                   Nobody but the insider saw that.
                 </p>
+                <dl className="mt-4 text-[11px] text-ink-2 sm:text-[12px]">
+                  {EVIDENCE.map((e) => (
+                    <div key={e.k} className="flex items-baseline">
+                      <dt className="min-w-0">{e.k}</dt>
+                      <span aria-hidden="true" className="leader" />
+                      <dd className="shrink-0 text-right">
+                        {e.v}
+                        <Cite ids={e.cite} />
+                      </dd>
+                    </div>
+                  ))}
+                </dl>
               </div>
             </div>
           </div>

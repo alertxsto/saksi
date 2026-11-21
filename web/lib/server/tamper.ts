@@ -19,15 +19,25 @@ export async function tamper({ action, eventId }: z.output<typeof tamperInput>) 
   let after: Snapshot | null;
   if (action === 'edit') {
     if (!before) throw missing();
-    if (before.event_type !== 3) throw conflict();
-    after = { ...before, event_type: 0 };
+    // One edit at a time: a row whose current state came from an edit must be restored first, so restore stays a
+    // single step back to the anchored values.
+    const [edited] = await db().execute(sql`
+      select 1 from tamper_log where target_table = ${table} and target_id = ${eventId}::uuid and action = 'edit'
+        and after_hash = ${evidenceHash(before)} limit 1
+    `);
+    if (edited) throw conflict();
+    // Any action can be tampered: READ becomes SHARE_THIRD_PARTY, every other action becomes READ.
+    after = { ...before, event_type: before.event_type === 0 ? 3 : 0 };
   } else if (action === 'delete') {
     if (!before) throw missing();
     after = null;
   } else {
+    // Undo the latest edit or delete that produced the row's current state. Matching on after_hash (rather than
+    // taking the latest entry) also unwinds edit → delete → restore, whose last delete ends in "no row".
     const [entry] = await db().execute<{ snapshot: string; after_hash: string }>(sql`
       select before_snapshot_enc as snapshot, after_hash from tamper_log
       where target_table = ${table} and target_id = ${eventId}::uuid and action in ('edit', 'delete')
+        and after_hash = ${evidenceHash(before)}
       order by at desc, id desc limit 1
     `);
     if (!entry || entry.after_hash !== evidenceHash(before)) throw conflict();

@@ -3,9 +3,10 @@
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { CountSecs, RiseHeading as Heading } from '@/components/citizen/motion'
 import { VerdictSeal } from '@/components/citizen/VerdictSeal'
+import type { ReceiptCheck } from '@/lib/receipt-state'
 import type { ReceiptOpening, VerifyResult as VerifyResultT } from '@/lib/shared/types'
 import { EVENT_LABELS, EVENT_TYPES, type EventTypeName } from '@/lib/shared/types'
-import { basisLabel, eventVerb, shortHex } from '@/lib/format'
+import { basisLabel, eventVerb, rpcLabel, shortHex } from '@/lib/format'
 import { Act } from '@/components/citizen/Act'
 import { DotoValue } from './DotoValue'
 import { IconAlert, IconArrow, IconCheck, IconDownload, IconLock, IconRefresh, IconShield, IconSpark } from './icons'
@@ -394,11 +395,14 @@ export function VerifyPanel({
   run,
   autoStart,
   onResult,
+  onCheck,
 }: {
   opening: ReceiptOpening
   run: (attempt: number) => Promise<VerifyResultT>
   autoStart?: boolean
   onResult?: (r: VerifyResultT) => void
+  /** Every phase change (running / done / error), so the page header can show the same verdict. */
+  onCheck?: (check: ReceiptCheck) => void
 }) {
   const [phase, setPhase] = useState<VerifyPhase>('idle')
   const [startedAt, setStartedAt] = useState(0)
@@ -411,6 +415,7 @@ export function VerifyPanel({
     attempt.current += 1
     setPhase('running')
     setResult(null)
+    onCheck?.({ phase: 'running' })
     const t0 = performance.now()
     setStartedAt(Date.now())
     try {
@@ -418,10 +423,13 @@ export function VerifyPanel({
       setResult(r)
       setPhase('done')
       onResult?.(r)
+      onCheck?.({ phase: 'done', result: r, at: Date.now() })
       if (r.status === 'MISMATCH' && typeof navigator !== 'undefined' && 'vibrate' in navigator) navigator.vibrate?.([40, 60, 40])
     } catch (e) {
-      setError(e instanceof Error ? e.message : 'Verification failed. Check your connection.')
+      const message = e instanceof Error ? e.message : 'Verification failed. Check your connection.'
+      setError(message)
       setPhase('error')
+      onCheck?.({ phase: 'error', error: message, at: Date.now() })
     }
   }
 

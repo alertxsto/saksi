@@ -1,7 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import type { ReactNode } from 'react'
+import { useMemo, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
 import { RiseHeading, Scramble } from '@/components/citizen/motion'
 import { GhostRow, ReceiptRow, TamperBanner } from '@/components/citizen/ReceiptRows'
@@ -24,8 +24,11 @@ import {
   type CitizenError,
   type GhostReceipt,
 } from '@/lib/data'
+import { checkOf, useAutoVerify, useReceiptChecks } from '@/lib/client/receipt-checks'
+import { useGhostReceipts } from '@/lib/client/seen-receipts'
 import { timeBucket } from '@/lib/format'
 import { useNow, useOnline } from '@/lib/hooks'
+import { verdictKind } from '@/lib/receipt-state'
 import type { ReceiptOpening } from '@/lib/shared/types'
 
 // First time each receipt id was seen in this tab. Lives outside React so render stays pure.
@@ -215,6 +218,8 @@ function Quiet({ glyph, title, body, action }: { glyph: DotIconName; title: stri
   )
 }
 
+const VERDICT = { CHECKING: 'verifying', MATCH: 'match', ALTERED: 'altered', NOT_FOUND: 'not_found' } as const
+
 /** Container: polls GET /api/citizen/receipts every 3 s while a profile exists. */
 function ReceiptList() {
   const online = useOnline()
@@ -233,10 +238,21 @@ function ReceiptList() {
     retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 1,
   })
 
+  const receipts = q.data?.receipts ?? EMPTY_RECEIPTS
+  const pseudonyms = q.data?.pseudonyms
+  // Every sealed receipt is re-checked against the chain from this browser; nothing trusts the server.
+  useAutoVerify(receipts, useMemo(() => pseudonyms?.map((p) => p.pseudonym) ?? [], [pseudonyms]))
+  const store = useReceiptChecks()
+  const verdicts: AutoVerdicts = {}
+  for (const r of receipts) {
+    const kind = verdictKind(checkOf(store.checks, r))
+    if (kind) verdicts[r.eventId] = VERDICT[kind]
+  }
+  const ghosts = useGhostReceipts(q.data?.profile.code ?? '', receipts, q.isSuccess)
+
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
   if (q.isError && toCitizenError(q.error).code === 'NO_SESSION') return <Onboarding />
 
-  const receipts = q.data?.receipts ?? []
   const code = q.data?.profile.code ?? ''
   const freshIds = receipts
     .filter((r) => {
@@ -264,9 +280,8 @@ function ReceiptList() {
       online={online}
       watching={online && !q.isError}
       freshIds={freshIds}
-      // Teammate: feed the auto-verify results and the remembered-but-missing receipts here (riset-ui/28-citizen-log.md).
-      verdicts={undefined}
-      ghosts={undefined}
+      verdicts={verdicts}
+      ghosts={ghosts}
       error={q.isError ? toCitizenError(q.error).message : null}
       retrying={q.isFetching}
       onCopy={() => void onCopy()}
@@ -278,6 +293,7 @@ function ReceiptList() {
 export type ReceiptListState = 'loading' | 'error' | 'empty' | 'ready'
 
 const BUCKETS = ['NOW', 'TODAY', 'EARLIER'] as const
+const EMPTY_RECEIPTS: ReceiptOpening[] = []
 
 export function ReceiptListView({
   state,
@@ -353,6 +369,13 @@ export function ReceiptListView({
       {/* polite announcement for receipts that just arrived */}
       <p aria-live="polite" className="sr-only">
         {fresh.map((r) => `New receipt: ${r.controllerName} ${r.eventType === 3 ? 'shared' : 'accessed'} your data.`).join(' ')}
+      </p>
+      {/* assertive announcement when a chain check proves a receipt altered */}
+      <p aria-live="assertive" className="sr-only">
+        {receipts
+          .filter((r) => altered.includes(r.eventId))
+          .map((r) => `Receipt from ${r.controllerName} was altered: it no longer matches the chain.`)
+          .join(' ')}
       </p>
 
       {lost.length ? (

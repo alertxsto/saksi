@@ -6,6 +6,7 @@ import { OdoText } from '@/components/landing/OdoText'
 import { PhonePreview } from '@/components/controller/PhonePreview'
 import { Button } from '@/components/ui/Button'
 import { IconLock } from '@/components/ui/icons'
+import { normalizeCitizenCode } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import {
   EVENT_LABELS,
@@ -242,7 +243,7 @@ export function RecordAccessForm({
             value={v.subjectCode}
             invalid={codeInvalid}
             describedBy={`${ids.code}-h`}
-            onChange={(subjectCode) => set({ subjectCode })}
+            onChange={(subjectCode) => set({ subjectCode: normalizeCitizenCode(subjectCode) })}
           />
           <p id={`${ids.code}-h`} className={`mt-2.5 text-[13px] ${codeInvalid ? 'text-pending' : 'text-ink-2'}`}>
             {codeInvalid ? cErr : 'Six characters. Letters are capitalised for you; codes never use 0, O, 1 or I.'}

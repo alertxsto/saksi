@@ -1,5 +1,6 @@
 'use client'
 
+import { useEffect, useRef } from 'react'
 import type { TransactionState } from '@/lib/client/transactions'
 import { explorerLink, type ControllerTxStep, type TxErrorInfo } from '@/lib/data'
 import { shortHex } from '@/lib/format'
@@ -255,8 +256,8 @@ export function revertReason(errorName?: string): string {
  * The transaction progression: 4 steps, then recovery for the 3 error kinds.
  * - rejected in MetaMask → "Try again" (onRetry)
  * - revert → reason text + "Try again" (onRetry)
- * - timeout → "Re-confirm" (onReconfirm); the tx is already sent, so never sign again.
- * No red: a refused or unconfirmed transaction is not tampering (amber = waiting, grey = stopped).
+ * - timeout → keeps checking on its own every 10 s (onReconfirm); the tx is already sent, so never sign again.
+ *   "Check now" stays available but nobody has to press it.
  */
 export function TxFlow({
   tx,
@@ -277,6 +278,17 @@ export function TxFlow({
   const kind = tx.phase === 'error' ? txErrorKind(tx.error, hasHash) : 'other'
   const steps = buildSteps(tx, copy)
   const block = `ctl-in flex flex-col items-start gap-3 border-t pt-4 ${t.line}`
+
+  // A sent transaction that is not confirmed yet is re-checked automatically: no extra step for the person.
+  const autoCheck = tx.phase === 'error' && kind === 'timeout' && !tx.reconfirming && Boolean(onReconfirm)
+  // Keep the latest handler in a ref so parent re-renders (new inline callbacks) do not reset the timer.
+  const reconfirmRef = useRef(onReconfirm)
+  useEffect(() => { reconfirmRef.current = onReconfirm }, [onReconfirm])
+  useEffect(() => {
+    if (!autoCheck) return
+    const timer = setTimeout(() => reconfirmRef.current?.(), 10_000)
+    return () => clearTimeout(timer)
+  }, [autoCheck])
 
   return (
     <div className="flex flex-col gap-5">
@@ -312,14 +324,14 @@ export function TxFlow({
       {tx.phase === 'error' && kind === 'timeout' ? (
         <div key="timeout" className={block} role="alert">
           <p className={`flex items-center gap-1.5 font-mono text-[12px] ${t.warnText}`}>
-            <IconClock size={13} strokeWidth={2.2} /> Not confirmed yet
+            <IconSpinner size={13} strokeWidth={2.2} /> Waiting for Sepolia
           </p>
           <p className={`text-[14px] leading-relaxed ${t.ink2}`}>
-            The transaction was sent but is not confirmed yet.{' '}
-            <strong className={`font-semibold ${t.ink}`}>Don’t sign again</strong>: it is already on its way. Re-confirm only checks it.
+            The transaction is sent. The network is slow, so Saksi keeps checking on its own.{' '}
+            <strong className={`font-semibold ${t.ink}`}>Nothing to do here</strong>, and don’t sign again.
           </p>
-          <Button variant={onVault ? 'vault' : 'dark'} size="sm" arrow loading={tx.reconfirming} disabled={tx.reconfirming} onClick={onReconfirm}>
-            {tx.reconfirming ? 'Checking…' : 'Re-confirm'}
+          <Button variant={t.btn} size="sm" loading={tx.reconfirming} disabled={tx.reconfirming} onClick={onReconfirm}>
+            {tx.reconfirming ? 'Checking…' : 'Check now'}
           </Button>
         </div>
       ) : null}

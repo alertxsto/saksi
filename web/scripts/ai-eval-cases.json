@@ -1,7 +1,7 @@
 {
   "version": 1,
   "notice": "All narratives are fictional and synthetic. Organisations, people, addresses and counts are invented; contact addresses use the reserved .example top-level domain.",
-  "keywordSyntax": "Each keyword is case- and accent-insensitive substring match against the drafted field; 'a|b' accepts either alternative. Output is drafted in English, so Indonesian narratives list English and Indonesian alternatives.",
+  "keywordSyntax": "Each keyword is case- and accent-insensitive substring match against the drafted field; 'a|b' accepts either alternative. Output is drafted in the narrative's language, and Indonesian narratives list English and Indonesian alternatives so either reading scores.",
   "cases": [
     {
       "id": "bucket-leak",
@@ -115,7 +115,7 @@
       "expected": {
         "dataAffected": ["student|siswa|applicant", "parent|orang tua", "address|alamat", "phone|telepon", "3,700|3.700|3700"],
         "whenAndHow": ["sql injection|sql-injection|sqli", "search|pencarian", "form|formulir"],
-        "actionsTaken": ["offline|shut down|taken down|disabled|dimatikan", "parameteri", "credential|kredensial|password", "penetration|pentest|pen test|penetrasi"],
+        "actionsTaken": ["offline|shut down|taken down|disabled|dimatikan|nonaktif", "parameteri", "credential|kredensial|password|kata sandi", "penetration|pentest|pen test|penetrasi"],
         "contact": ["admin-pdp@sekolah-demo.example"]
       },
       "detectedAt": { "date": "2026-09-09", "time": "07:30" }

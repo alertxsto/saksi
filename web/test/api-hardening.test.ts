@@ -106,9 +106,17 @@ describe('session cookie scheme', () => {
     vi.stubEnv('COOKIE_SECURE', 'true');
     expect(secureCookies(request('http://203.0.113.7/api/citizen/session'))).toBe(true);
   });
-  test('rate limits use the first forwarded client address', () => {
-    expect(clientIp(request('http://x/', { 'x-forwarded-for': '198.51.100.4, 10.0.0.1' }))).toBe('198.51.100.4');
+  test('rate limits trust only the address the proxy set, not client-supplied headers', () => {
+    // Behind Caddy: X-Real-IP is the TCP peer; a spoofed leftmost X-Forwarded-For or Vercel header is ignored.
+    expect(clientIp(request('http://x/', { 'x-real-ip': '203.0.113.9', 'x-forwarded-for': '198.51.100.4', 'x-vercel-forwarded-for': '192.0.2.1' }))).toBe('203.0.113.9');
+    // Without X-Real-IP, the rightmost X-Forwarded-For entry (appended by the nearest proxy) wins.
+    expect(clientIp(request('http://x/', { 'x-forwarded-for': '198.51.100.4, 10.0.0.1' }))).toBe('10.0.0.1');
+    expect(clientIp(request('http://x/', { 'x-vercel-forwarded-for': '192.0.2.1' }))).toBe('local');
     expect(clientIp(request('http://x/'))).toBe('local');
+  });
+  test('on Vercel the platform header is used', () => {
+    vi.stubEnv('VERCEL', '1');
+    expect(clientIp(request('http://x/', { 'x-vercel-forwarded-for': '192.0.2.1', 'x-real-ip': '203.0.113.9' }))).toBe('192.0.2.1');
   });
 });
 

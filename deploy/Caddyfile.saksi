@@ -32,9 +32,10 @@ saksiku.web.id {
 	}
 
 	reverse_proxy 127.0.0.1:3400 {
-		# Caddy overwrites X-Forwarded-For with the real client IP (no trusted proxies are
-		# configured; Cloudflare is DNS-only), which the API uses for rate limiting.
+		# The API rate-limits on X-Real-IP (web/lib/server/http.ts clientIp). Both headers are set from
+		# the TCP peer so a client cannot supply them (no trusted proxies; Cloudflare is DNS-only).
 		header_up X-Real-IP {remote_host}
+		header_up X-Forwarded-For {remote_host}
 		# Ride out the ~2 s restart during a deploy instead of returning 502.
 		lb_try_duration 15s
 		lb_try_interval 250ms

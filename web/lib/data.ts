@@ -10,6 +10,7 @@ import { controllerId as controllerIdOf } from './shared/commit'
 import type {
   AiMeta,
   BreachRow,
+  DemoReceipt,
   EventTypeCode,
   LegalBasisKey,
   Pasal46Fields,
@@ -75,7 +76,8 @@ export type RecentAccess = {
   blockNumber?: number | null
 }
 
-export type DraftWire = { fields: Pasal46Fields; ai: AiMeta; aiRunId: string }
+/** `fields` may carry extra keys from older servers (detectedAtGuess); toBreachDraft keeps only the four parts. */
+export type DraftWire = { fields: Pasal46Fields; detectedAtGuess?: string; ai: AiMeta; aiRunId: string }
 export type BreachDraft = { fields: Pasal46Fields; meta: AiMeta; aiRunId: string | null }
 export type BreachListWire = { rows: BreachRow[]; stats: { total: number; onTime: number; late: number } }
 
@@ -83,6 +85,8 @@ export type BreachListWire = { rows: BreachRow[]; stats: { total: number; onTime
 export type BreachDetailWire = BreachRow & {
   pasal46: Pasal46Fields
   ai: { model: string; promptVersionHash: Hex; outputHash: Hex } | null
+  /** The notice fingerprint emitted by the BreachReport event (optional for older servers). */
+  reportHash?: Hex
   discoveryAt: number
   deadline: number
 }
@@ -134,7 +138,7 @@ export function toRecentAccess(row: RecentAccessWire): RecentAccess {
 }
 
 export function toBreachDraft(wire: DraftWire): BreachDraft {
-  // Keep only the four Art. 46 parts: the draft can carry extras (detectedAtGuess) that prepare rejects.
+  // Prepare rejects any key outside the four Art. 46 parts, so never forward the wire object as is.
   const { dataAffected, whenAndHow, actionsTaken, contact } = wire.fields
   return { fields: { dataAffected, whenAndHow, actionsTaken, contact }, meta: wire.ai, aiRunId: wire.aiRunId }
 }
@@ -156,7 +160,7 @@ export function toBreachDetail(wire: BreachDetailWire, contract: Hex | null): Br
     affectedCount: null,
     contract,
     discoveryTxHash: null,
-    reportHash: null,
+    reportHash: wire.reportHash ?? null,
     noticeHashMatches: null,
   }
 }
@@ -478,4 +482,54 @@ export function humanWatchValue(value: string): string {
   if (value in EVENT_LABELS) return EVENT_LABELS[value as keyof typeof EVENT_LABELS]
   if (value in LEGAL_BASES) return LEGAL_BASES[value as keyof typeof LEGAL_BASES]
   return value
+}
+
+// ---- presenter console (/operator) ---------------------------------------------------------------
+// Every call carries the demo admin token in the x-demo-token header. The token lives only in the
+// presenter's sessionStorage (app/operator/OperatorConsole.tsx), never in URLs or cookies.
+
+export type { DemoReceipt }
+export type TamperAction = 'edit' | 'delete' | 'restore'
+type Probe = { ok: boolean; ms: number }
+/** GET /api/status. */
+export type ServiceStatus = {
+  rpc: (Probe & { name: string; block?: number })[]
+  db: Probe
+  ai: Probe & { model: string | null }
+  contracts: { journal: Hex | null; breach: Hex | null; registry: Hex | null }
+  configProblems: string[]
+}
+
+const demoHeaders = (token: string) => ({ 'x-demo-token': token })
+
+/** GET /api/demo/receipts: recent anchored receipts plus rows the demo deleted (so they can be restored). */
+export async function getDemoReceipts(token: string): Promise<DemoReceipt[]> {
+  return (await requestJson<{ rows: DemoReceipt[] }>('/api/demo/receipts', { headers: demoHeaders(token) })).rows
+}
+
+/** POST /api/demo/tamper. `edit` turns a SHARE_THIRD_PARTY row into READ; `restore` undoes the last edit or delete. */
+export function tamperReceipt(token: string, action: TamperAction, eventId: string): Promise<{ action: TamperAction; eventId: string }> {
+  return requestJson('/api/demo/tamper', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...demoHeaders(token) },
+    body: JSON.stringify({ action, eventId }),
+  })
+}
+
+/** GET /api/status: RPC, database and AI probes. The AI probe runs a tiny completion, so call it on demand. */
+export function getServiceStatus(token: string): Promise<ServiceStatus> {
+  return requestJson<ServiceStatus>('/api/status', { headers: demoHeaders(token) })
+}
+
+export const watchKey = (txHash: string | null, logIndex: number | null) => `${txHash?.toLowerCase()}:${logIndex}`
+export type WatchSummary = { stats: WatchWire['stats']; blockNumber: number; verdicts: Map<string, WatchRow['status']> }
+
+/** GET /api/watch reduced to the counters and a per-receipt verdict keyed by watchKey(txHash, logIndex). */
+export async function getWatchSummary(): Promise<WatchSummary> {
+  const wire = await getJson<WatchWire>('/api/watch')
+  return {
+    stats: wire.stats,
+    blockNumber: wire.blockNumber,
+    verdicts: new Map(wire.rows.map((row) => [watchKey(row.txHash, row.logIndex), row.status])),
+  }
 }

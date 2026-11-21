@@ -32,10 +32,27 @@ export async function input<T extends z.ZodType>(request: Request, schema: T): P
   catch { throw new HttpError(400, 'INVALID_INPUT', 'Request body is not valid JSON.'); }
   return validate(schema, body);
 }
-// Vercel sets x-vercel-forwarded-for; on the VM, Caddy overwrites x-forwarded-for for untrusted clients.
+// Rate-limit key. Only headers our own proxy sets are trusted: x-vercel-forwarded-for on Vercel (VERCEL=1), and on
+// the VM the X-Real-IP that Caddy sets from the TCP peer (deploy/Caddyfile.saksi; the container port is bound to
+// 127.0.0.1). The fallback is the rightmost X-Forwarded-For entry, the one appended by the nearest proxy; the
+// leftmost entries are whatever the client sent.
 export function clientIp(request: Request) {
-  const forwarded = request.headers.get('x-vercel-forwarded-for') ?? request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip');
-  return forwarded?.split(',')[0]?.trim() || 'local';
+  const vercel = process.env.VERCEL === '1' ? request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() : undefined;
+  const real = request.headers.get('x-real-ip')?.trim();
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
+  return vercel || real || forwarded || 'local';
+}
+// Browsers send Origin on cross-site POST/DELETE. Accept it only when it is the origin this request was addressed to:
+// the forwarded (or direct) host and scheme, or NEXT_PUBLIC_SITE_URL. Requests without Origin (curl, scripts) pass.
+const originOf = (value: string | undefined) => { try { return value ? new URL(value).origin : undefined; } catch { return undefined; } };
+export function sameOrigin(request: Request) {
+  const supplied = request.headers.get('origin');
+  if (supplied === null) return true;
+  const url = new URL(request.url);
+  const host = request.headers.get('x-forwarded-host')?.split(',')[0]?.trim() || request.headers.get('host') || url.host;
+  const scheme = request.headers.get('x-forwarded-proto')?.split(',')[0]?.trim() || url.protocol.replace(/:$/, '');
+  const origin = originOf(supplied);
+  return origin !== undefined && [originOf(`${scheme}://${host}`), originOf(process.env.NEXT_PUBLIC_SITE_URL)].includes(origin);
 }
 // Browsers drop Secure cookies set over plain http, so follow the scheme the browser used.
 // COOKIE_SECURE=true|false overrides the detection (e.g. when a proxy does not send x-forwarded-proto).

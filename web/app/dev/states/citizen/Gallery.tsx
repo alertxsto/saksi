@@ -18,6 +18,7 @@ import { ReceiptDetailSkeleton } from '@/components/ui/Skeleton'
 import { ToastView } from '@/components/ui/Toast'
 import type { AutoVerdicts, GhostReceipt } from '@/lib/data'
 import { MOCK_BLOCK_BASE, mockAllReceipts } from '@/lib/mock'
+import type { ReceiptCheck } from '@/lib/receipt-state'
 import type { AiMeta, ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
 // ---- fixtures (fixed clock so every render is identical) ---------------------------------------
@@ -66,6 +67,15 @@ const ALTERED: VerifyResult = {
   ...BASE,
 }
 const NOT_FOUND: VerifyResult = { status: 'NOT_FOUND', mismatches: [], elapsedMs: 2410, rpc: RPC }
+const EVENT_ALTERED: VerifyResult = {
+  status: 'MISMATCH',
+  mismatches: [{ field: 'eventType', db: 'READ', chain: 'SHARE_THIRD_PARTY' }],
+  elapsedMs: 1320,
+  ...BASE,
+}
+const done = (result: VerifyResult): ReceiptCheck => ({ phase: 'done', result, at: NOW })
+// The tamper demo: a SHARE_THIRD_PARTY receipt whose database row was edited to READ.
+const TAMPERED: ReceiptOpening = { ...ALL[1], eventType: 0 }
 
 const AI_ALTERED =
   'The company told Saksi it only read your data, but the chain sealed a record saying it was shared with a third party, for a different purpose. Someone edited the database after sealing. Saksi cannot say who or why. Keep the receipt file as evidence; you can show it to the regulator.'
@@ -114,10 +124,12 @@ function Row({ title, note, children }: { title: string; note: string; children:
 function Detail({
   verify,
   ai = { state: 'idle' },
+  check,
   opening = OPENING,
 }: {
   verify: DetailVerifyState
   ai?: DetailAiState
+  check?: ReceiptCheck
   opening?: ReceiptOpening
 }) {
   return (
@@ -125,6 +137,7 @@ function Detail({
       opening={opening}
       now={NOW}
       verify={verify}
+      check={check}
       ai={ai}
       onVerify={noop}
       onExplain={noop}
@@ -226,7 +239,7 @@ export function CitizenStatesGallery({ width = 390 }: { width?: number }) {
 
       <Row
         title="C2 · Receipts"
-        note="getReceipts() polled every 3 s. Badges: pending/submitted → ON CHAIN, anchored → RECORDED, failed → FAILED. NEW card = freshIds."
+        note="getReceipts() polled every 3 s. Badges: pending/submitted → ON CHAIN, anchored → RECORDED, failed → FAILED. NEW card = freshIds. Each sealed receipt is then checked in this browser (useAutoVerify): MATCH, ALTERED (red card + banner), NOT FOUND."
       >
         <Frame label="ready · new arrival + all badges">
           <List />
@@ -304,6 +317,12 @@ export function CitizenStatesGallery({ width = 390 }: { width?: number }) {
         </Frame>
         <Frame label="ALTERED · Ask AI answered">
           <Detail verify={{ phase: 'done', result: ALTERED }} opening={EDITED} ai={{ state: 'done', data: { text: AI_ALTERED, meta: META.primary } }} />
+        </Frame>
+        <Frame label="ALTERED · event type (tamper demo)">
+          <Detail opening={TAMPERED} verify={{ phase: 'done', result: EVENT_ALTERED }} />
+        </Frame>
+        <Frame label="ALTERED · caught in background, before a tap">
+          <Detail opening={TAMPERED} verify={{ phase: 'idle' }} check={done(EVENT_ALTERED)} />
         </Frame>
         <Frame label="NOT FOUND ON THIS NODE (gray)">
           <Detail verify={{ phase: 'done', result: NOT_FOUND }} />

@@ -10,7 +10,7 @@ const SUB: Record<Tone, string> = {
   idle: 'Press Seal on chain. The four steps run here.',
   live: 'Keep this tab open. The steps advance on their own.',
   done: 'The citizen’s phone shows it as RECORDED now.',
-  warn: 'Your transaction is out there. Re-confirm checks it; it never asks you to sign twice.',
+  warn: 'Your transaction is out there. Saksi keeps checking it on its own; never sign twice.',
   stopped: 'Nothing is lost. Fix what stopped it and try again.',
 }
 

@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, type CSSProperties } from 'react'
+import { Cite } from '@/components/ui/Cite'
 import { IconCheck } from '@/components/ui/icons'
 import { matches, PIN_QUERY, pin, range, REDUCED_QUERY, subscribe } from '@/lib/motion/scroll'
 import { Heading } from './Words'
@@ -109,7 +110,7 @@ export function BreachClock() {
               className="text-[32px] leading-[1.06] md:text-[48px] lg:col-span-7"
             />
             <p className="max-w-[44ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[18px] lg:col-span-4 lg:col-start-9">
-              UU PDP Art. 46 gives a company 72 hours to report a breach. The notice is sealed with its own block time,
+              UU PDP Art. 46 gives a company 72 hours to report a breach.<Cite ids={['uu-pdp-46']} /> The notice is sealed with its own block time,
               and the contract compares it with the declared discovery time.
             </p>
           </div>
