@@ -1,5 +1,5 @@
 import type { CSSProperties } from 'react'
-import { DotoValue } from '@/components/ui/DotoValue'
+import './integrate.css'
 
 const LANES = [
   { name: 'Your system', sub: 'agency backend' },
@@ -59,7 +59,7 @@ function ArrowLine({ a }: { a: Arrow }) {
   const style = { left: centre(lo), width: `${((hi - lo) / LANES.length) * 100}%` } as CSSProperties
   return (
     <div className="ig-arrow absolute top-0 h-full" style={style}>
-      <p className="absolute inset-x-3 bottom-[calc(50%+6px)] truncate text-center font-mono text-[12px] text-ink">{a.label}</p>
+      <p className="absolute inset-x-3 bottom-[calc(50%+6px)] truncate text-center font-mono text-[13px] text-ink">{a.label}</p>
       <div className={`absolute inset-x-0 top-1/2 ${a.back ? 'border-t border-dashed border-line-strong' : 'h-px bg-ink'}`} />
       <span
         aria-hidden="true"
@@ -86,7 +86,7 @@ function ArrowLine({ a }: { a: Arrow }) {
 export function FlowDiagram() {
   return (
     <>
-      <figure aria-labelledby="flow-cap" className="hidden overflow-hidden rounded-xl border border-line bg-card md:block">
+      <figure aria-labelledby="flow-cap" className="hidden overflow-hidden rounded-lg border border-line bg-card md:block">
         <figcaption id="flow-cap" className="sr-only">
           Sequence of one sealed access between your system, the Saksi API, Sepolia, and the citizen and regulator.
         </figcaption>
@@ -104,15 +104,12 @@ export function FlowDiagram() {
             {LANES.map((l) => (
               <div key={l.name} className="relative flex justify-center px-2 py-5">
                 <div
-                  className={`flex min-w-[148px] flex-col items-center rounded-md border px-3 py-2.5 text-center ${
-                    'chain' in l ? 'vault border-vault bg-vault text-vault-ink' : 'border-line-strong bg-card text-ink'
+                  className={`flex min-w-[148px] flex-col items-center rounded-md border px-3 py-2.5 text-center text-ink ${
+                    'chain' in l ? 'border-line bg-paper-2' : 'border-line-strong bg-card'
                   }`}
                 >
-                  <span className="flex items-center gap-1.5 text-[14px] font-medium">
-                    {'chain' in l ? <span aria-hidden="true" className="size-1.5 rounded-full bg-ice" /> : null}
-                    {l.name}
-                  </span>
-                  <span className={`label mt-0.5 ${'chain' in l ? 'text-vault-ink-2' : 'text-ink-3'}`}>{l.sub}</span>
+                  <span className="text-[14px] font-medium">{l.name}</span>
+                  <span className="mt-0.5 text-[12px] text-ink-3">{l.sub}</span>
                 </div>
               </div>
             ))}
@@ -121,8 +118,10 @@ export function FlowDiagram() {
           {STEPS.map((s, i) => (
             <div key={s.n} className="contents">
               <div className={`flex gap-3 px-5 py-5 ${i < STEPS.length - 1 ? 'border-b border-line' : ''}`}>
-                <DotoValue className="text-[22px] text-ink-3" value={s.n} />
-                <p className="text-[14px] font-medium leading-[1.35] text-ink">{s.title}</p>
+                <span aria-hidden="true" className="ig-disc">
+                  {Number(s.n)}
+                </span>
+                <p className="pt-[3px] text-[14px] font-medium leading-[1.35] text-ink">{s.title}</p>
               </div>
               <div className={`relative ${i < STEPS.length - 1 ? 'border-b border-line' : ''}`}>
                 {s.at !== undefined ? (
@@ -131,7 +130,7 @@ export function FlowDiagram() {
                       <span className="whitespace-nowrap rounded-pill bg-ink px-3 py-1.5 text-[13px] font-medium text-paper">
                         Record opened
                       </span>
-                      {s.note ? <span className="label mt-1.5 text-ink-2">{s.note}</span> : null}
+                      {s.note ? <span className="mt-1.5 text-[12px] text-ink-2">{s.note}</span> : null}
                     </div>
                   </div>
                 ) : (
@@ -149,15 +148,17 @@ export function FlowDiagram() {
 
       <ol className="flex flex-col border-b border-line md:hidden">
         {STEPS.map((s) => (
-          <li key={s.n} className="grid grid-cols-[40px_1fr] gap-x-3 border-t border-line py-5">
-            <DotoValue className="text-[22px] text-ink-3" value={s.n} />
+          <li key={s.n} className="grid grid-cols-[26px_1fr] gap-x-3 border-t border-line py-5">
+            <span aria-hidden="true" className="ig-disc">
+              {Number(s.n)}
+            </span>
             <div className="min-w-0">
               <p className="text-[16px] font-medium leading-[1.35] text-ink">{s.title}</p>
-              {s.at !== undefined ? <p className="label mt-2 text-ink-2">{LANES[s.at].name} · {s.note}</p> : null}
+              {s.at !== undefined ? <p className="mt-1.5 text-[13px] text-ink-2">{LANES[s.at].name} · {s.note}</p> : null}
               <ul className="mt-2 flex flex-col gap-2">
                 {s.arrows.map((a, k) => (
                   <li key={k} className="text-[13px] leading-[1.45]">
-                    <span className="label text-ink-3">
+                    <span className="text-[12px] text-ink-3">
                       {LANES[a.from].name} {a.back ? '⇠' : '→'} {LANES[a.to].name}
                     </span>
                     <span className="mt-0.5 block font-mono text-[13px] text-ink">{a.label}</span>

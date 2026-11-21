@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import { CopyButton } from './CopyButton'
+import './integrate.css'
 
 type Lang = 'ts' | 'sh' | 'json' | 'out'
 
@@ -33,8 +34,8 @@ function highlight(code: string, lang: Lang): ReactNode[] {
 }
 
 /**
- * Developer-docs code panel in vault colours: a header row (file name, language, copy) over a scrollable
- * block. Highlighting runs on the server; only the copy button ships JS.
+ * Developer-docs code panel, calm: a paper-2 sheet with a header row (file name, language, copy) over a
+ * scrollable block in Geist Mono 13. Highlighting runs on the server; only the copy button ships JS.
  */
 export function CodePanel({
   title,
@@ -52,16 +53,15 @@ export function CodePanel({
   const langLabel = { ts: 'TypeScript', sh: 'Shell', json: 'JSON', out: 'Output' }[lang]
   return (
     <figure className={`min-w-0 ${className}`}>
-      <div className="vault overflow-hidden rounded-lg bg-vault text-vault-ink">
-        <div className="flex items-center justify-between gap-3 border-b border-vault-line px-4 py-1.5">
-          <p className="flex min-w-0 items-center gap-2.5 font-mono text-[12px]">
-            <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-ice" />
-            <span className="truncate text-vault-ink">{title}</span>
-            <span className="text-vault-ink-2">{langLabel}</span>
+      <div className="ig-panel">
+        <div className="ig-panel-head flex items-center justify-between gap-3 py-1.5 pl-4 pr-3">
+          <p className="flex min-w-0 items-baseline gap-2.5 text-[13px]">
+            <span className="truncate font-medium text-ink">{title}</span>
+            <span className="shrink-0 text-ink-3">{langLabel}</span>
           </p>
           <CopyButton text={code} label={title} />
         </div>
-        <pre className="ig-code overflow-x-auto px-4 py-4 font-mono text-[12.5px] leading-[1.7] text-vault-ink md:text-[13px]" tabIndex={0}>
+        <pre className="ig-code overflow-x-auto px-4 py-4 font-mono text-[13px] leading-[1.7]" tabIndex={0}>
           <code>{highlight(code, lang)}</code>
         </pre>
       </div>

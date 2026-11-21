@@ -31,9 +31,9 @@ export function CopyButton({ text, label }: { text: string; label: string }) {
       type="button"
       onClick={onCopy}
       aria-label={`Copy ${label}`}
-      className="-mr-2 inline-flex min-h-9 items-center gap-1.5 rounded-sm px-2 font-mono text-[12px] tracking-[0.02em] text-vault-ink-2 transition-colors duration-150 hover:bg-vault-2 hover:text-vault-ink"
+      className="ig-copy -mr-2 inline-flex min-h-9 items-center gap-1.5 rounded-pill px-3 text-[13px] font-medium text-ink-2"
     >
-      {state === 'copied' ? <IconCheck size={14} className="text-ok-v" /> : <IconCopy size={14} />}
+      {state === 'copied' ? <IconCheck size={14} className="text-ok" /> : <IconCopy size={14} />}
       <span aria-live="polite">{LABEL[state]}</span>
     </button>
   )

@@ -14,6 +14,7 @@ import {
   TS_SNIPPET,
 } from '@/components/integrate/content'
 import { FlowDiagram } from '@/components/integrate/FlowDiagram'
+import { SealPath } from '@/components/integrate/SealPath'
 import { Cta } from '@/components/landing/Cta'
 import { Nav } from '@/components/landing/Nav'
 import { RevealRoot } from '@/components/landing/RevealRoot'
@@ -21,7 +22,7 @@ import { SiteFooter } from '@/components/landing/SiteFooter'
 import { SmoothScroll } from '@/components/landing/SmoothScroll'
 import { FrameRules, Heading } from '@/components/landing/Words'
 import { Cite } from '@/components/ui/Cite'
-import { IconArrowUpRight, IconCheck, IconLock, IconMinus } from '@/components/ui/icons'
+import { IconArrowUpRight, IconCheck, IconLock, IconMinus, IconShield } from '@/components/ui/icons'
 import { CHAIN_NAME, CONTRACTS, explorerAddress } from '@/lib/env'
 
 export const metadata: Metadata = {
@@ -89,7 +90,7 @@ const h2 = 'text-[34px] leading-[1.04] md:text-[48px]'
 
 function RetryTag({ retry }: { retry: boolean }) {
   return (
-    <span className={`label inline-flex h-6 shrink-0 items-center rounded-sm px-2 ${retry ? 'bg-pending-bg text-pending' : 'bg-unknown-bg text-unknown'}`}>
+    <span className={`inline-flex h-6 shrink-0 items-center rounded-pill px-2.5 text-[12px] font-medium ${retry ? 'bg-pending-bg text-pending' : 'bg-unknown-bg text-unknown'}`}>
       {retry ? 'Retry' : 'Stop'}
     </span>
   )
@@ -98,7 +99,7 @@ function RetryTag({ retry }: { retry: boolean }) {
 function Method({ m }: { m: 'GET' | 'POST' }) {
   return (
     <span
-      className={`inline-flex h-6 w-12 shrink-0 items-center justify-center rounded-sm font-mono text-[11px] font-bold tracking-[0.04em] ${
+      className={`inline-flex h-6 w-12 shrink-0 items-center justify-center rounded-pill text-[12px] font-semibold tracking-[0.02em] ${
         m === 'GET' ? 'bg-ok-bg text-ok' : 'bg-blue-bg text-blue'
       }`}
     >
@@ -110,7 +111,7 @@ function Method({ m }: { m: 'GET' | 'POST' }) {
 /**
  * /integrate — the answer to "how does the data the government already holds connect to this?". Saksi never
  * ingests the data: the agency adds one hook where a record is opened, signs logAccess with its own key, and
- * Saksi only builds and checks commitments. Structured like /why (same sheet, frame rules, vault footer);
+ * Saksi only builds and checks commitments. Structured like /why (same sheet, frame rules, paper tickets, calm code blocks);
  * every shape and code on the page comes from the implementation (see components/integrate/content.ts).
  */
 export default function IntegratePage() {
@@ -151,18 +152,22 @@ export default function IntegratePage() {
               </div>
             </div>
 
-            <dl className="frame mt-14 grid gap-px overflow-hidden rounded-lg border border-line bg-line px-0 sm:grid-cols-3 md:mt-20" data-stagger="">
+            <div className="frame mt-12 flex flex-col gap-6 px-3 md:mt-16 md:gap-8 md:px-8">
+              <SealPath />
+
+              <dl className="grid gap-px overflow-hidden rounded-lg border border-line bg-line sm:grid-cols-3" data-stagger="">
               {[
                 ['What Saksi receives', 'A 6-character citizen code, the purpose, the legal basis. Never a NIK or a name.'],
                 ['Who signs', 'Your registered wallet or HSM. Saksi cannot forge or hide an entry for you.'],
                 ['What it costs you', 'One API call and one transaction per access. No database link, no data export.'],
               ].map(([k, v]) => (
-                <div key={k} className="bg-paper p-5 md:p-6">
-                  <dt className="label text-ink-2">{k}</dt>
-                  <dd className="mt-3 text-[16px] font-medium leading-[1.4] tracking-[-0.01em] text-ink">{v}</dd>
-                </div>
-              ))}
-            </dl>
+                  <div key={k} className="bg-paper p-5 md:p-6">
+                    <dt className="text-[15px] font-semibold text-ink">{k}</dt>
+                    <dd className="mt-1.5 text-[15px] leading-[1.5] text-ink-2">{v}</dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
           </section>
 
           <Section id="flow">
@@ -185,7 +190,7 @@ export default function IntegratePage() {
 
             <div className="min-w-0 lg:col-span-7">
               <h3 className="flex items-center gap-2 text-[19px] font-medium tracking-[-0.015em] text-ink">
-                <span aria-hidden="true" className="size-2 rounded-full bg-ice ring-2 ring-vault" />
+                <IconShield size={16} className="text-ink-2" />
                 On {CHAIN_NAME}, public
               </h3>
               <p className="mt-2 text-[15px] leading-[1.55] text-ink-2">
@@ -207,7 +212,7 @@ export default function IntegratePage() {
               <div className="mt-5 hidden overflow-x-auto rounded-lg border border-line bg-card md:block">
                 <table className="w-full min-w-[560px] border-collapse text-left">
                   <thead>
-                    <tr className="label border-b border-line text-ink-3">
+                    <tr className="border-b border-line text-[13px] text-ink-3">
                       <th scope="col" className="px-4 py-3 font-normal">Field</th>
                       <th scope="col" className="px-4 py-3 font-normal">Type</th>
                       <th scope="col" className="px-4 py-3 font-normal">What it is</th>
@@ -286,7 +291,7 @@ export default function IntegratePage() {
                     ['confirm', 'Poll until anchored.'],
                   ].map(([k, v], i) => (
                     <li key={k} className="flex gap-3 border-t border-line py-3">
-                      <span className="w-5 shrink-0 font-mono text-[12px] text-ink-3">{i + 1}</span>
+                      <span className="w-5 shrink-0 text-[13px] font-medium tabular-nums text-ink-3">{i + 1}</span>
                       <span>
                         <code className="font-mono text-[13px] text-ink">{k}</code>
                         <span className="text-ink-2"> · {v}</span>
@@ -317,7 +322,7 @@ export default function IntegratePage() {
                   code={RUN_SNIPPET}
                   caption={
                     <>
-                      <code className="font-mono text-[12px] text-ink">web/scripts/agency-example.mjs</code> reads the
+                      <code className="font-mono text-[13px] text-ink">web/scripts/agency-example.mjs</code> reads the
                       ABI generated from the contracts and the deployed addresses from the repo. The key is read from
                       the environment and never printed.
                     </>
@@ -339,7 +344,7 @@ export default function IntegratePage() {
                         <span className="min-w-0 break-all font-mono text-[13px] text-ink">{e.code}</span>
                         <RetryTag retry={e.retry} />
                       </p>
-                      <p className="mt-1 font-mono text-[12px] text-ink-3">
+                      <p className="mt-1 font-mono text-[13px] text-ink-3">
                         {e.status} · {e.step}
                       </p>
                       <p className="mt-1 text-[14px] leading-[1.5] text-ink-2">{e.meaning}</p>
@@ -349,7 +354,7 @@ export default function IntegratePage() {
                 <div className="mt-5 hidden overflow-x-auto rounded-lg border border-line bg-card md:block">
                   <table className="w-full min-w-[640px] border-collapse text-left">
                     <thead>
-                      <tr className="label border-b border-line text-ink-3">
+                      <tr className="border-b border-line text-[13px] text-ink-3">
                         <th scope="col" className="px-4 py-3 font-normal">Code</th>
                         <th scope="col" className="px-4 py-3 font-normal">HTTP</th>
                         <th scope="col" className="px-4 py-3 font-normal">Step</th>
@@ -360,9 +365,9 @@ export default function IntegratePage() {
                     <tbody>
                       {ERRORS.map((e) => (
                         <tr key={e.code} className="border-t border-line align-top first:border-t-0">
-                          <td className="whitespace-nowrap px-4 py-3 font-mono text-[12.5px] text-ink">{e.code}</td>
-                          <td className="px-4 py-3 font-mono text-[12.5px] text-ink-2">{e.status}</td>
-                          <td className="whitespace-nowrap px-4 py-3 font-mono text-[12.5px] text-ink-2">{e.step}</td>
+                          <td className="whitespace-nowrap px-4 py-3 font-mono text-[13px] text-ink">{e.code}</td>
+                          <td className="px-4 py-3 font-mono text-[13px] text-ink-2">{e.status}</td>
+                          <td className="whitespace-nowrap px-4 py-3 font-mono text-[13px] text-ink-2">{e.step}</td>
                           <td className="px-4 py-3 text-[14px] leading-[1.5] text-ink-2">{e.meaning}</td>
                           <td className="whitespace-nowrap px-4 py-3">
                             <RetryTag retry={e.retry} />
@@ -417,14 +422,14 @@ export default function IntegratePage() {
                     <li key={c.name} className="grid gap-2 border-t border-line py-4 md:grid-cols-[minmax(0,1fr)_auto] md:gap-6">
                       <div className="min-w-0">
                         <p className="text-[15px] font-medium text-ink">{c.name}</p>
-                        <p className="mt-1 break-all font-mono text-[12px] text-ink-2">{c.fn}</p>
+                        <p className="mt-1 break-all font-mono text-[13px] text-ink-2">{c.fn}</p>
                       </div>
                       {c.address ? (
                         <a
                           href={explorerAddress(c.address)}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex min-h-11 items-center gap-1.5 self-center break-all font-mono text-[12.5px] text-blue underline-offset-2 hover:underline md:break-normal"
+                          className="inline-flex min-h-11 items-center gap-1.5 self-center break-all font-mono text-[13px] text-blue underline-offset-2 hover:underline md:break-normal"
                         >
                           <span className="min-w-0">{c.address}</span>
                           <IconArrowUpRight size={12} className="shrink-0" />
@@ -444,20 +449,20 @@ export default function IntegratePage() {
               <Heading id="rollout-title" lead="Who connects first." tail="And where the hook goes." className={`max-w-[22ch] ${h2}`} />
             </div>
             <ol aria-labelledby="rollout-title" className="border-b border-line lg:col-span-12" data-stagger="">
-              <li aria-hidden="true" className="label hidden grid-cols-12 gap-6 pb-3 text-ink-3 lg:grid">
+              <li aria-hidden="true" className="hidden grid-cols-12 gap-6 pb-3 text-[13px] text-ink-3 lg:grid">
                 <span className="col-span-3">Who</span>
                 <span className="col-span-6">Why them</span>
                 <span className="col-span-3">Where the hook goes</span>
               </li>
               {ROLLOUT.map((w, i) => (
                 <li key={w.who} className="grid gap-3 border-t border-line py-6 lg:grid-cols-12 lg:gap-6">
-                  <p className="flex gap-3 text-[19px] font-medium leading-[1.3] tracking-[-0.015em] text-ink lg:col-span-3">
-                    <span className="pt-1 font-mono text-[12px] text-ink-3">0{i + 1}</span>
+                  <p className="flex items-start gap-3 text-[19px] font-medium leading-[1.3] tracking-[-0.015em] text-ink lg:col-span-3">
+                    <span aria-hidden="true" className="ig-disc mt-px">{i + 1}</span>
                     {w.who}
                   </p>
                   <p className="text-[15px] leading-[1.6] text-ink-2 lg:col-span-6">{w.why}</p>
                   <p className="text-[15px] leading-[1.55] text-ink lg:col-span-3">
-                    <span className="label mr-2 text-ink-3 lg:hidden">Hook</span>
+                    <span className="mr-2 text-[13px] font-medium text-ink-3 lg:hidden">Hook:</span>
                     {w.hook}
                   </p>
                 </li>

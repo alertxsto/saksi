@@ -1,0 +1,56 @@
+/* INTEGRATE surface (/integrate). Owner: app/integrate/**, components/integrate/**.
+   Paper-and-stub language shared with /enter and /why: 16px tickets, dashed perforations, numbered discs,
+   calm paper-2 code blocks in Geist Mono 13. Motion per riset-ui/37 §5. */
+
+.ig-shadow { filter: drop-shadow(0 1px 0 rgb(30 26 22 / 0.1)) drop-shadow(0 10px 22px rgb(30 26 22 / 0.06)); }
+
+/* numbered disc, outlined in the step's role colour (solid for the start) */
+.ig-disc {
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 26px; height: 26px; border-radius: 999px;
+  border: 1.5px solid var(--role, var(--color-ink)); color: var(--role, var(--color-ink));
+  font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums; background: var(--color-card);
+}
+.ig-disc[data-solid] { background: var(--role, var(--color-ink)); color: #fff; }
+
+/* ── seal path: one ticket, start + three steps, perforations between ── */
+.ig-path { display: grid; background: var(--color-card); border-radius: 16px; animation: ig-rise 320ms cubic-bezier(.2,.8,.2,1) 80ms both; }
+.ig-stop { position: relative; display: flex; flex-direction: column; gap: 10px; padding: 20px 20px 20px; }
+.ig-stop + .ig-stop::before {
+  content: ""; position: absolute; left: 20px; right: 20px; top: 0; height: 1.5px; color: var(--color-line-strong);
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 0); background-size: 8px 1.5px; background-repeat: repeat-x;
+}
+/* the arrow chip sits on the perforation (points down on phone, right on desktop) */
+.ig-hop {
+  position: absolute; z-index: 1; right: 20px; top: 0; transform: translateY(-50%) rotate(90deg);
+  display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 999px;
+  background: var(--color-card); color: var(--color-ink-2); border: 1px solid var(--color-line-strong);
+}
+@media (min-width: 1024px) {
+  .ig-path { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+  .ig-stop { padding: 22px 24px 24px 28px; }
+  .ig-stop:first-child { padding-left: 24px; }
+  .ig-stop + .ig-stop::before {
+    left: 0; right: auto; top: 18px; bottom: 18px; width: 1.5px; height: auto;
+    background-image: linear-gradient(180deg, currentColor 50%, transparent 0); background-size: 1.5px 7px; background-repeat: repeat-y;
+  }
+  .ig-hop { right: auto; left: 0; top: 50%; transform: translate(-50%, -50%); }
+}
+
+/* ── calm code block ── */
+.ig-panel { background: var(--color-paper-2); border: 1px solid var(--color-line); border-radius: 16px; overflow: hidden; }
+.ig-panel-head { border-bottom: 1px solid var(--color-line); }
+.ig-copy { transition: background-color 150ms cubic-bezier(.2,.8,.2,1), color 150ms cubic-bezier(.2,.8,.2,1); }
+.ig-copy:hover { background: rgb(30 26 22 / 0.06); color: var(--color-ink); }
+.ig-panel .ig-code { tab-size: 2; scrollbar-color: var(--color-line-strong) transparent; color: var(--color-ink); }
+.ig-panel .ig-code .ig-s { color: var(--color-ok); }
+.ig-panel .ig-code .ig-k { color: var(--color-blue); }
+.ig-panel .ig-code .ig-n { color: var(--color-pending); }
+.ig-panel .ig-code .ig-c { color: var(--color-ink-3); font-style: italic; }
+.ig-panel .ig-code .ig-f { color: var(--color-ink-2); }
+
+@keyframes ig-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .ig-path { animation: none; }
+  .ig-copy { transition: none; }
+}
