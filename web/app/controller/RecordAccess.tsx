@@ -1,5 +1,6 @@
 'use client'
 
+import { useSearchParams } from 'next/navigation'
 import { useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { Badge } from '@/components/ui/Badge'
@@ -11,6 +12,7 @@ import { WalletGate, WalletStrip } from '@/components/ui/WalletGate'
 import { useRecordAccess } from '@/lib/client/controller'
 import type { TransactionState } from '@/lib/client/transactions'
 import { getControllerRecent, type SealAccessInput } from '@/lib/data'
+import { normalizeCitizenCode } from '@/lib/format'
 import { RecentReceipts } from './RecentReceipts'
 import { RecordAccessForm, type AccessFormValues } from './RecordAccessForm'
 import { useControllerWallet } from './wallet'
@@ -25,6 +27,8 @@ export function RecordAccess() {
   const ready = wallet.state === 'ready' && !wallet.isChecking
   const controllerId = wallet.controller?.id
   const { toast } = useToast()
+  // ?code= comes from the citizen's profile QR: a phone camera opens this page with the code filled in.
+  const scannedCode = normalizeCitizenCode(useSearchParams().get('code'))
 
   const access = useRecordAccess()
   const tx = txViewFromState(access.state)
@@ -91,7 +95,12 @@ export function RecordAccess() {
       <div className="grid gap-8 lg:grid-cols-12">
         <div className="min-w-0 lg:col-span-7">
           <WalletGate wallet={wallet} onConnect={onConnect} onSwitchNetwork={onSwitchNetwork} onRefresh={onRefresh} onCopy={onCopy}>
-            <RecordAccessForm controllerName={wallet.controller?.name ?? ''} busy={busy} onSeal={onSeal} />
+            <RecordAccessForm
+              controllerName={wallet.controller?.name ?? ''}
+              initial={scannedCode ? { subjectCode: scannedCode } : undefined}
+              busy={busy}
+              onSeal={onSeal}
+            />
           </WalletGate>
         </div>
 

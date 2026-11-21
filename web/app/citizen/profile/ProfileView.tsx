@@ -14,6 +14,8 @@ import { ProfileSkeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
 import { copyText, deleteProfile, getProfile, toCitizenError, type CitizenProfile } from '@/lib/data'
+import { SITE_URL } from '@/lib/env'
+import { controllerLinkForCode } from '@/lib/format'
 
 /** Container: loads the profile (GET /api/citizen/receipts) and owns delete (DELETE /api/citizen/session). */
 export function ProfileView() {
@@ -68,7 +70,7 @@ export function ProfileView() {
 export type ProfileState = 'loading' | 'none' | 'error' | 'ready'
 export type ConfirmState = 'closed' | 'open' | 'deleting' | 'error'
 
-/** C5: QR of the citizen code, copy, delete with confirmation. Purely presentational. */
+/** C5: QR (console link carrying the citizen code), copy, delete with confirmation. Purely presentational. */
 export function ProfileScreenView({
   state,
   profile,
@@ -143,14 +145,15 @@ export function ProfileScreenView({
       <section aria-label="Profile QR code" className="relative rounded-xl border border-line bg-card p-6">
         <RegMarks className="bg-blue" size={8} />
         <div className="mx-auto w-full max-w-[260px]">
+          {/* An absolute link, so any phone camera opens the console with this code filled in. */}
           <QRCodeSVG
-            value={code}
+            value={controllerLinkForCode(SITE_URL, code)}
             size={512}
             level="M"
             bgColor="#FBFAF7"
             fgColor="#1E1A16"
             className="h-auto w-full"
-            title={`QR code for profile ${code}`}
+            title={`QR code: opens the controller console with code ${code}`}
           />
         </div>
         <p className="mt-6 text-center text-[52px] leading-[0.9] text-ink">

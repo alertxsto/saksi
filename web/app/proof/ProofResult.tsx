@@ -91,7 +91,7 @@ export function ProofResult({
                 value={node}
                 disabled={!nodes.data?.length}
                 onChange={(e) => onSwitchRpc(e.target.value)}
-                className="mt-2 h-12 w-full rounded-md border border-line-strong bg-paper-2 px-3 font-mono text-[14px] text-ink outline-none focus:border-blue"
+                className="mt-2 h-12 w-full truncate rounded-md border border-line-strong bg-paper-2 pl-3 pr-9 font-mono text-[14px] text-ink outline-none focus:border-blue"
               >
                 {nodes.data?.length ? (
                   nodes.data.map((n) => (

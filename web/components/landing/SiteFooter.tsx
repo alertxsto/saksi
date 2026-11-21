@@ -117,7 +117,7 @@ export function SiteFooter() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="flex min-h-7 items-center text-[14px] tracking-[0.02em] text-[#dad8ce] transition-colors duration-150 hover:text-paper"
+                      className="flex min-h-10 items-center text-[14px] md:min-h-7 tracking-[0.02em] text-[#dad8ce] transition-colors duration-150 hover:text-paper"
                     >
                       <OdoText>{label}</OdoText>
                     </Link>
@@ -148,7 +148,7 @@ export function SiteFooter() {
                         href={explorerAddress(a)}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex min-h-7 items-center gap-2 font-mono text-[12px] text-[#dad8ce] transition-colors duration-150 hover:text-ice"
+                        className="flex min-h-10 items-center gap-2 font-mono md:min-h-7 text-[12px] text-[#dad8ce] transition-colors duration-150 hover:text-ice"
                       >
                         {name}{" "}
                         <span className="text-vault-ink-2">

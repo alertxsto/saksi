@@ -61,6 +61,29 @@ export function timeBucket(iso: string, now: number): 'NOW' | 'TODAY' | 'EARLIER
   return d === today ? 'TODAY' : 'EARLIER'
 }
 
+/** Provider name for a narrow cell: "https://ethereum-sepolia-rpc.publicnode.com/x" → "publicnode". */
+export function rpcLabel(rpc: string): string {
+  let host = rpc
+  try {
+    host = new URL(rpc).hostname
+  } catch {
+    host = rpc.replace(/^[a-z]+:\/\//i, '').split(/[/:?#]/)[0] ?? rpc
+  }
+  if (/^[\d.]+$/.test(host)) return host
+  const parts = host.split('.').filter(Boolean)
+  return parts.length >= 2 ? parts[parts.length - 2] : host
+}
+
+/** Citizen codes as typed or scanned: upper case, letters and digits only, at most 6 characters. */
+export function normalizeCitizenCode(raw: string | null | undefined): string {
+  return (raw ?? '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6)
+}
+
+/** What the profile QR encodes: the controller console with this citizen's code filled in. */
+export function controllerLinkForCode(site: string, code: string): string {
+  return `${site.replace(/\/+$/, '')}/controller?code=${encodeURIComponent(normalizeCitizenCode(code))}`
+}
+
 export function pad2(n: number): string {
   return String(Math.floor(Math.abs(n))).padStart(2, '0')
 }
