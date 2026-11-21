@@ -62,6 +62,8 @@ export function ProofHome({ initialQuery }: { initialQuery?: string } = {}) {
   const [query, setQuery] = useState(startQuery)
   const [finding, setFinding] = useState(false)
   const [opening, setOpening] = useState<ReceiptOpening | null>(null)
+  // Bumped on every load or paste, so a second file with the same eventId still runs a fresh check.
+  const [loads, setLoads] = useState(0)
   const [missing, setMissing] = useState<string | null>(null)
   const [scanning, setScanning] = useState(false)
   const fileRef = useRef<HTMLInputElement>(null)
@@ -87,8 +89,10 @@ export function ProofHome({ initialQuery }: { initialQuery?: string } = {}) {
     try {
       // Pasted receipt JSON (the downloaded receipt file's contents) can be verified directly.
       const pasted = value.startsWith('{') ? await readReceiptFile({ text: async () => value }) : null
-      if (pasted) setOpening(pasted)
-      else setMissing(value)
+      if (pasted) {
+        setOpening(pasted)
+        setLoads((n) => n + 1)
+      } else setMissing(value)
     } finally {
       setFinding(false)
     }
@@ -113,6 +117,7 @@ export function ProofHome({ initialQuery }: { initialQuery?: string } = {}) {
     }
     setMissing(null)
     setOpening(op)
+    setLoads((n) => n + 1)
     toast('Receipt loaded')
   }
 
@@ -234,7 +239,7 @@ export function ProofHome({ initialQuery }: { initialQuery?: string } = {}) {
       ) : null}
 
       {opening ? (
-        <ProofResult key={opening.eventId} opening={opening} autoStart />
+        <ProofResult key={loads} opening={opening} autoStart />
       ) : (
         <section aria-labelledby="pf-how" className="grid gap-8 md:grid-cols-2">
           <div>
