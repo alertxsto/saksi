@@ -151,6 +151,9 @@ describe('AI receipt explanation', () => {
     expect(contradictsVerdict('MISMATCH', 'The stored action no longer matches what was anchored: it was changed from Share to Read. Ask the controller to correct it.')).toBe(false);
     expect(contradictsVerdict('MATCH', 'The receipt is consistent with the chain. This does not prove the access was lawful. You can ask the controller for access to your data.')).toBe(false);
     expect(contradictsVerdict('NOT_FOUND', "This doesn't mean the record was altered. Try again later.")).toBe(false);
+    // Captured from the live model at high reasoning: "legal basis" is the receipt field, not a legal claim.
+    expect(contradictsVerdict('MATCH', 'Saksi reports that this receipt matched its verification checks, with no mismatches listed. It shows the event type as READ and the legal basis as Public task; those labels do not establish that access occurred or whether it was lawful.')).toBe(false);
+    expect(contradictsVerdict('MATCH', 'The legal basis is Public task, so the access was legal.')).toBe(true);
     for (const status of ['MATCH', 'MISMATCH', 'NOT_FOUND'] as const) expect(contradictsVerdict(status, EXPLAIN_TEMPLATE[status])).toBe(false);
   });
 

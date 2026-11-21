@@ -28,7 +28,8 @@ export function contradictsVerdict(status: ExplainStatus, text: string): boolean
   const sentences = text.split(/(?<=[.!?;:])\s+|\n+/u).map((sentence) => sentence.trim()).filter(Boolean);
   return sentences.some((sentence) => {
     const negated = negation.test(sentence);
-    if (legal.test(sentence) && !negated) return true;
+    // "legal basis" names the receipt field (UU PDP Art. 20(2)), not a legal conclusion.
+    if (legal.test(sentence.replace(/\blegal bas(is|es)\b/gi, '')) && !negated) return true;
     if (status !== 'MATCH' && affirmsIntact.test(sentence) && !negated) return true;
     if (status === 'MATCH' && affirmsAltered.test(sentence) && !negated) return true;
     return false;
