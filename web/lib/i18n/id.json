@@ -1982,5 +1982,11 @@
  "Open the citizen app": "Buka aplikasi warga",
  "READ": "BACA",
  "from chain": "dari chain",
- "Get a receipt.": "Terima bukti akses."
+ "Get a receipt.": "Terima bukti akses.",
+ "Saksi witnesses every access to your data. Your phone checked each one just now.": "Saksi menyaksikan setiap akses ke data Anda. Ponsel Anda baru saja memeriksa semuanya.",
+ "Saksi witnesses every access to your data. Your phone checked each one just now. Paused while offline.": "Saksi menyaksikan setiap akses ke data Anda. Ponsel Anda baru saja memeriksa semuanya. Dijeda saat offline.",
+ "Saksi witnesses every access to your data. Receipts arrive here within seconds.": "Saksi menyaksikan setiap akses ke data Anda. Bukti akses tiba di sini dalam hitungan detik.",
+ "Saksi witnesses every access to your data. Receipts arrive here within seconds. Paused while offline.": "Saksi menyaksikan setiap akses ke data Anda. Bukti akses tiba di sini dalam hitungan detik. Dijeda saat offline.",
+ "Saksi witnesses every access to your data. Your phone checks each one once it is sealed.": "Saksi menyaksikan setiap akses ke data Anda. Ponsel Anda memeriksa masing-masing setelah disegel.",
+ "Saksi witnesses every access to your data. Your phone checks each one once it is sealed. Paused while offline.": "Saksi menyaksikan setiap akses ke data Anda. Ponsel Anda memeriksa masing-masing setelah disegel. Dijeda saat offline."
 }

@@ -37,6 +37,10 @@ const PATTERNS: [RegExp, string][] = [
   [/^(\d+) receipts? sealed$/, '$1 bukti akses disegel'],
   [/^(\d+) access(?:es)? · last (.+)$/, '$1 akses · terakhir $2'],
   [/^All (\d+) match the sealed record$/, 'Semua ($1) cocok dengan catatan tersegel'],
+  [/^(\d+) receipts?$/, '$1 bukti akses'],
+  [/^(\d+) receipts? on record$/, '$1 bukti akses tercatat'],
+  [/^Checking (\d+) receipts?$/, 'Memeriksa $1 bukti akses'],
+  [/^Your phone is checking (\d+) receipts?$/, 'Ponsel Anda memeriksa $1 bukti akses'],
 ]
 const TIMES: [RegExp, string][] = [
   [/\b(\d+) h ago\b/g, '$1 jam lalu'],
