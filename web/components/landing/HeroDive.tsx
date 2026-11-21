@@ -142,7 +142,7 @@ export function HeroDive() {
           </div>
         </div>
 
-        <div className="chrome relative grid min-h-full items-center gap-10 pb-10 pt-28 lg:grid-cols-[minmax(0,540px)_minmax(0,1fr)] lg:gap-6 lg:pb-8 lg:pt-24">
+        <div className="chrome hero-chrome relative grid min-h-full items-center gap-10 pb-10 pt-28 lg:grid-cols-[minmax(0,480px)_minmax(0,1fr)] xl:grid-cols-[minmax(0,540px)_minmax(0,1fr)] lg:gap-6 lg:pb-8 lg:pt-24">
           <div ref={copyRef} className="hero-copy relative z-[1]">
             <h1 id="hero-title" className="text-balance text-[40px] font-medium leading-[1.03] tracking-[-0.02em] sm:text-[52px] lg:text-[64px] xl:text-[72px]">
               <span className="m-line">
@@ -157,16 +157,18 @@ export function HeroDive() {
               phone can check it, so nobody, not even an insider, can quietly rewrite the story.
             </p>
             <div className="m-in mt-8 flex flex-wrap gap-3" style={d(380)}>
-              <Cta href="/citizen">Open live demo</Cta>
-              <Cta href="/proof" variant="light">
+              <Cta href="/citizen" className="max-sm:w-full max-sm:justify-between">
+                Open live demo
+              </Cta>
+              <Cta href="/proof" variant="light" className="max-sm:w-full max-sm:justify-center">
                 Verify a receipt
               </Cta>
             </div>
-            <ul className="m-in label mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-ink-2" style={d(480)}>
+            <ul className="m-in label mt-10 flex flex-wrap items-center gap-x-4 gap-y-2 text-[12px] text-ink-2 max-sm:mt-8 max-sm:gap-x-5" style={d(480)}>
               <li>Hash only on chain</li>
-              <li aria-hidden="true" className="h-4 w-px bg-line-strong" />
+              <li aria-hidden="true" className="h-4 w-px bg-line-strong max-sm:hidden" />
               <li>No wallet for citizens</li>
-              <li aria-hidden="true" className="h-4 w-px bg-line-strong" />
+              <li aria-hidden="true" className="h-4 w-px bg-line-strong max-sm:hidden" />
               <li className="flex items-center gap-2">
                 Fingerprint{' '}
                 <code ref={fpRef} className="font-mono normal-case tracking-normal text-blue">
@@ -178,7 +180,7 @@ export function HeroDive() {
 
           <div
             ref={panelRef}
-            className="hero-panel vault grain relative aspect-square w-full rounded-xl bg-vault lg:aspect-auto lg:h-[min(calc(100svh-128px),780px)]"
+            className="hero-panel vault grain relative aspect-square w-full rounded-xl bg-vault md:aspect-[4/3] lg:aspect-auto lg:h-[min(calc(100svh-128px),780px)]"
           >
             <div
               ref={sealRef}

@@ -18,6 +18,7 @@ import type {
   VerifyResult,
   WatchRow,
 } from './shared/types'
+import { EVENT_LABELS, LEGAL_BASES } from './shared/types'
 
 export { ApiClientError }
 
@@ -411,4 +412,70 @@ export async function readReceiptFile(file: Pick<File, 'text'>): Promise<Receipt
   } catch {
     return null
   }
+}
+
+// ── STAGE UI ──
+// Projected pitch screen /stage. Counters + live feed come from the public GET /api/stats (built by a
+// teammate; contract in riset-ui/27-stage-log.md); Watch counts and the block number from getWatchView().
+
+/** One recent receipt on GET /api/stats. Public: no names, no purpose text, citizen code already masked. */
+export type StageRecentWire = {
+  id: string
+  /** Controller display name, e.g. "Demo One". */
+  controllerName: string
+  eventType: EventTypeCode
+  /** Masked by the server, e.g. "JV••••". Never the full code. */
+  citizenMasked: string
+  /** ISO time the access was recorded. */
+  createdAt: string
+  status: RecordStatus
+}
+
+/** GET /api/stats. */
+export type StageStatsWire = {
+  /** Citizen profiles created (since the last demo reset). */
+  citizens: number
+  /** Access records with status 'anchored'. */
+  receipts: number
+  /** ISO time of the newest anchored record; null before the first seal. */
+  lastSealAt: string | null
+  /** Newest first, at most 8. */
+  recent: StageRecentWire[]
+}
+
+/** GET /api/stats: public counters + the latest receipts for the stage screen. */
+export function getStageStats(): Promise<StageStatsWire> {
+  return getJson<StageStatsWire>('/api/stats')
+}
+
+// ── CITIZEN UI ──
+// View contracts for the citizen "phone turns red" moment (riset-ui/24 §2, riset-ui/28-citizen-log.md).
+// The list view only renders these; the auto-verify loop and the "remember seen receipts" store are
+// filled in by the container (teammate). No fetching here.
+
+/** Per-row result of the background auto-verify. Absent = not checked yet (row shows its chain status only). */
+export type AutoVerdict = 'verifying' | 'match' | 'altered' | 'not_found'
+
+/** Auto-verify results keyed by `ReceiptOpening.eventId`. */
+export type AutoVerdicts = Partial<Record<string, AutoVerdict>>
+
+/**
+ * A receipt this phone saw earlier that the company's database no longer returns ("DELETED").
+ * `opening` is the copy the phone remembered (it still matches the chain, so /proof can re-verify it);
+ * `lastSeenAt` is when the phone last saw it in GET /api/citizen/receipts (ms epoch).
+ */
+export type GhostReceipt = { opening: ReceiptOpening; lastSeenAt: number }
+
+/** eventIds the auto-verify marked ALTERED, in list order. */
+export function alteredIds(verdicts: AutoVerdicts | undefined, receipts: Pick<ReceiptOpening, 'eventId'>[]): string[] {
+  if (!verdicts) return []
+  return receipts.filter((r) => verdicts[r.eventId] === 'altered').map((r) => r.eventId)
+}
+
+// ── WATCH VALUE LABELS ──
+/** Human label for a Watch db/chain value: event-type and legal-basis codes become their UI labels. */
+export function humanWatchValue(value: string): string {
+  if (value in EVENT_LABELS) return EVENT_LABELS[value as keyof typeof EVENT_LABELS]
+  if (value in LEGAL_BASES) return LEGAL_BASES[value as keyof typeof LEGAL_BASES]
+  return value
 }

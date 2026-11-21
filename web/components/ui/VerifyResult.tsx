@@ -1,28 +1,31 @@
 'use client'
 
-import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
+import { CountSecs, RiseHeading as Heading } from '@/components/citizen/motion'
+import { VerdictSeal } from '@/components/citizen/VerdictSeal'
 import type { ReceiptOpening, VerifyResult as VerifyResultT } from '@/lib/shared/types'
 import { EVENT_LABELS, EVENT_TYPES, type EventTypeName } from '@/lib/shared/types'
 import { basisLabel, eventVerb, shortHex } from '@/lib/format'
-import { Button } from './Button'
+import { Act } from '@/components/citizen/Act'
 import { DotoValue } from './DotoValue'
-import { IconCheck, IconQuestion, IconRefresh, IconShield, IconX } from './icons'
-import { RegMarks } from './RegMarks'
-import { VaultSeal } from './VaultSeal'
+import { IconAlert, IconArrow, IconCheck, IconDownload, IconLock, IconRefresh, IconShield, IconSpark } from './icons'
 
-const FIELD_LABEL: Record<VerifyResultT['mismatches'][number]['field'], string> = {
+type Field = VerifyResultT['mismatches'][number]['field']
+
+const FIELD_LABEL: Record<Field, string> = {
   eventType: 'What they did',
-  purpose: 'Why',
   legalBasis: 'Legal basis',
+  purpose: 'Why',
   evidence: 'Evidence',
-  pseudonym: 'Your pseudonym',
+  pseudonym: 'Pseudonym',
   contract: 'Contract',
 }
 
-const FIELD_ORDER = ['eventType', 'purpose', 'legalBasis', 'evidence', 'pseudonym'] as const
+/** Row order of the comparison table (riset-ui/24 §2b). Contract only shows when it changed. */
+const FIELD_ORDER = ['eventType', 'legalBasis', 'purpose', 'evidence', 'pseudonym'] as const
 
 function human(v: string) {
-  return (EVENT_TYPES as readonly string[]).includes(v) ? EVENT_LABELS[v as EventTypeName].toUpperCase() : v
+  return (EVENT_TYPES as readonly string[]).includes(v) ? EVENT_LABELS[v as EventTypeName] : v
 }
 
 function dbValue(field: (typeof FIELD_ORDER)[number], o: ReceiptOpening): string {
@@ -30,7 +33,7 @@ function dbValue(field: (typeof FIELD_ORDER)[number], o: ReceiptOpening): string
     case 'eventType':
       return eventVerb(o.eventType)
     case 'purpose':
-      return `"${o.purposeText}"`
+      return o.purposeText
     case 'legalBasis':
       return basisLabel(o.legalBasisKey)
     case 'evidence':
@@ -40,27 +43,62 @@ function dbValue(field: (typeof FIELD_ORDER)[number], o: ReceiptOpening): string
   }
 }
 
-/** Timer: shared DotoValue, identical to the landing ("1.8 s"). */
-function Secs({ ms, className = '' }: { ms: number; className?: string }) {
-  return <DotoValue value={(ms / 1000).toFixed(1)} unit="s" className={`text-[44px] leading-[0.9] text-vault-ink ${className}`} />
-}
+const secs = (ms: number) => (ms / 1000).toFixed(1)
 
 // ---------------------------------------------------------------------------------------------
+// Vault panel: the dark slab every verdict lives on (hero language). Seal left, label + Doto right.
+// ---------------------------------------------------------------------------------------------
 
-function SealSlab({
+type PanelTone = 'idle' | 'ok' | 'bad' | 'unknown'
+
+const PANEL_BORDER: Record<PanelTone, string> = {
+  idle: 'border-vault-line',
+  ok: 'border-ok-v/35',
+  bad: 'border-bad-v/60',
+  unknown: 'border-vault-line',
+}
+
+function VaultPanel({
   tone,
+  label,
+  labelClass,
+  time,
+  scan,
   children,
+  className = '',
 }: {
-  tone: 'idle' | 'ok' | 'bad' | 'unknown'
-  children: ReactNode
+  tone: PanelTone
+  label: string
+  labelClass: string
+  time: ReactNode
+  scan?: boolean
+  children?: ReactNode
+  className?: string
 }) {
   return (
-    <div className="vault grain flex items-center gap-4 rounded-t-[22px] bg-vault p-4 text-vault-ink">
-      <div className="relative z-[1] w-[88px] shrink-0 sm:w-[104px]">
-        <VaultSeal tone={tone} grid={false} boost={1.45} />
+    <div className={`vault grain overflow-hidden rounded-xl border bg-vault text-vault-ink ${PANEL_BORDER[tone]} ${className}`}>
+      <div className="relative z-[1] flex items-center gap-3 px-3 pt-3">
+        <VerdictSeal tone={tone} scan={scan} className="w-[128px] shrink-0" />
+        <div className="min-w-0 flex-1 pr-1">
+          <p className={`label text-[12px] font-medium ${labelClass}`}>{label}</p>
+          <div className="cz-secs mt-2 text-[52px] leading-[0.85] text-vault-ink">{time}</div>
+        </div>
       </div>
-      <div className="relative z-[1] min-w-0 flex-1">{children}</div>
+      {children ? <div className="relative z-[1] px-4 pb-4 pt-1">{children}</div> : <div className="h-3" />}
     </div>
+  )
+}
+
+/** "Checked by your phone in 0.4 s · not by Saksi's server" — X is the measured round trip, never typed. Sits on the vault panel. */
+function ByLine({ verb, ms, device, tone }: { verb: string; ms: number; device: string; tone: 'ok' | 'bad' | 'unknown' }) {
+  const c = tone === 'ok' ? 'text-ok-v' : tone === 'bad' ? 'text-bad-v' : 'text-vault-ink-2'
+  return (
+    <p className={`label flex items-start gap-2 border-t border-vault-line pt-3 text-[11px] leading-[1.5] ${c}`}>
+      <IconShield size={14} strokeWidth={2} className="mt-px shrink-0" />
+      <span>
+        {verb} by {device} in {secs(ms)} s · not by Saksi&apos;s server
+      </span>
+    </p>
   )
 }
 
@@ -76,26 +114,112 @@ function useElapsed(startedAt: number, frozen?: number): number {
   return now && startedAt ? Math.max(0, now - startedAt) : 0
 }
 
+const STEPS = ['Fetch the sealed transaction', 'Read the sealed event', 'Compare 5 fields with the database']
+
 export function VerifyRunning({ startedAt, elapsedMs }: { startedAt: number; elapsedMs?: number }) {
   const elapsed = useElapsed(startedAt, elapsedMs)
   return (
-    <div className="overflow-hidden rounded-xl border border-vault-line" aria-busy="true">
-      <SealSlab tone="idle">
-        <p className="label text-[11px] text-ice">Checking on chain</p>
-        <Secs ms={elapsed} className="mt-2" />
-        <p className="label mt-2 text-[11px] text-vault-ink-2">Your phone is asking the chain…</p>
-      </SealSlab>
-      <ol className="flex flex-col gap-0 bg-vault-2 px-4 py-3 font-mono text-[12px] text-vault-ink-2">
-        {['Fetch the sealed transaction', 'Read the sealed event', 'Compare 5 fields with the database'].map((s, i) => (
-          <li key={s} className="flex items-center gap-2.5 py-1">
-            <span
-              className={`h-1.5 w-1.5 rounded-full ${elapsed > (i + 1) * 520 ? 'bg-ice' : 'bg-dot'}`}
-              aria-hidden="true"
-            />
-            {s}
-          </li>
-        ))}
-      </ol>
+    <div aria-busy="true">
+      <VaultPanel
+        tone="idle"
+        scan
+        label="Checking on chain"
+        labelClass="text-ice"
+        time={<DotoValue value={secs(elapsed)} unit="s" />}
+      >
+        <ol className="mt-2 flex flex-col border-t border-vault-line font-mono text-[12px]">
+          {STEPS.map((s, i) => {
+            const done = elapsed > (i + 1) * 520
+            const active = !done && elapsed > i * 520
+            return (
+              <li
+                key={s}
+                className={`flex min-h-9 items-center gap-2.5 border-b border-vault-line/70 transition-colors duration-300 last:border-b-0 ${
+                  done ? 'text-vault-ink' : active ? 'text-ice' : 'text-vault-ink-2/70'
+                }`}
+              >
+                <span
+                  aria-hidden="true"
+                  className={`h-1.5 w-1.5 shrink-0 rounded-full transition-colors duration-300 ${done ? 'bg-ice' : active ? 'cz-blink bg-ice' : 'bg-dot'}`}
+                />
+                {s}
+                {done ? <IconCheck size={13} strokeWidth={2.4} className="ml-auto text-ice" /> : null}
+              </li>
+            )
+          })}
+        </ol>
+        <p className="label mt-3 text-[11px] text-vault-ink-2">Your phone is asking the chain itself</p>
+      </VaultPanel>
+    </div>
+  )
+}
+
+/**
+ * Database vs chain, stacked per changed field (riset-ui/26 C4: no side-by-side columns at 390 px):
+ * field → "Database says" struck through on a red tint → "Chain sealed" on a green tint. Unchanged
+ * fields collapse into one grey line so the difference is the only thing that reads.
+ */
+function Compare({ result, opening }: { result: VerifyResultT; opening: ReceiptOpening }) {
+  const changed = new Map(result.mismatches.map((m) => [m.field, m]))
+  const order: Field[] = [...FIELD_ORDER, 'contract']
+  const diff = order.filter((f) => changed.has(f))
+  const same = FIELD_ORDER.filter((f) => !changed.has(f))
+  return (
+    <div className="flex flex-col">
+      <p className="label border-b border-ink/80 pb-2 text-[11px] text-ink-2">
+        Comparing the database now with what was sealed
+        {result.blockNumber ? ` at block ${Number(result.blockNumber).toLocaleString('en-US')}` : ''}
+      </p>
+      <dl aria-label="What changed: database versus chain">
+        {diff.map((f, i) => {
+          const m = changed.get(f)!
+          return (
+            <div key={f} className="cz-cmp border-b border-line py-3.5" style={{ '--i': i } as CSSProperties}>
+              <dt className="flex items-center gap-2 text-[14px] font-medium text-ink">
+                {FIELD_LABEL[f]}
+                <span className="label rounded-[6px] bg-bad px-1.5 py-px text-[10px] leading-[1.6] text-white">Changed</span>
+              </dt>
+              <dd className="mt-2 flex flex-col gap-1.5 font-mono text-[13px] leading-snug break-words">
+                <span className="cz-struck relative rounded-sm bg-bad-bg px-2.5 py-2">
+                  <span className="label block text-[10px] text-bad">Database says</span>
+                  <span className="mt-0.5 block text-bad line-through decoration-bad/80 decoration-[1.5px]">
+                    <span className="sr-only">Database says: </span>
+                    {human(m.db)}
+                  </span>
+                </span>
+                <span className="rounded-sm bg-ok-bg px-2.5 py-2">
+                  <span className="label flex items-center gap-1 text-[10px] text-ok">
+                    <IconLock size={11} strokeWidth={2.4} /> Chain sealed
+                  </span>
+                  <span className="mt-0.5 block font-semibold text-ok">
+                    <span className="sr-only">Chain sealed: </span>
+                    {human(m.chain)}
+                  </span>
+                </span>
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+      {same.length ? (
+        <details className="group border-b border-line">
+          <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 text-[13px] text-ink-2 [&::-webkit-details-marker]:hidden">
+            <IconCheck size={14} strokeWidth={2.4} className="shrink-0 text-ink-3" />
+            <span className="min-w-0 flex-1">
+              {same.length} field{same.length === 1 ? '' : 's'} match: {same.map((f) => FIELD_LABEL[f]).join(', ')}
+            </span>
+            <IconArrow size={13} className="shrink-0 rotate-90 text-ink-3 transition-transform group-open:-rotate-90" aria-hidden="true" />
+          </summary>
+          <dl className="pb-3">
+            {same.map((f) => (
+              <div key={f} className="flex items-baseline justify-between gap-3 py-1 font-mono text-[12px]">
+                <dt className="label text-[11px] text-ink-2">{FIELD_LABEL[f]}</dt>
+                <dd className="min-w-0 truncate text-right text-ink-2">{dbValue(f, opening)}</dd>
+              </div>
+            ))}
+          </dl>
+        </details>
+      ) : null}
     </div>
   )
 }
@@ -104,169 +228,97 @@ export function VerifyResult({
   result,
   opening,
   onRetry,
+  onKeepEvidence,
+  onAskAi,
+  device = 'your phone',
 }: {
   result: VerifyResultT
   opening: ReceiptOpening
   onRetry?: () => void
+  /** ALTERED: "Keep as evidence" (download / share the proof). Hidden when absent. */
+  onKeepEvidence?: () => void
+  /** ALTERED: "Ask AI what this means" (AI explains, never decides). Hidden when absent. */
+  onAskAi?: () => void
+  /** Who checked: "your phone" (citizen) or "your browser" (/proof). */
+  device?: string
 }) {
   if (result.status === 'MATCH') {
     return (
-      <section aria-labelledby="vr-title" className="anim-rise relative rounded-xl border-2 border-ok bg-card">
-        <RegMarks className="bg-ok" size={8} />
-        <SealSlab tone="ok">
-          <p className="label text-[11px] text-ok-v">Verified in</p>
-          <Secs ms={result.elapsedMs} className="mt-1.5" />
-        </SealSlab>
-        <div className="p-5">
-          <div className="flex items-start gap-3.5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-ok text-white">
-              <IconCheck size={28} strokeWidth={2.6} />
-            </span>
-            <div>
-              <p className="label text-ok">
-                <span className="font-bold">MATCH</span>
-              </p>
-              <h2 id="vr-title" className="display mt-1 text-[26px] leading-[1.1] text-ink">
-                This record <span className="text-ok">matches the chain.</span>
-              </h2>
-            </div>
-          </div>
-          <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-            It is authentic and unchanged since the chain sealed it.
-          </p>
-          <p className="label mt-4 flex items-center gap-2 rounded-md bg-ok-bg px-3 py-2.5 text-[11px] text-ok">
-            <IconShield size={15} strokeWidth={2} className="shrink-0" />
-            Verified by your phone in {(result.elapsedMs / 1000).toFixed(1)} s · not by our server
-          </p>
-          <dl className="mt-4 grid grid-cols-3 gap-px overflow-hidden rounded-lg bg-line font-mono text-[12px]">
-            {[
-              ['BLOCK', result.blockNumber ? Number(result.blockNumber).toLocaleString('en-US') : '—'],
-              ['CONFIRMS', result.confirmations?.toLocaleString('en-US') ?? '—'],
-              ['NODE', result.rpc.split('.')[0] ?? result.rpc],
-            ].map(([k, v]) => (
-              <div key={k} className="bg-card p-2.5">
-                <dt className="label text-[11px] text-ink-2">{k}</dt>
-                <dd className="tnum mt-1 truncate text-ink" title={v}>
-                  {v}
-                </dd>
-              </div>
-            ))}
-          </dl>
+      <section aria-labelledby="vr-title" className="anim-rise flex flex-col gap-4">
+        <VaultPanel tone="ok" label="Match" labelClass="text-ok-v" time={<CountSecs ms={result.elapsedMs} />}>
+          <ByLine verb="Verified" ms={result.elapsedMs} device={device} tone="ok" />
+        </VaultPanel>
+        <div>
+          <Heading as="h2" id="vr-title" lead="This record" tail="matches the chain." className="text-[34px] leading-[1.04] text-ink" tailClass="text-ok" />
+          <p className="mt-2 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">It is authentic and unchanged since the chain sealed it.</p>
         </div>
+        <dl className="grid grid-cols-3 border-y border-line font-mono text-[12px]">
+          {[
+            ['Block', result.blockNumber ? Number(result.blockNumber).toLocaleString('en-US') : '—'],
+            ['Confirms', result.confirmations?.toLocaleString('en-US') ?? '—'],
+            ['Node', result.rpc.split('.')[0] ?? result.rpc],
+          ].map(([k, v], i) => (
+            <div key={k} className={`min-w-0 py-2.5 ${i ? 'border-l border-line pl-3' : ''}`}>
+              <dt className="label text-[11px] text-ink-2">{k}</dt>
+              <dd className="tnum mt-1 truncate text-ink" title={v}>
+                {v}
+              </dd>
+            </div>
+          ))}
+        </dl>
       </section>
     )
   }
 
   if (result.status === 'MISMATCH') {
-    const changed = new Map(result.mismatches.map((m) => [m.field, m]))
-    const contract = changed.get('contract')
+    const n = result.mismatches.length
     return (
-      <section aria-labelledby="vr-title" className="anim-shake relative rounded-xl border-2 border-bad bg-bad text-white">
-        <RegMarks className="bg-bad" size={8} />
-        <SealSlab tone="bad">
-          <p className="label text-[11px] text-bad-v">Checked in</p>
-          <Secs ms={result.elapsedMs} className="mt-1.5" />
-        </SealSlab>
-        <div className="p-5">
-          <div className="flex items-start gap-3.5">
-            <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-white text-bad">
-              <IconX size={28} strokeWidth={2.6} />
-            </span>
-            <div>
-              <p className="label font-bold text-white">ALTERED</p>
-              <h2 id="vr-title" className="display mt-1 text-[26px] leading-[1.1] text-white">
-                The database <span className="text-white">no longer matches what the chain sealed.</span>
-              </h2>
-            </div>
-          </div>
-          <p className="mt-3 text-[15px] leading-relaxed text-white">
-            Someone changed {result.mismatches.length === 1 ? 'one field' : `${result.mismatches.length} fields`} after
-            the record was sealed. Keep this screen as evidence.
+      <section aria-labelledby="vr-title" className="cz-verdict-bad flex flex-col gap-4">
+        <VaultPanel tone="bad" label="Altered" labelClass="text-bad-v" time={<CountSecs ms={result.elapsedMs} />}>
+          <ByLine verb="Checked" ms={result.elapsedMs} device={device} tone="bad" />
+        </VaultPanel>
+        <div>
+          <Heading as="h2" id="vr-title" lead="This record was" tail="changed after sealing." className="text-[34px] leading-[1.04] text-ink" tailClass="text-bad" />
+          <p className="mt-2 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
+            The company&apos;s database no longer matches what the chain sealed.{' '}
+            <span className="text-ink">{n === 1 ? 'One field was' : `${n} fields were`} edited.</span>
           </p>
-
-          <div role="table" aria-label="Field comparison" className="mt-4 overflow-hidden rounded-lg bg-card text-ink">
-            <div role="row" className="hidden grid-cols-[1fr_1.2fr_1.2fr] border-b border-line px-3 py-2 sm:grid">
-              {['FIELD', 'DATABASE SAYS', 'CHAIN SEALED'].map((h) => (
-                <span role="columnheader" key={h} className="label text-[11px] text-ink-2">
-                  {h}
-                </span>
-              ))}
-            </div>
-            {FIELD_ORDER.map((f) => {
-              const m = changed.get(f)
-              return (
-                <div
-                  role="row"
-                  key={f}
-                  className={`grid grid-cols-1 gap-1 border-b border-line px-3 py-2.5 last:border-b-0 sm:grid-cols-[1fr_1.2fr_1.2fr] sm:gap-3 ${
-                    m ? 'bg-bad-bg' : ''
-                  }`}
-                >
-                  <span role="cell" className="flex items-center gap-1.5 text-[13px] font-medium">
-                    {m ? (
-                      <IconX size={14} strokeWidth={2.6} className="text-bad" />
-                    ) : (
-                      <IconCheck size={14} strokeWidth={2.6} className="text-ok" />
-                    )}
-                    {FIELD_LABEL[f]}
-                    <span className="sr-only">{m ? '(changed)' : '(unchanged)'}</span>
-                  </span>
-                  <span role="cell" className="font-mono text-[12px] leading-snug break-words">
-                    <span className="label mr-1 text-[11px] text-ink-2 sm:hidden">DB:</span>
-                    <span className={m ? 'font-bold text-bad' : 'text-ink-2'}>{m ? human(m.db) : dbValue(f, opening)}</span>
-                  </span>
-                  <span role="cell" className="font-mono text-[12px] leading-snug break-words">
-                    <span className="label mr-1 text-[11px] text-ink-2 sm:hidden">CHAIN:</span>
-                    <span className={m ? 'font-bold text-ink' : 'text-ink-2'}>{m ? human(m.chain) : 'same'}</span>
-                  </span>
-                </div>
-              )
-            })}
-            {contract ? (
-              <div role="row" className="grid grid-cols-1 gap-1 bg-bad-bg px-3 py-2.5 sm:grid-cols-[1fr_2.4fr]">
-                <span role="cell" className="flex items-center gap-1.5 text-[13px] font-medium">
-                  <IconX size={14} strokeWidth={2.6} className="text-bad" /> Contract
-                </span>
-                <span role="cell" className="font-mono text-[12px] text-bad">
-                  {contract.chain}
-                </span>
-              </div>
-            ) : null}
-          </div>
         </div>
+
+        <Compare result={result} opening={opening} />
+
+        {onKeepEvidence || onAskAi ? (
+          <div className="flex flex-col gap-2.5 pt-1">
+            {onKeepEvidence ? <Act full icon={<IconDownload size={17} />} onClick={onKeepEvidence}>Keep as evidence</Act> : null}
+            {onAskAi ? (
+              <Act variant="light" full icon={<IconSpark size={16} className="text-ai" />} onClick={onAskAi}>
+                Ask AI what this means
+              </Act>
+            ) : null}
+            <p className="label text-center text-[11px] text-ink-2">AI explains · it never decides. The verdict is above.</p>
+          </div>
+        ) : null}
       </section>
     )
   }
 
   return (
-    <section aria-labelledby="vr-title" className="anim-rise relative rounded-xl border-2 border-unknown/50 bg-unknown-bg">
-      <RegMarks className="bg-unknown" size={8} />
-      <SealSlab tone="unknown">
-        <p className="label text-[11px] text-vault-ink-2">Searched for</p>
-        <Secs ms={result.elapsedMs} className="mt-1.5" />
-      </SealSlab>
-      <div className="p-5">
-        <div className="flex items-start gap-3.5">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-md bg-unknown text-white">
-            <IconQuestion size={28} strokeWidth={2.4} />
-          </span>
-          <div>
-            <p className="label font-bold text-unknown">NOT FOUND ON THIS NODE</p>
-            <h2 id="vr-title" className="display mt-1 text-[26px] leading-[1.1] text-ink">
-              No record yet. <span className="font-bold text-ink">This is not proof of tampering.</span>
-            </h2>
-          </div>
-        </div>
-        <p className="mt-3 text-[15px] leading-relaxed text-ink-2">
-          The node <span className="font-mono text-[13px] text-ink">{result.rpc}</span> has no record for this
-          fingerprint. It may be slow, or the transaction may still be mining.
+    <section aria-labelledby="vr-title" className="anim-rise flex flex-col gap-4">
+      <VaultPanel tone="unknown" label="Not found on this node" labelClass="text-vault-ink-2" time={<CountSecs ms={result.elapsedMs} />}>
+        <ByLine verb="Searched" ms={result.elapsedMs} device={device} tone="unknown" />
+      </VaultPanel>
+      <div>
+        <Heading as="h2" id="vr-title" lead="No record yet." tail="This is not proof of tampering." className="text-[34px] leading-[1.04] text-ink" tailClass="text-ink-2" />
+        <p className="mt-2 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
+          The node <span className="font-mono text-[13px] text-ink">{result.rpc}</span> has no record for this fingerprint.
+          It may be slow, or the transaction may still be mining.
         </p>
-        {onRetry ? (
-          <Button variant="light" className="mt-4" full icon={<IconRefresh size={16} />} onClick={onRetry}>
-            Try another node
-          </Button>
-        ) : null}
       </div>
+      {onRetry ? (
+        <Act variant="light" full icon={<IconRefresh size={16} />} onClick={onRetry}>
+          Try another node
+        </Act>
+      ) : null}
     </section>
   )
 }
@@ -283,6 +335,9 @@ export function VerifyStage({
   error,
   onVerify,
   onRetry,
+  onKeepEvidence,
+  onAskAi,
+  device,
 }: {
   phase: VerifyPhase
   opening: ReceiptOpening
@@ -294,21 +349,29 @@ export function VerifyStage({
   onVerify: () => void
   /** "Try another node" / "Verify again". Defaults to onVerify. */
   onRetry?: () => void
+  onKeepEvidence?: () => void
+  onAskAi?: () => void
+  device?: string
 }) {
   const retry = onRetry ?? onVerify
   return (
     <div className="flex flex-col gap-3">
       {phase === 'idle' || phase === 'error' ? (
-        <Button variant="dark" size="lg" arrow full onClick={onVerify} icon={<IconShield size={18} />}>
+        <Act full icon={<IconShield size={17} />} onClick={onVerify}>
           Verify on chain
-        </Button>
+        </Act>
       ) : null}
       <div aria-live="polite" aria-atomic="true">
         {phase === 'running' ? <VerifyRunning startedAt={startedAt} elapsedMs={elapsedMs} /> : null}
-        {phase === 'done' && result ? <VerifyResult result={result} opening={opening} onRetry={retry} /> : null}
+        {phase === 'done' && result ? (
+          <VerifyResult result={result} opening={opening} onRetry={retry} onKeepEvidence={onKeepEvidence} onAskAi={onAskAi} device={device} />
+        ) : null}
         {phase === 'error' ? (
-          <p role="alert" className="rounded-lg border border-line-strong bg-card p-3 text-[14px] text-ink-2">
-            {error ?? 'Verification failed. Check your connection.'} <span className="text-ink">Nothing was decided.</span>
+          <p role="alert" className="flex items-start gap-2.5 border-y border-line py-3 text-[14px] leading-relaxed text-ink-2">
+            <IconAlert size={16} className="mt-0.5 shrink-0 text-ink-2" />
+            <span>
+              {error ?? 'Verification failed. Check your connection.'} <span className="text-ink">Nothing was decided.</span>
+            </span>
           </p>
         ) : null}
       </div>
@@ -380,6 +443,7 @@ export function VerifyPanel({
       startedAt={startedAt}
       result={result}
       error={error}
+      device="your browser"
       onVerify={() => void onVerify()}
     />
   )

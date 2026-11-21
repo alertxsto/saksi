@@ -44,7 +44,7 @@ const kinds: Record<StatusKind, { tone: Tone; label: string; icon: ReactNode }> 
   ALTERED: { tone: 'bad', label: 'ALTERED', icon: <IconX size={14} strokeWidth={2.4} /> },
   NOT_FOUND: { tone: 'unknown', label: 'NOT FOUND', icon: <IconQuestion size={14} strokeWidth={2.2} /> },
   ON_TIME: { tone: 'ok', label: 'ON TIME', icon: <IconCheck size={14} strokeWidth={2.4} /> },
-  LATE: { tone: 'bad', label: 'LATE', icon: <IconClock size={14} strokeWidth={2.2} /> },
+  LATE: { tone: 'pending', label: 'LATE', icon: <IconClock size={14} strokeWidth={2.2} /> },
   DELETED: { tone: 'bad', label: 'DELETED', icon: <IconMinus size={14} strokeWidth={2.4} /> },
   NOT_ANCHORED: { tone: 'pending', label: 'NOT ANCHORED', icon: <IconAlert size={14} strokeWidth={2.2} /> },
   NEW: { tone: 'blue', label: 'NEW', icon: <IconSpark size={14} strokeWidth={2.2} /> },

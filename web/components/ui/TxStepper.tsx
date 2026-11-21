@@ -4,56 +4,80 @@ import type { TransactionState } from '@/lib/client/transactions'
 import { explorerLink, type ControllerTxStep, type TxErrorInfo } from '@/lib/data'
 import { shortHex } from '@/lib/format'
 import { Button } from './Button'
-import { IconAlert, IconArrowUpRight, IconCheck, IconClock, IconRefresh, IconSpinner } from './icons'
+import { DotoValue } from './DotoValue'
+import { IconArrowUpRight, IconCheck, IconClock, IconMinus, IconRefresh, IconSpinner } from './icons'
 
 export type StepState = 'done' | 'active' | 'todo' | 'error'
-export type Step = { title: string; detail?: string; state: StepState }
+export type Step = { title: string; detail?: string; state: StepState; /** amber instead of neutral for an error/waiting step */ warn?: boolean }
 
-/** Vertical 4-step transaction progress (prepare → sign → broadcast → confirm). */
-export function TxStepper({ steps, label = 'Transaction progress' }: { steps: Step[]; label?: string }) {
+/** Colour set for the two surfaces: paper (working state) and vault (the seal-confirmed moment). */
+const T = {
+  paper: {
+    line: 'border-line',
+    ink: 'text-ink',
+    ink2: 'text-ink-2',
+    done: 'bg-ok text-white',
+    active: 'border border-blue text-blue',
+    warn: 'border border-pending text-pending',
+    stop: 'border border-line-strong text-ink-2',
+    todo: 'border border-line text-ink-3',
+    warnText: 'text-pending',
+    link: 'text-blue',
+    btn: 'light' as const,
+  },
+  vault: {
+    line: 'border-vault-line',
+    ink: 'text-vault-ink',
+    ink2: 'text-vault-ink-2',
+    done: 'bg-ice text-vault',
+    active: 'border border-ice text-ice',
+    warn: 'border border-pending-v text-pending-v',
+    stop: 'border border-vault-ink-2 text-vault-ink-2',
+    todo: 'border border-vault-line text-vault-ink-2',
+    warnText: 'text-pending-v',
+    link: 'text-ice',
+    btn: 'vault' as const,
+  },
+}
+
+/**
+ * Vertical 4-step transaction progress (prepare → sign → broadcast → confirm): a quiet ✓ row per finished
+ * step, a spinner on the running one, future steps grey (Mobbin K4, Midjourney). Paper by default.
+ */
+export function TxStepper({ steps, label = 'Transaction progress', onVault = false }: { steps: Step[]; label?: string; onVault?: boolean }) {
+  const t = onVault ? T.vault : T.paper
   return (
-    <ol aria-label={label} className="relative flex flex-col">
+    <ol aria-label={label} className="flex flex-col">
       {steps.map((s, i) => {
-        const last = i === steps.length - 1
-        const box =
-          s.state === 'done'
-            ? 'bg-ok text-white border-ok'
-            : s.state === 'active'
-              ? 'bg-blue text-white border-blue'
-              : s.state === 'error'
-                ? 'bg-bad text-white border-bad'
-                : 'bg-card text-ink-2 border-line-strong'
+        const marker =
+          s.state === 'done' ? t.done : s.state === 'active' ? (s.warn ? t.warn : t.active) : s.state === 'error' ? (s.warn ? t.warn : t.stop) : t.todo
         return (
-          <li key={s.title} className="relative flex gap-3.5 pb-5 last:pb-0" aria-current={s.state === 'active' ? 'step' : undefined}>
-            {!last ? (
-              <span
-                aria-hidden="true"
-                className={`absolute left-[13px] top-7 bottom-0 w-px ${s.state === 'done' ? 'bg-ok' : 'bg-line-strong'}`}
-              />
-            ) : null}
-            <span className={`relative z-[1] flex h-7 w-7 shrink-0 items-center justify-center rounded-sm border font-mono text-[12px] ${box}`}>
+          <li
+            key={s.title}
+            className={`flex items-start gap-3.5 border-t py-3 first:border-t-0 first:pt-0 last:pb-0 ${t.line}`}
+            aria-current={s.state === 'active' ? 'step' : undefined}
+          >
+            <span className={`mt-px flex size-6 shrink-0 items-center justify-center rounded-full font-mono text-[11px] transition-colors duration-300 ${marker}`}>
               {s.state === 'done' ? (
-                <IconCheck size={15} strokeWidth={2.6} />
+                <IconCheck key="d" size={13} strokeWidth={2.8} className="ctl-stamp" />
               ) : s.state === 'active' ? (
-                <IconSpinner size={14} strokeWidth={2.4} />
+                s.warn ? <IconClock size={13} strokeWidth={2.4} /> : <IconSpinner size={13} strokeWidth={2.4} />
               ) : s.state === 'error' ? (
-                <IconAlert size={14} strokeWidth={2.4} />
+                s.warn ? <IconClock size={13} strokeWidth={2.4} /> : <IconMinus size={13} strokeWidth={2.6} />
               ) : (
-                `0${i + 1}`
+                i + 1
               )}
             </span>
-            <span className="min-w-0 pt-0.5">
-              <span className={`block text-[14px] font-medium ${s.state === 'todo' ? 'text-ink-2' : 'text-ink'}`}>
+            <span className="min-w-0 flex-1">
+              <span className={`block text-[15px] font-medium leading-snug ${s.state === 'todo' ? t.ink2 : t.ink}`}>
                 {s.title}
                 <span className="sr-only">
                   {' '}
-                  — {s.state === 'done' ? 'done' : s.state === 'active' ? 'in progress' : s.state === 'error' ? 'failed' : 'not started'}
+                  — {s.state === 'done' ? 'done' : s.state === 'active' ? 'in progress' : s.state === 'error' ? 'stopped' : 'not started'}
                 </span>
               </span>
               {s.detail ? (
-                <span className={`mt-0.5 block break-words font-mono text-[12px] ${s.state === 'error' ? 'text-bad' : 'text-ink-2'}`}>
-                  {s.detail}
-                </span>
+                <span className={`mt-0.5 block break-words font-mono text-[12px] ${s.warn && s.state !== 'todo' ? t.warnText : t.ink2}`}>{s.detail}</span>
               ) : null}
             </span>
           </li>
@@ -154,95 +178,156 @@ export const DEFAULT_TX_COPY: TxStepCopy = {
   confirmed: { title: 'Confirmed', detail: 'On chain · the citizen sees it as RECORDED' },
 }
 
-function buildSteps(tx: TxView, copy: TxStepCopy, kind: TxErrorKind): Step[] {
+export function buildSteps(tx: TxView, copy: TxStepCopy = DEFAULT_TX_COPY): Step[] {
+  const kind = tx.phase === 'error' ? txErrorKind(tx.error, Boolean(tx.txHash)) : 'other'
   const active = tx.phase === 'error' ? (tx.failedStep ?? 'preparing') : tx.phase
   const activeIdx = tx.phase === 'idle' ? -1 : ORDER.indexOf(active as ControllerTxStep)
   return ORDER.map((k, i) => {
     let state: StepState = 'todo'
     let detail = copy[k].detail
+    let warn = false
     if (tx.phase === 'confirmed') state = 'done'
     else if (i < activeIdx) state = 'done'
     else if (i === activeIdx) state = tx.phase === 'error' ? (kind === 'timeout' ? 'active' : 'error') : 'active'
     if (k === 'signing' && state === 'active') detail = 'Waiting for your signature in MetaMask…'
     if (k === 'signing' && state === 'done' && tx.txHash) detail = `Signed · tx ${shortHex(tx.txHash)}`
     if (k === 'broadcast' && state === 'active' && tx.phase !== 'error') detail = 'Usually 12–20 seconds…'
-    if (k === 'broadcast' && state === 'active' && kind === 'timeout') detail = 'Not confirmed yet · the network is slow'
+    if (k === 'broadcast' && state === 'active' && kind === 'timeout') {
+      detail = 'Not confirmed yet · the network is slow'
+      warn = true
+    }
     if (k === 'broadcast' && state === 'done' && tx.blockNumber != null) detail = `Mined in block ${Number(tx.blockNumber).toLocaleString('en-US')}`
     if (state === 'error' && tx.error) detail = kind === 'rejected' ? 'Rejected in MetaMask' : kind === 'revert' ? 'Reverted by the contract' : 'Stopped · see below'
-    return { title: copy[k].title, detail, state }
+    return { title: copy[k].title, detail, state, warn }
   })
 }
 
+/** One-line headline for the chamber: what is happening right now. */
+export function txHeadline(tx: TxView): { title: string; tone: 'idle' | 'live' | 'done' | 'warn' | 'stopped' } {
+  const kind = tx.phase === 'error' ? txErrorKind(tx.error, Boolean(tx.txHash)) : 'other'
+  switch (tx.phase) {
+    case 'idle':
+      return { title: 'Nothing sealed yet', tone: 'idle' }
+    case 'preparing':
+      return { title: 'Fingerprinting the record', tone: 'live' }
+    case 'signing':
+      return { title: 'Waiting for your signature', tone: 'live' }
+    case 'broadcast':
+      return { title: 'On its way to the chain', tone: 'live' }
+    case 'confirmed':
+      return { title: 'Sealed on chain', tone: 'done' }
+    case 'error':
+      return kind === 'timeout'
+        ? { title: tx.reconfirming ? 'Checking the chain again…' : 'Sent · not confirmed yet', tone: 'warn' }
+        : kind === 'rejected'
+          ? { title: 'Rejected in MetaMask', tone: 'stopped' }
+          : kind === 'revert'
+            ? { title: 'Refused by the contract', tone: 'stopped' }
+            : { title: 'Stopped before sealing', tone: 'stopped' }
+  }
+}
+
+/** Big Doto block number for the seal-confirmed moment (only when the hook reports one). */
+export function TxBlock({ blockNumber }: { blockNumber?: number | bigint | null }) {
+  if (blockNumber == null) return null
+  return (
+    <p className="flex flex-col gap-2">
+      <span className="font-mono text-[11px] uppercase tracking-[0.06em] text-vault-ink-2">Mined in block</span>
+      <span className="text-[40px] leading-none text-vault-ink">
+        <DotoValue value={String(Number(blockNumber))} />
+      </span>
+    </p>
+  )
+}
+
+/** Human copy for a contract revert reason. Unknown names fall back to a plain sentence, never the identifier. */
+const REVERT_COPY: Record<string, string> = {
+  ControllerNotActive: 'Your controller registration is not active',
+  NotController: 'This wallet is not a registered controller',
+  ClaimedWindowExpired: 'The 72-hour window has passed',
+  AlreadyAnchored: 'This was already sealed',
+}
+export function revertReason(errorName?: string): string {
+  return (errorName && REVERT_COPY[errorName]) || 'The contract refused this transaction'
+}
+
 /**
- * The right-column transaction card: 4 steps, then recovery for the 3 error kinds.
+ * The transaction progression: 4 steps, then recovery for the 3 error kinds.
  * - rejected in MetaMask → "Try again" (onRetry)
  * - revert → reason text + "Try again" (onRetry)
  * - timeout → "Re-confirm" (onReconfirm); the tx is already sent, so never sign again.
+ * No red: a refused or unconfirmed transaction is not tampering (amber = waiting, grey = stopped).
  */
 export function TxFlow({
   tx,
   copy = DEFAULT_TX_COPY,
   onRetry,
   onReconfirm,
+  onVault = false,
 }: {
   tx: TxView
   copy?: TxStepCopy
   onRetry?: () => void
   onReconfirm?: () => void
+  /** Draw on the dark vault surface (the seal-confirmed moment). */
+  onVault?: boolean
 }) {
+  const t = onVault ? T.vault : T.paper
   const hasHash = Boolean(tx.txHash)
   const kind = tx.phase === 'error' ? txErrorKind(tx.error, hasHash) : 'other'
-  const steps = buildSteps(tx, copy, kind)
+  const steps = buildSteps(tx, copy)
+  const block = `ctl-in flex flex-col items-start gap-3 border-t pt-4 ${t.line}`
 
   return (
     <div className="flex flex-col gap-5">
       <div aria-live="polite">
-        <TxStepper steps={steps} />
+        <TxStepper steps={steps} onVault={onVault} />
       </div>
 
       {tx.phase === 'error' && kind === 'rejected' ? (
-        <div className="flex flex-col items-start gap-3 rounded-md border border-line bg-paper-2/60 p-4" role="alert">
-          <p className="text-[14px] text-ink">
-            <strong className="font-semibold">You rejected the signature in MetaMask.</strong> Nothing was sent to the chain.
+        <div key="rejected" className={block} role="alert">
+          <p className={`text-[14px] leading-relaxed ${t.ink}`}>
+            <strong className="font-semibold">You rejected the signature in MetaMask.</strong>{' '}
+            <span className={t.ink2}>Nothing was sent to the chain.</span>
           </p>
-          <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
+          <Button variant={t.btn} size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
             Try again
           </Button>
         </div>
       ) : null}
 
       {tx.phase === 'error' && kind === 'revert' ? (
-        <div className="flex flex-col items-start gap-3 rounded-md border border-bad/30 bg-bad-bg p-4" role="alert">
-          <p className="label flex items-center gap-1.5 text-bad">
-            <IconAlert size={14} strokeWidth={2.2} /> Reverted{tx.error?.errorName ? ` · ${tx.error.errorName}` : ''}
+        <div key="revert" className={block} role="alert">
+          {/* raw contract error names stay out of the copy; the code is kept in the tooltip for support */}
+          <p className={`text-[14px] font-medium ${t.ink}`} title={tx.error?.errorName ? `Contract: ${tx.error.errorName}` : undefined}>
+            {revertReason(tx.error?.errorName)}
           </p>
-          <p className="text-[14px] leading-relaxed text-ink">{tx.error?.message ?? 'The contract refused this transaction.'}</p>
-          <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
+          <p className={`text-[14px] leading-relaxed ${t.ink2}`}>{tx.error?.message ?? 'The contract refused this transaction.'}</p>
+          <Button variant={t.btn} size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
             Try again
           </Button>
         </div>
       ) : null}
 
       {tx.phase === 'error' && kind === 'timeout' ? (
-        <div className="flex flex-col items-start gap-3 rounded-md border border-pending/30 bg-pending-bg p-4" role="alert">
-          <p className="label flex items-center gap-1.5 text-pending">
-            <IconClock size={14} strokeWidth={2.2} /> Not confirmed yet
+        <div key="timeout" className={block} role="alert">
+          <p className={`flex items-center gap-1.5 font-mono text-[12px] ${t.warnText}`}>
+            <IconClock size={13} strokeWidth={2.2} /> Not confirmed yet
           </p>
-          <p className="text-[14px] leading-relaxed text-ink">
+          <p className={`text-[14px] leading-relaxed ${t.ink2}`}>
             The transaction was sent but is not confirmed yet.{' '}
-            <strong className="font-semibold">Don’t sign again</strong> — your transaction is already on its way. Re-confirm only
-            checks it.
+            <strong className={`font-semibold ${t.ink}`}>Don’t sign again</strong>: it is already on its way. Re-confirm only checks it.
           </p>
-          <Button variant="dark" size="sm" arrow loading={tx.reconfirming} disabled={tx.reconfirming} onClick={onReconfirm}>
+          <Button variant={onVault ? 'vault' : 'dark'} size="sm" arrow loading={tx.reconfirming} disabled={tx.reconfirming} onClick={onReconfirm}>
             {tx.reconfirming ? 'Checking…' : 'Re-confirm'}
           </Button>
         </div>
       ) : null}
 
       {tx.phase === 'error' && kind === 'other' ? (
-        <div className="flex flex-col items-start gap-3 rounded-md border border-line bg-paper-2/60 p-4" role="alert">
-          <p className="text-[14px] text-ink">{tx.error?.message ?? 'Something went wrong.'}</p>
-          <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
+        <div key="other" className={block} role="alert">
+          <p className={`text-[14px] leading-relaxed ${t.ink}`}>{tx.error?.message ?? 'Something went wrong.'}</p>
+          <Button variant={t.btn} size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
             Try again
           </Button>
         </div>
@@ -253,7 +338,7 @@ export function TxFlow({
           href={explorerLink('tx', tx.txHash)}
           target="_blank"
           rel="noreferrer"
-          className="inline-flex items-center gap-1.5 self-start font-mono text-[13px] text-blue underline-offset-4 hover:underline"
+          className={`inline-flex items-center gap-1.5 self-start font-mono text-[13px] underline-offset-4 hover:underline ${t.link}`}
         >
           tx {shortHex(tx.txHash, 10, 6)} <IconArrowUpRight size={13} />
           <span className="sr-only">(opens the block explorer)</span>

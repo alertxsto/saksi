@@ -1,11 +1,11 @@
 'use client'
 
-import { useId, useState } from 'react'
+import { useId, useRef, useState, type KeyboardEvent, type ReactNode } from 'react'
 import { stringToHex } from 'viem'
+import { OdoText } from '@/components/landing/OdoText'
+import { PhonePreview } from '@/components/controller/PhonePreview'
 import { Button } from '@/components/ui/Button'
-import { Chip } from '@/components/ui/Chip'
 import { IconLock } from '@/components/ui/icons'
-import { ReceiptCard } from '@/components/ui/ReceiptCard'
 import { useNow } from '@/lib/hooks'
 import {
   EVENT_LABELS,
@@ -15,6 +15,7 @@ import {
   type EventTypeCode,
   type LegalBasisKey,
   type ReceiptOpening,
+  type RecordStatus,
 } from '@/lib/shared/types'
 
 /** What onSeal receives. Add controllerId and it is RecordAccessInput (lib/client/controller.ts). */
@@ -36,6 +37,7 @@ const BASIS_HINT: Record<LegalBasisKey, string> = {
 
 /** Citizen code alphabet (same as lib/server/citizen.ts): no 0, O, 1 or I. */
 const CODE_ALPHABET = /^[A-HJ-NP-Z2-9]*$/
+const CODE_CHAR = /^[A-HJ-NP-Z2-9]$/
 export const PURPOSE_MAX = 120
 const PURPOSE_MIN = 3
 
@@ -59,15 +61,117 @@ export const DEFAULT_ACCESS_VALUES: AccessFormValues = {
   legalBasisKey: 'PDP-20-2-b',
 }
 
+/** Arrow keys move a radio group's selection (WAI-ARIA radio pattern). */
+function arrowPick<T>(e: KeyboardEvent, list: readonly T[], current: T, pick: (v: T) => void) {
+  const d = e.key === 'ArrowRight' || e.key === 'ArrowDown' ? 1 : e.key === 'ArrowLeft' || e.key === 'ArrowUp' ? -1 : 0
+  if (!d) return
+  e.preventDefault()
+  const next = list[(list.indexOf(current) + d + list.length) % list.length]
+  pick(next)
+  const group = e.currentTarget as HTMLElement
+  requestAnimationFrame(() => group.querySelector<HTMLElement>('[aria-checked="true"]')?.focus())
+}
+
+/** One hairline ledger row: label + hint on the left, the control on the right. */
+function Row({ label, htmlFor, hint, children, as = 'div' }: { label: string; htmlFor?: string; hint?: ReactNode; children: ReactNode; as?: 'div' | 'fieldset' }) {
+  const Tag = as
+  const labelId = useId()
+  return (
+    <Tag
+      {...(as === 'fieldset' ? { 'aria-labelledby': labelId } : {})}
+      className="grid min-w-0 gap-x-8 gap-y-3 border-t border-line py-6 sm:grid-cols-[156px_1fr]"
+    >
+      <div className="flex flex-col gap-1.5 sm:pt-1">
+        {htmlFor ? (
+          <label htmlFor={htmlFor} className="label text-[11px] text-ink">
+            {label}
+          </label>
+        ) : (
+          <p id={labelId} className="label text-[11px] text-ink">
+            {label}
+          </p>
+        )}
+        {hint ? <span className="text-[13px] leading-snug text-ink-2">{hint}</span> : null}
+      </div>
+      <div className="min-w-0">{children}</div>
+    </Tag>
+  )
+}
+
+/** Six code slots over one real input (paste and autofill work; the input carries label + errors). */
+function CodeSlots({
+  id,
+  value,
+  invalid,
+  describedBy,
+  onChange,
+}: {
+  id: string
+  value: string
+  invalid: boolean
+  describedBy: string
+  onChange: (v: string) => void
+}) {
+  const [focus, setFocus] = useState(false)
+  const active = Math.min(value.length, 5)
+  return (
+    <div className="relative max-w-[420px]">
+      <input
+        id={id}
+        value={value}
+        onChange={(e) => onChange(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6))}
+        onFocus={() => setFocus(true)}
+        onBlur={() => setFocus(false)}
+        inputMode="text"
+        autoComplete="off"
+        autoCapitalize="characters"
+        spellCheck={false}
+        aria-invalid={invalid}
+        aria-describedby={describedBy}
+        className="absolute inset-0 z-10 h-full w-full cursor-text rounded-md opacity-0"
+      />
+      <div aria-hidden="true" className="grid grid-cols-6 gap-2">
+        {Array.from({ length: 6 }, (_, i) => {
+          const ch = value[i] ?? ''
+          const bad = ch && !CODE_CHAR.test(ch)
+          const isActive = focus && i === active && value.length < 6
+          const isFull = focus && value.length === 6 && i === 5
+          return (
+            <span
+              key={i}
+              className={`relative flex h-[60px] items-center justify-center rounded-md border font-mono text-[26px] font-medium transition-[border-color,background-color] duration-150 ${
+                bad
+                  ? 'border-pending bg-pending-bg text-pending'
+                  : isActive || isFull
+                    ? 'border-blue bg-card text-ink'
+                    : ch
+                      ? 'border-line-strong bg-card text-ink'
+                      : invalid
+                        ? 'border-pending/60 bg-paper-2/60'
+                        : 'border-line bg-paper-2/60'
+              }`}
+            >
+              {ch ? <span key={ch + i} className="ctl-stamp">{ch}</span> : null}
+              {isActive ? <span className="ctl-caret absolute h-7 w-[2px] rounded-full bg-blue" /> : null}
+            </span>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
 /**
- * Record-access form + live "What the citizen will see" preview. Field state lives here; the
- * parent only gets validated values through onSeal.
+ * Record-access form + live "What the citizen will see" phone. Field state lives here; the parent only
+ * gets validated values through onSeal. `aside` renders under the phone (the transaction chamber).
  */
 export function RecordAccessForm({
   controllerName,
   initial,
   showErrors = false,
   busy = false,
+  previewStatus = 'pending',
+  aside,
   onSeal,
 }: {
   controllerName: string
@@ -75,12 +179,17 @@ export function RecordAccessForm({
   /** Show validation messages before the first submit (dev gallery). */
   showErrors?: boolean
   busy?: boolean
+  /** Status the preview receipt shows (mirror the transaction: anchored once it confirms). */
+  previewStatus?: RecordStatus
+  /** Rendered in the right column under the phone preview. */
+  aside?: ReactNode
   onSeal: (values: AccessFormValues) => void
 }) {
   const [v, setV] = useState<AccessFormValues>({ ...DEFAULT_ACCESS_VALUES, ...initial })
   const [touched, setTouched] = useState(showErrors)
   const now = useNow()
   const ids = { code: useId(), purpose: useId(), basis: useId() }
+  const formRef = useRef<HTMLFormElement>(null)
 
   const cErr = codeError(v.subjectCode)
   const pErr = purposeError(v.purposeText)
@@ -99,140 +208,146 @@ export function RecordAccessForm({
     evidence: {},
     txHash: null,
     logIndex: null,
-    status: 'pending',
+    status: previewStatus,
     createdAt: new Date(now || 0).toISOString(),
   }
 
   const onSubmit = () => {
     setTouched(true)
-    if (!valid || busy) return
+    if (!valid || busy) {
+      formRef.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus()
+      return
+    }
     onSeal({ ...v, purposeText: v.purposeText.trim() })
   }
 
+  const codeInvalid = touched && Boolean(cErr)
+  const purposeInvalid = touched && Boolean(pErr)
+
   return (
-    <div className="flex flex-col gap-8">
+    <div className="grid gap-x-12 gap-y-12 lg:grid-cols-12">
       <form
-        className="flex flex-col gap-6 rounded-lg border border-line bg-card p-5 md:p-6"
+        ref={formRef}
+        className="flex min-w-0 flex-col lg:col-span-7"
+        aria-label="Record an access"
         onSubmit={(e) => {
           e.preventDefault()
           onSubmit()
         }}
         noValidate
       >
-        <div>
-          <label htmlFor={ids.code} className="label text-ink">
-            Citizen code
-          </label>
-          <input
+        <Row label="Citizen code" htmlFor={ids.code} hint="The code the citizen shows you.">
+          <CodeSlots
             id={ids.code}
             value={v.subjectCode}
-            onChange={(e) => set({ subjectCode: e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 6) })}
-            inputMode="text"
-            autoComplete="off"
-            autoCapitalize="characters"
-            spellCheck={false}
-            aria-invalid={touched && Boolean(cErr)}
-            aria-describedby={`${ids.code}-h`}
-            className="mt-2 h-14 w-full rounded-md border border-line-strong bg-paper-2 px-4 font-mono text-[24px] tracking-[0.3em] text-ink outline-none placeholder:text-ink-3 focus:border-blue aria-[invalid=true]:border-pending"
-            placeholder="K7M2QD"
+            invalid={codeInvalid}
+            describedBy={`${ids.code}-h`}
+            onChange={(subjectCode) => set({ subjectCode })}
           />
-          <p id={`${ids.code}-h`} className={`mt-1.5 text-[13px] ${touched && cErr ? 'text-pending' : 'text-ink-2'}`}>
-            {touched && cErr ? cErr : 'The 6-character code the citizen shows you. Letters are capitalised for you.'}
+          <p id={`${ids.code}-h`} className={`mt-2.5 text-[13px] ${codeInvalid ? 'text-pending' : 'text-ink-2'}`}>
+            {codeInvalid ? cErr : 'Six characters. Letters are capitalised for you; codes never use 0, O, 1 or I.'}
           </p>
-        </div>
+        </Row>
 
-        <fieldset>
-          <legend className="label text-ink">Access type</legend>
+        <Row label="Access type" as="fieldset" hint="What you did with the data.">
           <div
-            className="mt-2 grid grid-cols-2 gap-px overflow-hidden rounded-md border border-line-strong bg-line-strong sm:grid-cols-4"
+            className="grid grid-cols-2 gap-2 sm:grid-cols-4"
             role="radiogroup"
             aria-label="Access type"
+            onKeyDown={(e) => arrowPick(e, [0, 1, 2, 3] as EventTypeCode[], v.eventType, (eventType) => set({ eventType }))}
           >
             {EVENT_TYPES.map((name, i) => {
               const code = i as EventTypeCode
+              const on = v.eventType === code
               return (
                 <button
                   key={name}
                   type="button"
                   role="radio"
-                  aria-checked={v.eventType === code}
+                  aria-checked={on}
+                  tabIndex={on ? 0 : -1}
                   onClick={() => set({ eventType: code })}
-                  className={`label min-h-12 px-2 text-[11px] leading-tight transition-colors ${
-                    v.eventType === code ? 'bg-ink text-paper' : 'bg-card text-ink-2 hover:text-ink'
+                  className={`flex min-h-14 items-center justify-center rounded-md border px-3 py-2 text-center text-[14px] font-medium leading-tight transition-[background-color,border-color,color] duration-150 ease-[cubic-bezier(.65,0,.2,1)] ${
+                    on ? 'border-ink bg-ink text-paper' : 'border-line-strong bg-card text-ink hover:border-ink'
                   }`}
                 >
-                  {EVENT_LABELS[name].toUpperCase()}
+                  {EVENT_LABELS[name]}
                 </button>
               )
             })}
           </div>
-        </fieldset>
+        </Row>
 
-        <div>
-          <div className="flex items-baseline justify-between">
-            <label htmlFor={ids.purpose} className="label text-ink">
-              Purpose
-            </label>
-            <span className={`tnum font-mono text-[12px] ${v.purposeText.length >= PURPOSE_MAX ? 'text-pending' : 'text-ink-2'}`}>
+        <Row label="Purpose" htmlFor={ids.purpose} hint="Plain words. The citizen reads exactly this.">
+          <div className="relative">
+            <input
+              id={ids.purpose}
+              value={v.purposeText}
+              maxLength={PURPOSE_MAX}
+              onChange={(e) => set({ purposeText: e.target.value })}
+              aria-invalid={purposeInvalid}
+              aria-describedby={`${ids.purpose}-h`}
+              className="h-[52px] w-full rounded-md border border-line-strong bg-card pl-4 pr-20 text-[16px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue aria-[invalid=true]:border-pending"
+              placeholder="e.g. Debt collection"
+            />
+            <span
+              className={`tnum pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 font-mono text-[12px] ${v.purposeText.length >= PURPOSE_MAX ? 'text-pending' : 'text-ink-3'}`}
+              aria-hidden="true"
+            >
               {v.purposeText.length}/{PURPOSE_MAX}
             </span>
           </div>
-          <input
-            id={ids.purpose}
-            value={v.purposeText}
-            maxLength={PURPOSE_MAX}
-            onChange={(e) => set({ purposeText: e.target.value })}
-            aria-invalid={touched && Boolean(pErr)}
-            aria-describedby={`${ids.purpose}-h`}
-            className="mt-2 h-12 w-full rounded-md border border-line-strong bg-paper-2 px-4 text-[16px] text-ink outline-none placeholder:text-ink-3 focus:border-blue aria-[invalid=true]:border-pending"
-            placeholder="e.g. Debt collection"
-          />
-          <p id={`${ids.purpose}-h`} className={`mt-1.5 text-[13px] ${touched && pErr ? 'text-pending' : 'text-ink-2'}`}>
-            {touched && pErr ? pErr : 'Plain words. The citizen reads exactly this.'}
+          <p id={`${ids.purpose}-h`} className={`mt-2.5 text-[13px] ${purposeInvalid ? 'text-pending' : 'text-ink-2'}`}>
+            {purposeInvalid ? pErr : `${v.purposeText.length} of ${PURPOSE_MAX} characters.`}
           </p>
-        </div>
+        </Row>
 
-        <div>
-          <label htmlFor={ids.basis} className="label text-ink">
-            Legal basis · UU PDP Art. 20(2)
-          </label>
-          <div className="mt-2 flex flex-col items-start gap-2">
-            <select
-              id={ids.basis}
-              value={v.legalBasisKey}
-              onChange={(e) => set({ legalBasisKey: e.target.value as LegalBasisKey })}
-              aria-describedby={`${ids.basis}-h`}
-              className="h-12 w-full rounded-md border border-line-strong bg-paper-2 px-3 text-[16px] text-ink outline-none focus:border-blue"
-            >
-              {LEGAL_BASIS_KEYS.map((k) => (
-                <option key={k} value={k}>
-                  ({k.slice(-1)}) {LEGAL_BASES[k]}
-                </option>
-              ))}
-            </select>
-            <span id={`${ids.basis}-h`}>
-              <Chip tone="blue">{BASIS_HINT[v.legalBasisKey]}</Chip>
-            </span>
+        <Row label="Legal basis" as="fieldset" hint="UU PDP Art. 20(2). Pick the one that applies.">
+          <div
+            id={ids.basis}
+            className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-3"
+            role="radiogroup"
+            aria-label="Legal basis, UU PDP Art. 20(2)"
+            onKeyDown={(e) => arrowPick(e, LEGAL_BASIS_KEYS, v.legalBasisKey, (legalBasisKey) => set({ legalBasisKey }))}
+          >
+            {LEGAL_BASIS_KEYS.map((k) => {
+              const on = v.legalBasisKey === k
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  tabIndex={on ? 0 : -1}
+                  onClick={() => set({ legalBasisKey: k })}
+                  className={`flex min-h-[72px] flex-col items-start gap-1 rounded-md border px-3.5 py-3 text-left transition-[background-color,border-color] duration-150 ${
+                    on ? 'border-ink bg-card shadow-[inset_0_0_0_1px_var(--color-ink)]' : 'border-line-strong bg-card hover:border-ink'
+                  }`}
+                >
+                  <span className="flex items-baseline gap-1.5 text-[14px] font-medium text-ink">
+                    <span className={`font-mono text-[12px] ${on ? 'text-ink' : 'text-ink-3'}`}>({k.slice(-1)})</span>
+                    {LEGAL_BASES[k]}
+                  </span>
+                  <span className="text-[12px] leading-snug text-ink-2">{BASIS_HINT[k]}</span>
+                </button>
+              )
+            })}
           </div>
+        </Row>
+
+        <div className="flex flex-col gap-5 border-t border-line pt-6 sm:flex-row sm:items-center sm:justify-between">
+          <p className="flex max-w-[38ch] items-start gap-2.5 text-[14px] leading-snug text-ink-2">
+            <IconLock size={15} className="mt-0.5 shrink-0" /> Only a pseudonym and a fingerprint go on chain. No names, no ID numbers.
+          </p>
+          <Button type="submit" variant="dark" size="lg" arrow loading={busy} disabled={busy} className="sm:min-w-[232px]">
+            {busy ? 'Sealing…' : <OdoText>Seal on chain</OdoText>}
+          </Button>
         </div>
-
-        <p className="flex items-center gap-2 border-t border-dashed border-line-strong pt-4 text-[14px] text-ink-2">
-          <IconLock size={15} className="shrink-0" /> Only a pseudonym and a fingerprint go on-chain. No names, no ID numbers.
-        </p>
-
-        <Button type="submit" variant="dark" size="lg" arrow loading={busy} disabled={busy}>
-          {busy ? 'Sealing…' : 'Seal on chain'}
-        </Button>
       </form>
 
-      <div>
-        <p className="label mb-3 text-ink-2">What the citizen will see</p>
-        <div className="flex max-w-[420px] flex-col gap-2" inert>
-          <ReceiptCard opening={preview} now={now} isNew />
-          <p className="label px-1 text-[11px] text-ink-2">
-            Legal basis · {LEGAL_BASES[v.legalBasisKey]} ({v.legalBasisKey})
-          </p>
-        </div>
+      <div className="flex min-w-0 flex-col gap-10 lg:col-span-5">
+        <PhonePreview opening={preview} code={v.subjectCode} legalBasisKey={v.legalBasisKey} now={now} />
+        {aside}
       </div>
     </div>
   )

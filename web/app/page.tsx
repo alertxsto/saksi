@@ -39,7 +39,7 @@ export default function Landing() {
         </div>
         <DotCurtain from="vault" to="paper" />
 
-        <div className="relative pb-24 md:pb-40">
+        <div className="relative pb-8 md:pb-40">
           <FrameRules />
           <BreachClock />
           <Roles />

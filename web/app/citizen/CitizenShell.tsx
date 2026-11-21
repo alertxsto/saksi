@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { CitizenReveal } from '@/components/citizen/motion'
 import { Logo } from '@/components/ui/Logo'
 
 /** Mobile column + header shared by the citizen layout and the /dev/states/citizen gallery frames. */
@@ -20,7 +21,7 @@ export function CitizenShell({ children, frame }: { children: ReactNode; frame?:
           id={frame ? undefined : 'main'}
           className="flex flex-1 flex-col px-4 pb-[calc(5rem+env(safe-area-inset-bottom))] pt-5"
         >
-          {children}
+          <CitizenReveal>{children}</CitizenReveal>
         </main>
       </div>
     </div>

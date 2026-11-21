@@ -14,9 +14,9 @@ import { BEATS, CALLOUTS, type CalloutDef, DID_BEFORE, didText, PIN_VH, scramble
 
 export { LatticeObject } from './lattice/LatticeObject'
 
-const PIN_MQ = '(min-width: 768px) and (min-height: 620px) and (prefers-reduced-motion: no-preference)'
-const SHOW_PIN = 'hidden [@media(min-width:768px)_and_(min-height:620px)_and_(prefers-reduced-motion:no-preference)]:block'
-const SHOW_STACK = '[@media(min-width:768px)_and_(min-height:620px)_and_(prefers-reduced-motion:no-preference)]:hidden'
+const PIN_MQ = '(min-width: 1024px) and (min-height: 620px) and (prefers-reduced-motion: no-preference)'
+const SHOW_PIN = 'hidden [@media(min-width:1024px)_and_(min-height:620px)_and_(prefers-reduced-motion:no-preference)]:block'
+const SHOW_STACK = '[@media(min-width:1024px)_and_(min-height:620px)_and_(prefers-reduced-motion:no-preference)]:hidden'
 
 const H2_A = ['One record.', 'One fingerprint. Checked by you.'] as const
 const H2_B = ['Edit the database.', 'The chain remembers.'] as const
@@ -268,7 +268,7 @@ function Split({ mobile = false }: { mobile?: boolean }) {
         className="label absolute left-0 top-0 inline-flex h-7 items-center gap-2 whitespace-nowrap rounded-pill bg-bad-v px-3 font-semibold text-vault opacity-0"
       >
         <IconX />
-        Altered · 1 field changed after sealing
+        Altered · 1 field changed<span className="max-sm:hidden">&nbsp;after sealing</span>
       </span>
     </div>
   )
@@ -313,57 +313,65 @@ function Split({ mobile = false }: { mobile?: boolean }) {
 function Stacked() {
   return (
     <div data-stack className={SHOW_STACK}>
-      <div className="vault grain mx-3 overflow-hidden rounded-xl bg-vault px-5 pb-14 pt-12 text-vault-ink sm:mx-6 sm:px-10">
+      <div className="vault grain mx-3 overflow-hidden rounded-xl bg-vault px-5 pb-14 pt-12 text-vault-ink sm:mx-6 sm:px-10 md:pb-20 md:pt-16">
         <h2 className="display text-[clamp(32px,8.6vw,48px)] font-semibold">
           {H2_A[0]} <span className="text-vault-ink-2">{H2_A[1]}</span>
         </h2>
         {BEATS.map((b, k) => (
-          <div key={b.id} data-mbeat={k} className="mt-14">
+          <div key={b.id} data-mbeat={k} className="mt-14 md:mt-20">
             {k === 3 ? (
-              <h2 className="display mb-12 border-t border-vault-line pt-12 text-[clamp(32px,8.6vw,48px)] font-semibold">
+              <h2 className="display mb-12 border-t border-vault-line pt-12 text-[clamp(32px,8.6vw,48px)] font-semibold md:mb-16 md:pt-16">
                 {H2_B[0]} <span className="text-vault-ink-2">{H2_B[1]}</span>
               </h2>
             ) : null}
-            <div data-mstage className="relative mx-auto w-full max-w-[340px]">
-              <div
-                aria-hidden="true"
-                className={`pointer-events-none absolute inset-x-[-4px] top-1/2 flex -translate-y-1/2 justify-between text-[56px] font-extralight leading-none ${k === 4 ? 'text-bad-v/25' : 'text-[#3D3832]'}`}
-              >
-                {b.word.split('').map((ch, i) => (
-                  <span key={i}>{ch}</span>
-                ))}
-              </div>
-              <div className="relative aspect-square w-full">
-                <canvas data-mcanvas aria-hidden="true" className="absolute inset-0 h-full w-full" />
-              </div>
-              {k === 4 ? (
+            <div className="sm:grid sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] sm:items-center sm:gap-10">
+              <div className="mx-auto w-full max-w-[340px]">
+                {/* the step word: above the object on narrow screens so every letter reads (desktop keeps it behind) */}
                 <div
-                  data-mstamp
                   aria-hidden="true"
-                  className="absolute left-1/2 top-[79%] rounded-lg border-[3px] border-bad-v px-4 py-1 font-mono text-[28px] font-bold tracking-[0.12em] text-bad-v opacity-0 transition-[opacity,transform] duration-300"
-                  style={{ background: 'rgba(36,33,29,.82)', transform: 'translate(-50%,-50%) rotate(-8deg) scale(1.5)' }}
+                  className={`mx-auto flex justify-between text-[clamp(40px,12vw,52px)] font-extralight leading-none ${k === 4 ? 'text-bad-v/70' : 'text-dot'}`}
+                  style={{ width: `${Math.min(100, b.word.length * 15)}%` }}
                 >
-                  ALTERED
+                  {b.word.split('').map((ch, i) => (
+                    <span key={i}>{ch}</span>
+                  ))}
                 </div>
-              ) : null}
+                <div data-mstage className="relative mt-2 w-full">
+                  <div className="relative aspect-square w-full">
+                    <canvas data-mcanvas aria-hidden="true" className="absolute inset-0 h-full w-full" />
+                  </div>
+                  {k === 4 ? (
+                    <div
+                      data-mstamp
+                      aria-hidden="true"
+                      className="absolute left-1/2 top-[79%] rounded-lg border-[3px] border-bad-v px-4 py-1 font-mono text-[28px] font-bold tracking-[0.12em] text-bad-v opacity-0 transition-[opacity,transform] duration-300"
+                      style={{ background: 'rgba(36,33,29,.82)', transform: 'translate(-50%,-50%) rotate(-8deg) scale(1.5)' }}
+                    >
+                      ALTERED
+                    </div>
+                  ) : null}
+                </div>
+              </div>
+              <div className="min-w-0">
+                <h3 className="mt-6 text-[24px] font-medium leading-tight tracking-[-0.02em] sm:mt-0 md:text-[28px]">{COPY[k].h}</h3>
+                <p className="mt-2 max-w-[44ch] text-[16px] leading-normal text-vault-ink-2">{COPY[k].p}</p>
+                <ul className="mt-5 flex flex-col items-start gap-2">
+                  {CALLOUTS.filter((c) => Math.floor(c.t[0]) === k && !c.live).map((c) => (
+                    <li
+                      key={c.id}
+                      data-mrow={(c.t[0] - k).toFixed(2)}
+                      className="flex h-8 max-w-full items-stretch opacity-0 transition-[opacity,transform] duration-500"
+                    >
+                      <span className={`label flex shrink-0 items-center rounded-l-sm px-3 font-semibold ${TAG[c.tone]}`}>{c.tag}</span>
+                      <span className="flex min-w-0 items-center truncate rounded-r-sm border border-l-0 border-vault-line bg-vault-2 px-3 font-mono text-[13px] text-vault-ink">
+                        {c.value}
+                      </span>
+                    </li>
+                  ))}
+                </ul>
+                {k === 3 ? <Split mobile /> : null}
+              </div>
             </div>
-            <h3 className="mt-6 text-[24px] font-medium leading-tight tracking-[-0.02em]">{COPY[k].h}</h3>
-            <p className="mt-2 text-[16px] leading-normal text-vault-ink-2">{COPY[k].p}</p>
-            <ul className="mt-5 flex flex-col gap-2">
-              {CALLOUTS.filter((c) => Math.floor(c.t[0]) === k && !c.live).map((c) => (
-                <li
-                  key={c.id}
-                  data-mrow={(c.t[0] - k).toFixed(2)}
-                  className="flex h-8 items-stretch opacity-0 transition-[opacity,transform] duration-500"
-                >
-                  <span className={`label flex items-center rounded-l-sm px-3 font-semibold ${TAG[c.tone]}`}>{c.tag}</span>
-                  <span className="flex min-w-0 items-center truncate rounded-r-sm border border-l-0 border-vault-line bg-vault-2 px-3 font-mono text-[13px] text-vault-ink">
-                    {c.value}
-                  </span>
-                </li>
-              ))}
-            </ul>
-            {k === 3 ? <Split mobile /> : null}
           </div>
         ))}
       </div>

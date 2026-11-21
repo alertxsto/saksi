@@ -10,6 +10,8 @@ import { REDUCED_QUERY, tick } from '@/lib/motion/scroll'
 export function SmoothScroll() {
   useEffect(() => {
     if (window.matchMedia(REDUCED_QUERY).matches) return
+    // phones/tablets: native momentum scroll; the scroll store already listens to native scroll events
+    if (window.matchMedia('(hover: none) and (pointer: coarse)').matches) return
     let stop = () => {}
     let alive = true
     import('lenis').then(({ default: Lenis }) => {

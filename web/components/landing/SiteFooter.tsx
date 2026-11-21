@@ -68,15 +68,15 @@ export function SiteFooter() {
               chain.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
-              <Cta href="/citizen" variant="paper">
+              <Cta href="/citizen" variant="paper" className="max-sm:w-full max-sm:justify-center">
                 Open the citizen demo
               </Cta>
-              <Cta href="/proof" variant="ghost-vault">
+              <Cta href="/proof" variant="ghost-vault" className="max-sm:w-full max-sm:justify-between">
                 Verify a receipt
               </Cta>
             </div>
           </div>
-          <QrFlash className="relative hidden w-[260px] justify-self-start md:block lg:col-span-4 lg:w-[min(100%,320px)] lg:justify-self-end">
+          <QrFlash className="relative hidden w-[260px] justify-self-start lg:block lg:col-span-4 lg:w-[min(100%,320px)] lg:justify-self-end">
             <RegMarks className="qr-mark bg-dot-2" size={8} />
             <div className="rounded-md bg-card p-4">
               <QrBlock
@@ -92,8 +92,8 @@ export function SiteFooter() {
       </div>
 
       <div className="border-t border-vault-line">
-        <div className="chrome grid gap-10 pb-8 pt-14 md:grid-cols-4 md:gap-6 md:pt-16">
-          <div>
+        <div className="chrome grid grid-cols-2 gap-x-6 gap-y-10 pb-8 pt-14 md:grid-cols-4 md:gap-6 md:pt-16">
+          <div className="col-span-2 md:col-span-1">
             <Link
               href="/"
               className="flex min-h-11 w-fit items-center gap-2.5"
@@ -117,7 +117,7 @@ export function SiteFooter() {
                   <li key={href}>
                     <Link
                       href={href}
-                      className="flex min-h-7 items-center text-[14px] tracking-[0.02em] text-[#dad8ce] transition-colors duration-150 hover:text-paper"
+                      className="flex min-h-11 items-center text-[15px] tracking-[0.02em] md:min-h-7 md:text-[14px] text-[#dad8ce] transition-colors duration-150 hover:text-paper"
                     >
                       <OdoText>{label}</OdoText>
                     </Link>
@@ -127,7 +127,7 @@ export function SiteFooter() {
             </nav>
           ))}
           {CONTRACTS.length ? (
-            <div>
+            <div className="col-span-2 md:col-span-1">
               <p className="flex items-center gap-2 text-[14px] font-medium">
                 Contracts
                 {CONTRACTS.length ? (
@@ -148,7 +148,7 @@ export function SiteFooter() {
                         href={explorerAddress(a)}
                         target="_blank"
                         rel="noreferrer"
-                        className="flex min-h-7 items-center gap-2 font-mono text-[12px] text-[#dad8ce] transition-colors duration-150 hover:text-ice"
+                        className="flex min-h-11 items-center gap-2 font-mono text-[12px] md:min-h-7 text-[#dad8ce] transition-colors duration-150 hover:text-ice"
                       >
                         {name}{" "}
                         <span className="text-vault-ink-2">

@@ -192,7 +192,7 @@ export function Verifier() {
           </div>
         </div>
 
-        <div ref={limitsRef} className="limits mt-16 grid gap-10 md:mt-24 md:grid-cols-2 md:gap-6">
+        <div ref={limitsRef} className="limits mt-10 grid gap-10 md:mt-24 md:grid-cols-2 md:gap-6">
           {[
             { h: 'Saksi proves', items: PROVES, ok: true },
             { h: 'Saksi does not prove', items: DOES_NOT_PROVE, ok: false },

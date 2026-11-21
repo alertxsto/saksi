@@ -46,7 +46,8 @@ async function checkWithContract(input: BreachNoticeInput, account: `0x${string}
         const deadline = args?.[1]
         return { late: true, deadlineSec: typeof deadline === 'bigint' ? Number(deadline) : input.detectedAt + WINDOW_SEC }
       }
-      throw new Error(CHECK_ERRORS[errorName] ?? `The contract refused the notice (${errorName}).`)
+      if (!CHECK_ERRORS[errorName]) console.warn('[breach] check reverted:', errorName)
+      throw new Error(CHECK_ERRORS[errorName] ?? 'The contract refused this notice. Check the detection time and try again.')
     }
     throw new Error('Could not reach the contract. Check your connection and try again.')
   }
@@ -219,7 +220,14 @@ export function BreachNotice() {
         walletReady ? (
           content
         ) : (
-          <WalletGate wallet={wallet} onConnect={onConnect} onSwitchNetwork={onSwitchNetwork} onRefresh={onRefresh} onCopy={onCopy} />
+          <WalletGate
+            variant="inline"
+            wallet={wallet}
+            onConnect={onConnect}
+            onSwitchNetwork={onSwitchNetwork}
+            onRefresh={onRefresh}
+            onCopy={onCopy}
+          />
         )
       }
     />

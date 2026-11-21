@@ -3,13 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useRouter } from 'next/navigation'
 import { QRCodeSVG } from 'qrcode.react'
-import { useEffect, useRef, useState } from 'react'
-import { Button, ButtonLink } from '@/components/ui/Button'
-import { Chip, TwoTone } from '@/components/ui/Chip'
+import { useEffect, useRef, useState, type ReactNode } from 'react'
+import { Act } from '@/components/citizen/Act'
+import { Cta } from '@/components/landing/Cta'
 import { DotoValue } from '@/components/ui/DotoValue'
-import { EmptyState } from '@/components/ui/EmptyState'
-import { IconAlert, IconCopy, IconRefresh, IconTrash, IconUser } from '@/components/ui/icons'
-import { RegMarks } from '@/components/ui/RegMarks'
+import { RiseHeading } from '@/components/citizen/motion'
+import { DotIcon } from '@/components/ui/DotIcon'
+import { IconAlert, IconCopy, IconRefresh, IconTrash } from '@/components/ui/icons'
 import { ProfileSkeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
@@ -40,7 +40,7 @@ export function ProfileView() {
       await copyText(code)
       toast('Copied')
     } catch {
-      toast('Copy failed', 'bad')
+      toast('Copy failed', 'info')
     }
   }
   const onDeleteDemo = () => del.mutate()
@@ -100,15 +100,14 @@ export function ProfileScreenView({
   if (state === 'error') {
     return (
       <div className="flex flex-col gap-4">
-        <EmptyState
-          tone="neutral"
-          icon={<IconAlert size={20} />}
+        <Quiet
+          glyph="clock"
           title="Couldn't load your profile"
           body={error ?? 'Something went wrong.'}
           action={
-            <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
+            <Act variant="light" size="md" icon={<IconRefresh size={15} />} onClick={onRetry}>
               Try again
-            </Button>
+            </Act>
           }
         />
         <TabBar />
@@ -119,14 +118,12 @@ export function ProfileScreenView({
   if (state === 'none' || !profile) {
     return (
       <div className="flex flex-col gap-4">
-        <EmptyState
-          icon={<IconUser size={20} />}
+        <Quiet
+          glyph="eye"
           title="No demo profile yet"
           body="Create a synthetic profile to get a code companies can log against."
           action={
-            <ButtonLink href="/citizen" variant="dark" arrow size="sm">
-              Create profile
-            </ButtonLink>
+            <Cta href="/citizen">Create profile</Cta>
           }
         />
         <TabBar />
@@ -138,16 +135,15 @@ export function ProfileScreenView({
 
   return (
     <div className="flex flex-col gap-5">
-      <TwoTone as="h1" head="Your code." tail="Show it to a company." className="text-[32px]" />
+      <RiseHeading as="h1" lead="Your code." tail="Show it to a company." className="text-[34px] leading-[1.04] text-ink" />
 
-      <section aria-label="Profile QR code" className="relative rounded-xl border border-line bg-card p-6">
-        <RegMarks className="bg-blue" size={8} />
-        <div className="mx-auto w-full max-w-[260px]">
+      <section aria-label="Profile QR code" className="anim-rise flex flex-col items-center border-y border-line py-6">
+        <div className="w-full max-w-[236px]">
           <QRCodeSVG
             value={code}
             size={512}
             level="M"
-            bgColor="#FBFAF7"
+            bgColor="#F4F2EC"
             fgColor="#1E1A16"
             className="h-auto w-full"
             title={`QR code for profile ${code}`}
@@ -156,27 +152,29 @@ export function ProfileScreenView({
         <p className="mt-6 text-center text-[52px] leading-[0.9] text-ink">
           <DotoValue value={code} className="gap-[0.06em]" />
         </p>
-        <p className="label mt-2 text-center text-ink-2">{displayName}</p>
+        <p className="label mt-2.5 text-center text-[11px] text-ink-2">{displayName}</p>
       </section>
 
-      <Button variant="dark" arrow full onClick={onCopy} icon={<IconCopy size={16} />}>
+      <Act full icon={<IconCopy size={16} />} onClick={onCopy}>
         Copy code
-      </Button>
+      </Act>
 
-      <div className="flex flex-wrap gap-2">
-        <Chip>No name</Chip>
-        <Chip>No ID number</Chip>
-        <Chip>No wallet</Chip>
-      </div>
+      <ul data-stagger="" className="grid grid-cols-3 border-y border-line">
+        {['No name', 'No ID number', 'No wallet'].map((t, i) => (
+          <li key={t} className={`label flex min-h-11 items-center justify-center text-center text-[11px] text-ink-2 ${i ? 'border-l border-line' : ''}`}>
+            {t}
+          </li>
+        ))}
+      </ul>
 
-      <div className="mt-2 border-t border-dashed border-line-strong pt-5">
-        <p className="text-[14px] leading-relaxed text-ink-2">
+      <div className="pt-1">
+        <p className="text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
           Deleting removes your synthetic profile and receipts from our database. Fingerprints already sealed on chain
           stay there — they reveal nothing about you.
         </p>
-        <Button variant="danger" full className="mt-3" icon={<IconTrash size={16} />} onClick={onAskDelete}>
+        <Act variant="light" full className="mt-3" icon={<IconTrash size={16} />} onClick={onAskDelete}>
           Delete demo profile
-        </Button>
+        </Act>
       </div>
 
       <ConfirmDelete
@@ -189,6 +187,19 @@ export function ProfileScreenView({
       />
 
       <TabBar />
+    </div>
+  )
+}
+
+function Quiet({ glyph, title, body, action }: { glyph: 'clock' | 'eye'; title: string; body: string; action?: ReactNode }) {
+  return (
+    <div className="anim-rise flex flex-col items-start gap-3 border-y border-line py-6">
+      <DotIcon name={glyph} size={40} className="text-ink-3" />
+      <div>
+        <p className="text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">{title}</p>
+        <p className="mt-1 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">{body}</p>
+      </div>
+      {action}
     </div>
   )
 }
@@ -224,10 +235,11 @@ function ConfirmDelete({
         Delete this demo profile?
       </h2>
       <p className="mt-2 text-[14px] leading-relaxed text-ink-2">
-        Your code <span className="font-mono text-ink">{code}</span> stops working. This cannot be undone.
+        Your code <span className="font-mono text-ink">{code}</span> stops working and its receipts leave our database.
+        The sealed fingerprints stay on chain. This cannot be undone.
       </p>
       {state === 'error' ? (
-        <p role="alert" className="mt-3 flex items-start gap-2 rounded-md border border-line-strong bg-card p-2.5 text-[14px] text-ink-2">
+        <p role="alert" className="mt-3 flex items-start gap-2 border-y border-line-strong py-2.5 text-[14px] text-ink-2">
           <IconAlert size={16} className="mt-0.5 shrink-0" />
           <span>
             <strong className="block font-semibold text-ink">Not deleted</strong>
@@ -236,12 +248,12 @@ function ConfirmDelete({
         </p>
       ) : null}
       <div className="mt-5 grid grid-cols-2 gap-2.5">
-        <Button variant="light" size="sm" onClick={onCancel} disabled={state === 'deleting'}>
+        <Act variant="light" size="md" full onClick={onCancel} disabled={state === 'deleting'}>
           Cancel
-        </Button>
-        <Button variant="danger" size="sm" loading={state === 'deleting'} disabled={state === 'deleting'} onClick={onConfirm}>
+        </Act>
+        <Act size="md" full arrow={false} loading={state === 'deleting'} disabled={state === 'deleting'} onClick={onConfirm}>
           {state === 'deleting' ? 'Deleting…' : state === 'error' ? 'Try again' : 'Delete'}
-        </Button>
+        </Act>
       </div>
     </div>
   )

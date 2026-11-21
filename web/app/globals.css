@@ -549,3 +549,532 @@ html.lenis, html.lenis body { height: auto; }
   100% { background-color: var(--color-ice); box-shadow: none; }
 }
 .qr-flash[data-flash] .qr-mark { animation: qr-flash 900ms var(--ease-out) both; }
+
+/* ── CONTROLLER ── (app/controller/**, components/controller/**, WalletGate / TxStepper / Countdown72) */
+/* odometer digits for the live 72-hour clock: one column per digit, 1.25em rows (room for Doto dots) */
+.ctl-odo { --row: 1.25em; display: inline-flex; align-items: center; line-height: 1; column-gap: 0.04em; font-variant-numeric: tabular-nums; }
+.ctl-odo-cell { display: block; height: var(--row); overflow: hidden; }
+.ctl-odo-col { display: flex; flex-direction: column; transition: transform 420ms var(--ease-snap); will-change: transform; }
+.ctl-odo-col > span { display: block; height: var(--row); line-height: var(--row); text-align: center; }
+.ctl-odo-sep { display: flex; flex-direction: column; justify-content: center; gap: 0.115em; margin-inline: 0.08em; }
+.ctl-odo-sep > i { display: block; width: 0.088em; height: 0.088em; border-radius: 999px; background: currentColor; }
+
+/* ruler: hatched overrun zone after the 72 H deadline */
+.ctl-hatch { background: repeating-linear-gradient(135deg, var(--color-line-strong) 0 1px, transparent 1px 6px); }
+.ctl-hatch-late { background: repeating-linear-gradient(135deg, color-mix(in oklab, var(--color-pending) 55%, transparent) 0 1px, transparent 1px 6px); }
+
+/* citizen-code slots: blinking caret in the active slot */
+@keyframes ctl-caret { 0%, 45% { opacity: 1; } 55%, 100% { opacity: 0; } }
+.ctl-caret { animation: ctl-caret 1.05s steps(1) infinite; }
+
+/* history: a freshly sealed row slides in and its tint fades out over 2.4 s */
+@keyframes ctl-row-in {
+  0% { opacity: 0; transform: translateY(-10px); background-color: var(--color-blue-bg); }
+  18% { opacity: 1; transform: none; background-color: var(--color-blue-bg); }
+  100% { background-color: transparent; }
+}
+.ctl-row-new { animation: ctl-row-in 2400ms var(--ease-out-expo) both; }
+@keyframes ctl-bar-out { 0%, 60% { opacity: 1; } 100% { opacity: 0; } }
+.ctl-row-new .ctl-row-bar { animation: ctl-bar-out 4s linear both; }
+/* pending status dot: a slow 1 s pulse */
+@keyframes ctl-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+.ctl-pulse-dot { animation: ctl-pulse 1s var(--ease-out) infinite; }
+
+/* AI draft fields arrive one by one */
+.ctl-draft-in { animation: blur-rise 720ms var(--ease-out-soft) both; animation-delay: calc(var(--i, 0) * 90ms); }
+
+/* tx steps: the active marker breathes, a step that just finished stamps in */
+@keyframes ctl-stamp { 0% { transform: scale(1.6); opacity: 0; } 60% { opacity: 1; } 100% { transform: none; opacity: 1; } }
+.ctl-stamp { animation: ctl-stamp 420ms var(--ease-out-expo) both; }
+@keyframes ctl-breathe { 0%, 100% { box-shadow: 0 0 0 0 color-mix(in oklab, var(--color-ice) 55%, transparent); } 50% { box-shadow: 0 0 0 6px transparent; } }
+.ctl-breathe { animation: ctl-breathe 1.6s var(--ease-out) infinite; }
+/* dot run of the active step: each dot lights in turn, 7 dots over 1.4 s */
+@keyframes ctl-dotrun { 0%, 100% { opacity: 0.22; transform: scale(0.8); } 30% { opacity: 1; transform: scale(1.15); } 60% { opacity: 0.5; transform: none; } }
+.ctl-dotrun { animation: ctl-dotrun 1.4s var(--ease-out) infinite; animation-delay: calc(var(--k, 0) * 110ms); }
+
+/* phone preview: the list fades out at the bottom edge of the device */
+.ctl-phone-fade { -webkit-mask-image: linear-gradient(180deg, #000 72%, transparent); mask-image: linear-gradient(180deg, #000 72%, transparent); }
+/* the preview receipt re-arrives when the access type changes */
+.ctl-swap { animation: arrive 260ms var(--ease-out) both; }
+
+/* state swap inside the gate / chamber: copy blur-rises in */
+.ctl-in { animation: blur-rise 560ms var(--ease-out-soft) both; animation-delay: var(--d, 0ms); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ctl-odo-col { transition: none !important; }
+  .ctl-caret, .ctl-breathe, .ctl-dotrun, .ctl-pulse-dot { animation: none !important; }
+  .ctl-row-new, .ctl-row-new .ctl-row-bar, .ctl-draft-in, .ctl-stamp, .ctl-swap, .ctl-in { animation: none !important; }
+}
+
+/* ── STAGE ── projected pitch screen /stage (components/stage/StageView.tsx). Sized in stage units:
+   --su = 1 px of a 1920×1080 frame, resolved against the nearest .stage-frame (size container). */
+@property --su {
+  syntax: "<length>";
+  inherits: true;
+  initial-value: 1px;
+}
+.stage-frame { container-type: size; position: relative; overflow: hidden; background: var(--color-vault); }
+.stg {
+  --su: min(calc(100cqw / 1920), calc(100cqh / 1080));
+  --accent: var(--color-ice);
+  --row: calc(84 * var(--su));
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-rows: minmax(0, 1fr) auto;
+  row-gap: calc(28 * var(--su));
+  padding: calc(52 * var(--su)) calc(72 * var(--su)) calc(36 * var(--su));
+  overflow: hidden;
+  background: var(--color-vault);
+  color: var(--color-vault-ink);
+}
+.stg[data-state="alert"] { --accent: var(--color-bad-v); }
+.stg[data-state="offline"] { --accent: var(--color-vault-ink-2); }
+.stg-accent { color: var(--accent); transition: color 600ms var(--ease-out); }
+.stg-label { font-family: var(--font-mono); font-size: calc(28 * var(--su)); line-height: 1.2; letter-spacing: 0.03em; text-transform: uppercase; white-space: nowrap; color: var(--color-vault-ink-2); }
+
+/* red wash + one alarm blink when the state turns alert */
+.stg-wash {
+  position: absolute; inset: 0; z-index: 0; pointer-events: none; opacity: 0;
+  background:
+    radial-gradient(60% 70% at 80% 6%, rgb(255 90 77 / 0.22), transparent 70%),
+    linear-gradient(to bottom, rgb(255 90 77 / 0.07), transparent 45%);
+  transition: opacity 900ms var(--ease-out);
+}
+.stg-wash::after { content: ""; position: absolute; inset: 0; background: rgb(255 90 77 / 0.5); opacity: 0; }
+.stg[data-state="alert"] .stg-wash { opacity: 1; }
+.stg[data-state="alert"] .stg-wash::after { animation: stg-alarm 1100ms var(--ease-out) both; }
+@keyframes stg-alarm { 0% { opacity: 0; } 18% { opacity: 0.85; } 100% { opacity: 0; } }
+
+.stg-main {
+  position: relative; z-index: 1; min-height: 0;
+  display: grid; grid-template-columns: 45fr 55fr; column-gap: calc(72 * var(--su));
+}
+
+/* left: join */
+.stg-join { display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.stg-join-title { font-size: calc(64 * var(--su)); font-weight: 500; line-height: 1.03; letter-spacing: -0.02em; white-space: nowrap; }
+.stg-qr {
+  position: relative; margin-top: calc(36 * var(--su));
+  width: calc(676 * var(--su)); max-width: 100%;
+  padding: calc(32 * var(--su)); border-radius: calc(24 * var(--su)); background: var(--color-card);
+}
+.stg-qr::before, .stg-qr::after {
+  content: ""; position: absolute; inset: calc(-16 * var(--su)); pointer-events: none;
+  border: calc(3 * var(--su)) solid var(--accent); border-radius: calc(40 * var(--su));
+  opacity: 0.32; transition: border-color 600ms var(--ease-out), opacity 600ms var(--ease-out);
+}
+.stg-qr::after { opacity: 0; }
+.stg[data-state="idle"] .stg-qr::before,
+.stg[data-state="idle"] .stg-qr::after { animation: stg-invite 3s var(--ease-out) infinite; }
+.stg[data-state="idle"] .stg-qr::after { animation-delay: 1.5s; }
+.stg[data-state="offline"] .stg-qr::before { opacity: 0.18; }
+@keyframes stg-invite { 0% { transform: scale(0.985); opacity: 0.9; } 100% { transform: scale(1.07); opacity: 0; } }
+.stg-url { margin-top: calc(30 * var(--su)); display: flex; align-items: baseline; gap: calc(14 * var(--su)); white-space: nowrap; }
+.stg-url-host { font-size: calc(46 * var(--su)); font-weight: 500; line-height: 1.1; letter-spacing: -0.02em; color: var(--color-vault-ink); }
+.stg-url-host[data-long] { font-size: calc(38 * var(--su)); }
+
+/* right: counters / alert, feed, watch */
+.stg-live {
+  position: relative; min-width: 0; min-height: 0;
+  display: grid; grid-template-rows: calc(248 * var(--su)) minmax(0, 1fr) auto; row-gap: calc(44 * var(--su));
+  transition: filter 800ms var(--ease-out), opacity 800ms var(--ease-out);
+}
+.stg[data-state="offline"] .stg-live { filter: grayscale(1); opacity: 0.55; }
+.stg[data-state="alert"] .stg-row:not([data-status="altered"]) { opacity: 0.4; transition: opacity 800ms var(--ease-out); }
+.stg-url-or { font-size: calc(30 * var(--su)); line-height: 1.1; color: var(--color-vault-ink-2); }
+.stg-top { position: relative; z-index: 1; }
+.stg-counters, .stg-alert { position: absolute; inset: 0; transition: opacity 600ms var(--ease-out), transform 800ms var(--ease-out-expo), filter 600ms var(--ease-out); }
+.stg-counters { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); align-content: end; }
+.stg-counter + .stg-counter, .stg-watch-item + .stg-watch-item { border-left: 1px solid var(--color-vault-line); padding-left: calc(36 * var(--su)); }
+.stg-counter-value { display: flex; align-items: flex-end; margin-top: calc(14 * var(--su)); }
+.stg-unit { margin-left: calc(-4 * var(--su)); padding-bottom: calc(14 * var(--su)); font-family: var(--font-mono); font-size: calc(34 * var(--su)); line-height: 1; color: var(--color-vault-ink-2); white-space: nowrap; }
+.stg-num-xl { font-size: calc(136 * var(--su)); }
+.stg-num-lg { font-size: calc(108 * var(--su)); }
+.stg-num-md { font-size: calc(86 * var(--su)); }
+.stg-alert { display: flex; flex-direction: column; justify-content: flex-end; opacity: 0; transform: translateY(calc(32 * var(--su))); filter: blur(8px); pointer-events: none; }
+.stg[data-state="alert"] .stg-counters { opacity: 0; transform: translateY(calc(-32 * var(--su))); filter: blur(8px); }
+.stg[data-state="alert"] .stg-alert { opacity: 1; transform: none; filter: none; transition-delay: 150ms; }
+.stg-alert-title { font-size: calc(80 * var(--su)); font-weight: 500; line-height: 1; letter-spacing: -0.025em; color: var(--color-bad-v); text-wrap: balance; }
+.stg-alert-sub { margin-top: calc(18 * var(--su)); font-size: calc(32 * var(--su)); line-height: 1.3; color: var(--color-vault-ink-2); }
+.stg-strike { color: var(--color-vault-ink); text-decoration: line-through; text-decoration-color: var(--color-bad-v); text-decoration-thickness: 0.09em; }
+
+/* odometer number */
+.stg-roll { --rh: 1.08em; display: inline-flex; line-height: var(--rh); }
+.stg-roll-row { display: inline-flex; height: var(--rh); }
+.stg-roll-cell { position: relative; display: block; height: var(--rh); overflow: clip; }
+.stg-roll-cell > .invisible { display: block; }
+.stg-roll-col {
+  position: absolute; inset: 0 0 auto; display: flex; flex-direction: column; text-align: center;
+  transform: translateY(calc(var(--n, 0) * var(--rh) * -1));
+  transition: transform 900ms var(--ease-out-expo); transition-delay: calc(var(--k, 1) * 60ms - 60ms);
+}
+.stg-roll-col > span { display: block; height: var(--rh); }
+.stg-roll-sep { margin-inline: -0.06em; }
+
+/* feed */
+.stg-feed { position: relative; min-height: 0; }
+.stg-rows { position: relative; z-index: 1; height: calc(var(--row) * 5); overflow: hidden; }
+.stg[data-state="alert"] .stg-rows { height: calc(var(--row) * 4 + 116 * var(--su)); }
+.stg-row {
+  position: relative; display: grid; align-items: center; height: var(--row);
+  grid-template-columns: minmax(0, 1fr) calc(124 * var(--su)) calc(132 * var(--su)) calc(142 * var(--su)) calc(232 * var(--su));
+  column-gap: calc(16 * var(--su)); padding-inline: calc(20 * var(--su)); border-radius: calc(16 * var(--su));
+}
+.stg-row::before { content: ""; position: absolute; inset: 0 calc(20 * var(--su)) auto; height: 1px; background: var(--color-vault-line); }
+.stg-row:first-child::before, .stg-row[data-status="altered"]::before, .stg-row[data-status="altered"] + .stg-row::before { display: none; }
+.stg-row-name { font-size: calc(38 * var(--su)); font-weight: 500; letter-spacing: -0.015em; transition: font-size 300ms var(--ease-out); }
+.stg-row-mono { font-family: var(--font-mono); font-size: calc(30 * var(--su)); letter-spacing: 0.02em; text-transform: uppercase; white-space: nowrap; }
+.stg-row-age { text-transform: none; }
+.stg-row-status { display: flex; align-items: center; justify-content: flex-end; gap: calc(10 * var(--su)); font-weight: 500; }
+.stg-row[data-new] { overflow: hidden; animation: stg-row-in 640ms var(--ease-out-expo) both, stg-row-glow 2800ms var(--ease-out) both; }
+.stg-row[data-new] > * { animation: stg-cell-in 640ms var(--ease-out-expo) both; }
+/* alert spotlight: the altered row grows into focus (taller, larger type, red outline), the rest dims */
+.stg-row[data-status="altered"] {
+  --row: calc(116 * var(--su));
+  background: rgb(255 90 77 / 0.16); box-shadow: inset 0 0 0 calc(2 * var(--su)) rgb(255 90 77 / 0.7);
+  animation: stg-row-in 640ms var(--ease-out-expo) both, stg-flash 2600ms linear 300ms both;
+}
+.stg-row[data-status="altered"] { grid-template-columns: minmax(0, 1fr) calc(112 * var(--su)) calc(128 * var(--su)) calc(140 * var(--su)) calc(216 * var(--su)); }
+.stg-row[data-status="altered"] .stg-row-name { font-size: calc(44 * var(--su)); }
+.stg-row[data-status="altered"] .stg-row-mono { font-size: calc(32 * var(--su)); }
+@keyframes stg-row-in { from { height: 0; opacity: 0; } to { height: var(--row); opacity: 1; } }
+@keyframes stg-cell-in { from { opacity: 0; transform: translateY(-60%); filter: blur(6px); } to { opacity: 1; transform: none; filter: none; } }
+@keyframes stg-row-glow { from { background-color: color-mix(in oklab, var(--color-ice) 20%, transparent); } to { background-color: transparent; } }
+@keyframes stg-flash {
+  0%, 22%, 44% { background-color: rgb(255 90 77 / 0.62); }
+  11%, 33%, 60%, 100% { background-color: rgb(255 90 77 / 0.16); }
+}
+
+/* padlock: hero of the empty feed while idle, then a quiet background (red verdict on alert) */
+.stg-seal {
+  position: absolute; z-index: 0; top: calc(-50 * var(--su)); right: calc(-30 * var(--su)); width: calc(510 * var(--su)); aspect-ratio: 1; pointer-events: none;
+  transform: translate(calc(150 * var(--su)), calc(-80 * var(--su))) scale(1.85); opacity: 0.12;
+  transition: transform 1600ms var(--ease-out-expo), opacity 1000ms var(--ease-out), filter 800ms var(--ease-out);
+}
+.stg-seal > .seal { border: 0; border-radius: 0; background: transparent; }
+.stg-seal > .seal::after { display: none; }
+.stg[data-state="idle"] .stg-seal { transform: none; opacity: 1; }
+.stg[data-state="idle"] .stg-seal > .seal { animation: stg-breathe 5s ease-in-out infinite; }
+.stg[data-state="alert"] .stg-seal { opacity: 0.22; }
+.stg[data-state="offline"] .stg-seal { opacity: 0.06; filter: grayscale(1); }
+@keyframes stg-breathe { 0%, 100% { transform: scale(0.97); opacity: 0.82; } 50% { transform: scale(1.02); opacity: 1; } }
+
+.stg-idle {
+  position: absolute; inset: 0 auto 0 0; z-index: 1; width: calc(470 * var(--su));
+  display: flex; flex-direction: column; justify-content: center; gap: calc(22 * var(--su));
+  opacity: 0; visibility: hidden; transform: translateY(calc(-16 * var(--su)));
+  transition: opacity 500ms var(--ease-out), transform 700ms var(--ease-out-expo), visibility 0s linear 700ms;
+}
+.stg[data-state="idle"] .stg-idle,
+.stg[data-state="offline"][data-empty] .stg-idle { opacity: 1; visibility: visible; transform: none; transition-delay: 0s; }
+.stg-idle-title { font-size: calc(52 * var(--su)); font-weight: 500; line-height: 1.04; letter-spacing: -0.02em; text-wrap: balance; }
+.stg-idle-body { font-size: calc(32 * var(--su)); line-height: 1.35; color: var(--color-vault-ink-2); }
+
+/* watch */
+.stg-watch { position: relative; z-index: 1; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); padding-top: calc(22 * var(--su)); border-top: 1px solid var(--color-vault-line); }
+.stg-watch-item { display: flex; align-items: center; gap: calc(20 * var(--su)); }
+.stg-watch-num { --rh: 0.96em; font-size: calc(120 * var(--su)); transition: color 600ms var(--ease-out); }
+.stg-watch-label { font-family: var(--font-mono); font-size: calc(28 * var(--su)); letter-spacing: var(--tracking-label); }
+.stg-watch-item[data-tone="ok"] { color: var(--color-ok-v); }
+.stg-watch-item[data-tone="bad"] { color: var(--color-bad-v); }
+.stg-watch-item[data-tone="zero"] { color: var(--color-vault-ink-2); }
+.stg-watch-item[data-tone="zero"] .stg-watch-num { opacity: 0.5; }
+.stg[data-state="alert"] .stg-watch-item[data-tone="bad"] .stg-watch-num { animation: stg-glow 1.6s ease-in-out infinite; }
+@keyframes stg-glow { 0%, 100% { text-shadow: 0 0 0 transparent; } 50% { text-shadow: 0 0 calc(28 * var(--su)) rgb(255 90 77 / 0.7); } }
+
+/* footer */
+.stg-foot { position: relative; z-index: 1; display: flex; align-items: center; justify-content: space-between; gap: calc(32 * var(--su)); padding-top: calc(22 * var(--su)); border-top: 1px solid var(--color-vault-line); }
+.stg-brand { display: flex; align-items: center; gap: calc(14 * var(--su)); }
+.stg-logo svg { width: calc(44 * var(--su)); height: calc(44 * var(--su)); }
+.stg-brand-name { font-size: calc(42 * var(--su)); font-weight: 600; letter-spacing: -0.04em; line-height: 1; }
+.stg-brand-line { margin-left: calc(10 * var(--su)); padding-left: calc(22 * var(--su)); border-left: 1px solid var(--color-vault-line); font-size: calc(28 * var(--su)); color: var(--color-vault-ink-2); }
+.stg-foot-status { display: flex; align-items: center; white-space: nowrap; font-size: calc(30 * var(--su)); }
+.stg-foot-status .stg-roll { font-size: calc(30 * var(--su)); }
+.stg-dot { width: calc(14 * var(--su)); height: calc(14 * var(--su)); margin-right: calc(16 * var(--su)); border-radius: 999px; background: var(--accent); animation: stg-dot 2.4s var(--ease-out) infinite; }
+.stg-dot-wait { background: var(--color-vault-ink-2); animation-duration: 1.2s; }
+@keyframes stg-dot { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .stg *, .stg *::before, .stg *::after { animation: none !important; }
+  .stg-seal, .stg-roll-col { transition: none !important; }
+  /* the static SVG seal is denser than the WebGL one: keep it quieter behind the feed */
+  .stg:not([data-state="idle"]) .stg-seal { opacity: 0.1; }
+}
+
+/* ── SYSTEM ── 404 / reconnecting screens (components/system). Dot art entrance + loops; still frame under reduced motion. */
+.sys-dot { transform-box: fill-box; transform-origin: center; }
+.sys-lens { transform: translate(0, 0); }
+.sys-packet { opacity: calc(1 - var(--k, 0) * 0.17); }
+.sys-idle .sys-packet, .sys-idle .sys-chain { animation: none !important; }
+.sys-idle .sys-packet { opacity: 0.16; }
+@keyframes sys-dot-in {
+  from { opacity: 0; transform: scale(0.2); }
+  to { opacity: 1; transform: none; }
+}
+/* the lens steps one lattice cell at a time (steps = cells travelled), pausing at each corner */
+@keyframes sys-lens {
+  0% { transform: translate(0, 0); animation-timing-function: steps(10, jump-end); }
+  16% { transform: translate(10px, 0); }
+  24% { transform: translate(10px, 0); animation-timing-function: steps(9, jump-end); }
+  38% { transform: translate(10px, 9px); }
+  46% { transform: translate(10px, 9px); animation-timing-function: steps(10, jump-end); }
+  62% { transform: translate(0, 9px); }
+  70% { transform: translate(0, 9px); animation-timing-function: steps(9, jump-end); }
+  84%, 100% { transform: translate(0, 0); }
+}
+@keyframes sys-packet {
+  0%, 100% { opacity: 0.18; }
+  14% { opacity: 1; }
+  40% { opacity: 0.18; }
+}
+@keyframes sys-chain {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.62; }
+}
+.sys-num-win { display: inline-block; overflow: hidden; vertical-align: bottom; height: 1.25em; line-height: 1.25em; }
+.sys-num { display: inline-block; }
+@keyframes sys-num {
+  from { opacity: 0; transform: translateY(70%); filter: blur(2px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes sys-tick {
+  0%, 100% { opacity: 0.25; }
+  30% { opacity: 1; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .sys-dot { animation: sys-dot-in 520ms var(--ease-out-expo) both; animation-delay: calc(160ms + var(--d, 0ms)); }
+  .sys-lens { animation: sys-lens 9s 1.1s infinite; }
+  .sys-packet { animation: sys-packet 1.5s calc(900ms + var(--k, 0) * 110ms) infinite; }
+  .sys-chain { animation: sys-chain 3s 1.2s var(--ease-out) infinite; }
+  .sys-tick { transition: background-color 400ms var(--ease-out); }
+  .sys-tick-run { animation: sys-tick 900ms calc(var(--k, 0) * 90ms) infinite; }
+  .sys-num { animation: sys-num 300ms var(--ease-out-expo) both; }
+}
+
+/* ── CITIZEN ── (riset-ui/28-citizen-log.md). Every animation runs once (except the checking blink) and is
+   removed under reduced motion; final states are the resting styles, so nothing depends on JS. */
+@keyframes cz-row-in {
+  from { opacity: 0; transform: translateY(-14px); filter: blur(4px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+.cz-row-in { animation: cz-row-in 560ms var(--ease-out-expo) both; }
+
+/* the red moment on a row: one flash of red tint that fades out (the row keeps its layout; only the
+   status line, badge and rail stay red — riset-ui/26 C6). The banner carries the volume. */
+@keyframes cz-tamper {
+  0%, 20% { background-color: color-mix(in oklab, var(--color-bad-v) 32%, transparent); }
+  100% { background-color: transparent; }
+}
+.cz-tamper { animation: cz-tamper 700ms var(--ease-out) both; }
+@keyframes cz-tamper-soft {
+  0% { box-shadow: 0 0 0 2px var(--color-bad-v); }
+  100% { box-shadow: 0 0 0 0 transparent; }
+}
+.cz-tamper-soft { animation: cz-tamper-soft 700ms var(--ease-out) both; }
+
+/* banner: grows open (grid rows 0fr → 1fr) and flashes once */
+@keyframes cz-banner-in {
+  from { grid-template-rows: 0fr; opacity: 0; margin-bottom: -20px; }
+  to { grid-template-rows: 1fr; opacity: 1; margin-bottom: 0; }
+}
+.cz-banner { display: grid; animation: cz-banner-in 560ms var(--ease-out-expo) both; }
+.cz-banner > * { min-height: 0; }
+@keyframes cz-banner-shake {
+  0%, 100% { transform: none; }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+.cz-banner-box { animation: cz-banner-shake 300ms var(--ease-out) 420ms both; }
+/* Doto seconds: pull the decimal point in so "1.8 s" reads as one value */
+.cz-secs .doto + .font-mono { margin-inline: -0.14em; }
+
+/* ALTERED verdict: one shake of the whole block; comparison rows drop in 70 ms apart */
+.cz-verdict-bad { animation: shake 320ms var(--ease-out) 120ms both; }
+@keyframes cz-cmp-in {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: none; }
+}
+.cz-cmp { animation: cz-cmp-in 420ms var(--ease-out-expo) both; animation-delay: calc(280ms + var(--i, 0) * 70ms); }
+
+/* checking: a soft ice sweep over the seal + a blinking step dot */
+.cz-scan { overflow: hidden; border-radius: 12px; }
+.cz-scan::after {
+  content: "";
+  position: absolute;
+  inset-inline: 10%;
+  height: 22%;
+  top: -22%;
+  background: linear-gradient(to bottom, transparent, color-mix(in oklab, var(--color-ice) 26%, transparent), transparent);
+  animation: cz-scan 1.6s var(--ease-step) infinite;
+  pointer-events: none;
+}
+@keyframes cz-scan {
+  to { top: 100%; }
+}
+@keyframes cz-blink {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.25; }
+}
+.cz-blink { animation: cz-blink 900ms linear infinite; }
+.cz-blink-soft { animation: cz-blink 2.4s var(--ease-out) infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .cz-row-in, .cz-tamper, .cz-tamper-soft, .cz-banner, .cz-banner-box, .cz-verdict-bad, .cz-cmp,
+  .cz-blink, .cz-blink-soft, .cz-scan::after { animation: none !important; }
+  .cz-scan::after { display: none; }
+}
+/* AI answer: body-size word rise, tighter and capped so a long answer settles in under a second */
+.cz-ai-text .w { transition-delay: calc(40ms + min(var(--i, 0), 40) * 18ms); }
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .cz-ai-text:not([data-shown]) .w { transform: translateY(6px); filter: blur(4px); }
+}
+
+/* ── REGULATOR ── (app/regulator/**, app/proof/**, components/regulator/**, WatchTable / Timeline72 / AppHeader).
+   Every animation is one-shot and fires on a state change; the global reduced-motion rule makes them instant. */
+/* rolling Doto counter: one 0–9 column per digit, 1.2em rows so no neighbour digit shows */
+.rg-odo { display: inline-flex; line-height: 1; }
+.rg-odo-cell { display: block; height: 1.2em; overflow: hidden; }
+.rg-odo-col { display: flex; flex-direction: column; transition: transform 1100ms var(--ease-out-expo); transition-delay: calc(var(--i, 0) * 70ms); will-change: transform; }
+.rg-odo-col > span { display: block; height: 1.2em; line-height: 1.2em; text-align: center; }
+/* stat column: a red wash rises and fades when a tamper count goes up */
+@keyframes rg-stat-flash {
+  0% { background: color-mix(in oklab, var(--color-bad) 22%, transparent); clip-path: inset(100% 0 0 0); }
+  18% { clip-path: inset(0 0 0 0); }
+  100% { background: transparent; clip-path: inset(0 0 0 0); }
+}
+.rg-stat-flash { animation: rg-stat-flash 1800ms var(--ease-out) both; }
+
+/* watch rows: ALTERED band, selection, a fresh tamper flashes red then settles, new rows slide in */
+.rg-row { transition: background-color 200ms var(--ease-out); }
+.rg-row:hover { background: var(--color-paper); }
+.rg-row[data-sel] { background: var(--color-paper); }
+.rg-row-bad, .rg-row-bad:hover, .rg-row-bad[data-sel] { background: var(--color-bad-bg); }
+@keyframes rg-row-flash {
+  0%, 12% { background: var(--color-bad-v); color: var(--color-vault); }
+  30% { background: var(--color-bad-bg); }
+  44% { background: color-mix(in oklab, var(--color-bad-v) 55%, var(--color-bad-bg)); }
+  100% { background: var(--color-bad-bg); }
+}
+.rg-row-flash { animation: rg-row-flash 2200ms var(--ease-out) both; }
+.rg-row-flash .rg-row-bar { transform-origin: top; animation: rg-drop 600ms var(--ease-out-expo) both; }
+@keyframes rg-stamp-in {
+  0% { opacity: 0; transform: scale(1.6); filter: blur(6px); }
+  60% { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: none; }
+}
+.rg-badge-stamp { animation: rg-stamp-in 520ms var(--ease-out-expo) 120ms both; }
+@keyframes rg-row-new { from { opacity: 0; transform: translateY(-12px); } }
+.rg-row-new { animation: rg-row-new 520ms var(--ease-out-expo) both; }
+
+/* What changed: stamp lands on the lattice, the slab takes one red hit */
+@keyframes rg-stamp {
+  0% { opacity: 0; transform: translate(-50%, -50%) rotate(-8deg) scale(1.8); filter: blur(10px); }
+  55% { opacity: 1; filter: blur(0); }
+  100% { opacity: 1; transform: translate(-50%, -50%) rotate(-8deg) scale(1); }
+}
+.rg-stamp { transform: translate(-50%, -50%) rotate(-8deg); animation: rg-stamp 640ms var(--ease-out-expo) 520ms both; }
+@keyframes rg-vault-hit {
+  0% { box-shadow: inset 0 0 0 2px var(--color-bad-v), 0 0 0 0 color-mix(in oklab, var(--color-bad-v) 50%, transparent); }
+  40% { box-shadow: inset 0 0 0 2px var(--color-bad-v), 0 0 0 10px transparent; }
+  100% { box-shadow: inset 0 0 0 1px color-mix(in oklab, var(--color-bad-v) 45%, transparent), 0 0 0 0 transparent; }
+}
+.rg-vault-hit { animation: rg-vault-hit 1600ms var(--ease-out) 400ms both; }
+
+/* 72-hour timeline: the limit drops, used time draws, NOTIFIED lands, the overrun runs past the limit */
+@keyframes rg-drop { from { transform: scaleY(0); } }
+@keyframes rg-draw { from { transform: scaleX(0); } }
+@keyframes rg-pop { from { opacity: 0; transform: translateY(-10px) scale(0.6); } }
+@keyframes rg-fade { from { opacity: 0; } }
+.rg-tl-drop { transform-origin: top; animation: rg-drop 600ms var(--ease-out-expo) 80ms both; }
+.rg-tl-fade { animation: rg-fade 500ms var(--ease-out) 300ms both; }
+.rg-tl-draw { transform-origin: left; animation: rg-draw var(--draw, 1000ms) var(--ease-out-expo) 260ms both; }
+.rg-tl-pop { animation: rg-pop 520ms var(--ease-out-expo) calc(var(--draw, 1000ms) * 0.55 + 260ms) both; }
+.rg-tl-over { transform-origin: left; animation: rg-draw 700ms var(--ease-out-expo) calc(var(--draw, 1000ms) * 0.7 + 260ms) both; }
+
+/* app header: transparent at rest, card + hairline once the page scrolls (landing nav, zaro A.7) */
+.app-nav .nav-box { transition: background-color 160ms cubic-bezier(0.65, 0, 0.2, 1), border-color 100ms cubic-bezier(0.65, 0, 0.2, 1); }
+.app-nav[data-solid] .nav-box {
+  background: rgb(251 250 247 / 0.82);
+  border-color: var(--color-line);
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+/* struck "Database says" cell: faint 45° hatching so "removed" still reads in greyscale (riset-ui/26 C4) */
+.cz-struck { background-image: repeating-linear-gradient(135deg, color-mix(in oklab, var(--color-bad) 9%, transparent) 0 1px, transparent 1px 7px); }
+
+/* ── LANDING MOBILE ── (riset-ui/32-landing-mobile-log.md). Everything here is < lg (1024) or touch-only,
+   so the desktop landing is untouched. Menu sheet, burger, native touch anchors. */
+
+/* burger: two bars, the FAQ toggle's bare-glyph grammar; they cross into an × while open */
+.nav-burger { color: inherit; }
+@media (hover: hover) {
+  .nav-burger:hover { background: color-mix(in oklab, currentColor 7%, transparent); }
+}
+.nav-burger-bar {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 18px;
+  height: 1.5px;
+  border-radius: 999px;
+  background: currentColor;
+  transition: transform 300ms var(--ease-out-expo);
+}
+.nav-burger-bar:first-child { transform: translate(-50%, calc(-50% - 3.5px)); }
+.nav-burger-bar:last-child { transform: translate(-50%, calc(-50% + 3.5px)); }
+.nav[data-open] .nav-burger-bar:first-child { transform: translate(-50%, -50%) rotate(45deg); }
+.nav[data-open] .nav-burger-bar:last-child { transform: translate(-50%, -50%) rotate(-45deg); }
+
+/* menu sheet: same surface as the solid nav box, links centred, rows rise in 40 ms apart */
+.nav[data-open] .nav-box {
+  background: rgb(251 250 247 / 0.94);
+  border-color: var(--color-line);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+.nav-sheet {
+  background: rgb(251 250 247 / 0.96);
+  border-color: var(--color-line);
+  color: var(--color-ink);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+  box-shadow: 0 24px 48px -24px rgb(30 26 22 / 0.28);
+  transform-origin: top center;
+  animation: nav-sheet-in 360ms var(--ease-out-expo) both;
+}
+.nav-sheet-link { color: var(--color-ink); }
+.nav-sheet-link:hover, .nav-sheet-link:focus-visible { background: var(--color-paper-2); }
+.nav-sheet li + li { border-top: 1px solid var(--color-line); }
+.nav-sheet-row { animation: blur-rise 520ms var(--ease-out-expo) both; animation-delay: calc(60ms + var(--i, 0) * 40ms); }
+.nav[data-vault][data-open] .nav-box { background: rgb(36 33 29 / 0.94); border-color: var(--color-vault-line); }
+.nav[data-vault] .nav-sheet { background: rgb(36 33 29 / 0.96); border-color: var(--color-vault-line); color: var(--color-vault-ink); box-shadow: 0 24px 48px -24px rgb(0 0 0 / 0.6); }
+.nav[data-vault] .nav-sheet-link { color: var(--color-vault-ink); }
+.nav[data-vault] .nav-sheet-link:hover, .nav[data-vault] .nav-sheet-link:focus-visible { background: var(--color-vault-2); }
+.nav[data-vault] .nav-sheet li + li { border-color: var(--color-vault-line); }
+.nav[data-vault] .nav-sheet-ghost { color: var(--color-vault-ink); border-color: color-mix(in oklab, var(--color-vault-ink-2) 60%, transparent); }
+@keyframes nav-sheet-in {
+  from { opacity: 0; transform: translateY(-8px) scale(0.98); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .nav-sheet, .nav-sheet-row { animation: none !important; }
+}
+
+/* phones skip Lenis (native momentum); in-page anchors still glide, offset under the floating nav */
+@media (hover: none) and (pointer: coarse) and (prefers-reduced-motion: no-preference) {
+  html:has(main.landing) { scroll-behavior: smooth; }
+}
+
+/* hero ↔ nav alignment (lead-approved desktop exception): the hero sits 16 px inside the nav box on both
+   sides, so the headline starts under the logo and the panel ends under the CTA. The nav box is 100% − 96px
+   wide from lg, so the hero is 100% − 128px (capped at 1312, .chrome's own cap, so ≥ 1440 is unchanged). */
+@media (min-width: 1024px) {
+  .chrome.hero-chrome { width: min(1312px, calc(100% - 128px)); }
+}
+/* LATE is amber, red is tamper only (user decision): the countdown's overrun path past 72 H */
+.bc-ghost { background-image: linear-gradient(90deg, var(--color-pending) 50%, transparent 50%); opacity: 0.7; }
+.rg-hatch-bad { background: repeating-linear-gradient(135deg, var(--color-bad) 0 3px, color-mix(in oklab, var(--color-bad) 35%, transparent) 3px 6px); }
+.app-nav .nav-link[aria-current="page"] { color: var(--color-ink); }

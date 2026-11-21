@@ -171,7 +171,7 @@ export function BreachClock() {
               <span className="h-4 w-px bg-ink" />
               <span className="label mt-1 whitespace-nowrap text-[11px] text-ink">Notified · 53.5 H</span>
             </span>
-            <span className="bc-lateby label absolute right-0 top-[84px] whitespace-nowrap sm:top-12 text-[11px] text-bad">If sealed at 100 H · late by 28 H</span>
+            <span className="bc-lateby label absolute right-0 top-[84px] whitespace-nowrap sm:top-12 text-[11px] text-pending">If sealed at 100 H · late by 28 H</span>
           </div>
 
           <p className="bc-verdict mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-[18px] font-medium text-ok md:text-[22px]">

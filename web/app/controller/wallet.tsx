@@ -1,7 +1,6 @@
 'use client'
 
 import { createContext, use, useCallback, useState, type ReactNode } from 'react'
-import { Chip } from '@/components/ui/Chip'
 import { IconWallet } from '@/components/ui/icons'
 import { useToast } from '@/components/ui/Toast'
 import { CHAIN_NAME } from '@/components/ui/WalletGate'
@@ -74,16 +73,21 @@ export function ControllerWalletProvider({ children }: { children: ReactNode }) 
   return <Ctx value={{ wallet, onConnect, onSwitchNetwork, onRefresh, onCopy }}>{children}</Ctx>
 }
 
-/** Header chips: network + wallet address (or the failing check). */
+/** Header chip: one pill, network + wallet address (or the failing check), with a status dot. */
 export function WalletChips() {
   const { wallet } = useControllerWallet()
   const ready = wallet.state === 'ready' && !wallet.isChecking
+  const label = wallet.isChecking ? 'Checking…' : wallet.address ? shortHex(wallet.address, 6, 4) : 'Not connected'
   return (
-    <>
-      <Chip tone={wallet.state === 'wrong_network' ? 'pending' : 'ink'}>{CHAIN_NAME}</Chip>
-      <Chip tone={ready ? 'ok' : 'pending'} icon={<IconWallet size={12} />} className={wallet.address ? 'normal-case' : ''}>
-        {wallet.isChecking ? 'Checking…' : wallet.address ? shortHex(wallet.address, 6, 4) : 'Not connected'}
-      </Chip>
-    </>
+    <span className="label inline-flex h-8 items-center gap-2.5 whitespace-nowrap rounded-pill border border-line-strong bg-card pl-3 pr-3.5 text-[11px] text-ink-2">
+      <span
+        aria-hidden="true"
+        className={`size-2 rounded-full ${ready ? 'bg-ok' : wallet.isChecking ? 'bg-ink-3' : 'bg-pending'}`}
+      />
+      <span className={wallet.state === 'wrong_network' ? 'text-pending' : ''}>{CHAIN_NAME}</span>
+      <span aria-hidden="true" className="h-3 w-px bg-line-strong" />
+      <IconWallet size={12} />
+      <span className={`text-ink ${wallet.address ? 'normal-case' : ''}`}>{label}</span>
+    </span>
   )
 }

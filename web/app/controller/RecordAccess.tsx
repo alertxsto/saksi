@@ -2,12 +2,11 @@
 
 import { useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Badge } from '@/components/ui/Badge'
-import { Chip, TwoTone } from '@/components/ui/Chip'
-import { IconLock } from '@/components/ui/icons'
+import { ConsoleHead, MetaLine } from '@/components/controller/ConsoleHead'
+import { TxChamber } from '@/components/controller/TxChamber'
 import { useToast } from '@/components/ui/Toast'
-import { TxFlow, txErrorKind, txViewFromState } from '@/components/ui/TxStepper'
-import { WalletGate, WalletStrip } from '@/components/ui/WalletGate'
+import { txViewFromState } from '@/components/ui/TxStepper'
+import { WalletGate } from '@/components/ui/WalletGate'
 import { useRecordAccess } from '@/lib/client/controller'
 import type { TransactionState } from '@/lib/client/transactions'
 import { getControllerRecent, type SealAccessInput } from '@/lib/data'
@@ -74,50 +73,27 @@ export function RecordAccess() {
   const recentStatus = !ready ? 'locked' : recent.isPending ? 'loading' : recent.isError ? 'error' : 'ready'
 
   return (
-    <div className="flex flex-col gap-8">
-      <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-        <TwoTone head="Record an access." tail="The citizen sees it in seconds." className="text-[34px] md:text-[48px]" />
-        <div className="flex flex-wrap gap-2">
-          {wallet.controller ? <Chip>{wallet.controller.name}</Chip> : null}
-          <Chip icon={<IconLock size={12} />}>Pseudonym + fingerprint only</Chip>
-        </div>
-      </div>
+    <div className="flex flex-col gap-10 lg:gap-12">
+      <ConsoleHead
+        lead="Record an access."
+        tail="The citizen sees it in seconds."
+        aside={<MetaLine items={['Pseudonym + fingerprint only', 'Signed by your wallet']} />}
+      >
+        Each time your team opens a citizen’s data, write down what you did and why. Saksi seals its fingerprint on chain and
+        the citizen’s phone gets the receipt.
+      </ConsoleHead>
 
-      <div>
-        <p className="label mb-2 text-ink-2">Wallet checks</p>
-        <WalletStrip state={wallet.state} />
-      </div>
+      <WalletGate wallet={wallet} onConnect={onConnect} onSwitchNetwork={onSwitchNetwork} onRefresh={onRefresh} onCopy={onCopy}>
+        <RecordAccessForm
+          controllerName={wallet.controller?.name ?? ''}
+          busy={busy}
+          previewStatus={tx.phase === 'confirmed' ? 'anchored' : 'pending'}
+          onSeal={onSeal}
+          aside={<TxChamber tx={tx} onRetry={onRetry} onReconfirm={() => void onReconfirm()} />}
+        />
+      </WalletGate>
 
-      <div className="grid gap-8 lg:grid-cols-12">
-        <div className="min-w-0 lg:col-span-7">
-          <WalletGate wallet={wallet} onConnect={onConnect} onSwitchNetwork={onSwitchNetwork} onRefresh={onRefresh} onCopy={onCopy}>
-            <RecordAccessForm controllerName={wallet.controller?.name ?? ''} busy={busy} onSeal={onSeal} />
-          </WalletGate>
-        </div>
-
-        <aside className="flex min-w-0 flex-col gap-6 lg:col-span-5">
-          <section className="rounded-lg border border-line bg-card p-5" aria-label="Transaction">
-            <div className="mb-5 flex items-center justify-between">
-              <p className="label text-ink">Transaction</p>
-              {tx.phase === 'confirmed' ? (
-                <Badge kind="RECORDED" size="sm" />
-              ) : busy || (tx.phase === 'error' && txErrorKind(tx.error, Boolean(tx.txHash)) === 'timeout') ? (
-                <Badge kind="ON_CHAIN" size="sm" />
-              ) : tx.phase === 'error' ? (
-                <Badge kind="FAILED" size="sm" />
-              ) : null}
-            </div>
-            <TxFlow tx={tx} onRetry={onRetry} onReconfirm={() => void onReconfirm()} />
-          </section>
-
-          <RecentReceipts
-            status={recentStatus}
-            rows={recent.data ?? []}
-            error={recent.error?.message}
-            onRetry={() => void recent.refetch()}
-          />
-        </aside>
-      </div>
+      <RecentReceipts status={recentStatus} rows={recent.data ?? []} error={recent.error?.message} onRetry={() => void recent.refetch()} />
     </div>
   )
 }

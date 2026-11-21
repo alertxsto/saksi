@@ -1,5 +1,9 @@
+'use client'
+
+import { useEffect, useRef } from 'react'
+import { words } from '@/components/landing/Words'
 import type { AiMeta } from '@/lib/shared/types'
-import { Button } from './Button'
+import { Act } from '@/components/citizen/Act'
 import { IconRefresh, IconSpark } from './icons'
 import { Skeleton } from './Skeleton'
 
@@ -20,7 +24,11 @@ export function AiChip({ meta }: { meta?: AiMeta }) {
   )
 }
 
-/** AI explanation. The verdict never comes from here — the footer says so. */
+/**
+ * AI explanation. The verdict never comes from here — the footer says so. Answer text rises in word by
+ * word (same word rise as the landing headlines, 48 ms stagger, capped) when it arrives; static under
+ * reduced motion and without JS.
+ */
 export function AiPanel({
   state,
   text,
@@ -37,9 +45,19 @@ export function AiPanel({
   footer?: string
 }) {
   const fb = meta ? FALLBACK_LABEL[meta.fallbackLevel] : null
+  const textRef = useRef<HTMLParagraphElement>(null)
+
+  useEffect(() => {
+    const el = textRef.current
+    if (!el) return
+    const id = requestAnimationFrame(() => el.setAttribute('data-shown', ''))
+    return () => cancelAnimationFrame(id)
+  }, [text, state])
+
   return (
-    <section aria-label="AI explanation" aria-busy={state === 'loading'} className="anim-rise overflow-hidden rounded-lg border border-ai/30 bg-card">
-      <div className="flex flex-wrap items-center gap-2 border-b border-ai/20 px-4 py-3">
+    <section aria-label="AI explanation" aria-busy={state === 'loading'} className="anim-rise relative border-y border-ai/25 py-4 pl-4">
+      <span aria-hidden="true" className="absolute inset-y-4 left-0 w-[2px] rounded-pill bg-ai/60" />
+      <div className="flex flex-wrap items-center gap-2">
         <AiChip meta={meta} />
         {fb ? (
           <span
@@ -50,9 +68,9 @@ export function AiPanel({
             {fb}
           </span>
         ) : null}
-        {meta ? <span className="label ml-auto text-ink-2">{(meta.latencyMs / 1000).toFixed(1)} S</span> : null}
+        {meta ? <span className="label ml-auto tnum text-ink-2">{(meta.latencyMs / 1000).toFixed(1)} S</span> : null}
       </div>
-      <div className="px-4 py-4">
+      <div className="mt-3.5">
         {state === 'loading' ? (
           <div className="flex flex-col gap-2.5" aria-hidden="true">
             <Skeleton className="h-3.5 w-full" />
@@ -64,16 +82,18 @@ export function AiPanel({
           <div className="flex flex-col items-start gap-3">
             <p className="text-[15px] leading-relaxed text-ink-2">{error}</p>
             {onRetry ? (
-              <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
+              <Act variant="light" size="md" icon={<IconRefresh size={15} />} onClick={onRetry}>
                 Try again
-              </Button>
+              </Act>
             ) : null}
           </div>
         ) : (
-          <p className="text-[15px] leading-relaxed text-ink">{text}</p>
+          <p ref={textRef} key={text} data-words="" className="cz-ai-text text-[16px] leading-[1.6] tracking-[0.01em] text-ink">
+            {words(text ?? '')}
+          </p>
         )}
       </div>
-      <p className="label border-t border-dashed border-ai/25 px-4 py-2.5 text-[11px] text-ai">{footer}</p>
+      <p className="label mt-3.5 text-[11px] text-ai">{footer}</p>
     </section>
   )
 }

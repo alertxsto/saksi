@@ -103,7 +103,7 @@ export function Roles() {
               <span aria-hidden="true" className="role-rule absolute inset-x-0 top-0 h-px bg-line" />
               <Link
                 href={r.href}
-                className="group -mx-3 grid grid-cols-[48px_1fr] items-center gap-x-5 gap-y-3 rounded-lg px-3 py-7 transition-colors duration-150 hover:bg-paper-2 md:-mx-4 md:grid-cols-[56px_minmax(0,1fr)_minmax(0,1.3fr)_auto] md:gap-x-8 md:px-4 md:py-9"
+                className="group -mx-3 grid grid-cols-[48px_1fr] items-center gap-x-5 gap-y-3 rounded-lg px-3 py-7 transition-colors duration-150 hover:bg-paper-2 md:-mx-4 md:grid-cols-[56px_minmax(0,1fr)] lg:grid-cols-[56px_minmax(0,1fr)_minmax(0,1.3fr)_auto] md:gap-x-8 md:px-4 md:py-9"
               >
                 <DotGlyph shape={r.glyph} from={i ? ROLES[i - 1].glyph : undefined} />
                 <span className="min-w-0">
@@ -116,10 +116,10 @@ export function Roles() {
                     0{i + 1} · {r.who}
                   </span>
                 </span>
-                <span className="role-body col-span-2 max-w-[48ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:col-span-1">
+                <span className="role-body col-span-2 max-w-[48ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:col-span-1 md:col-start-2 lg:col-start-auto">
                   {r.body}
                 </span>
-                <span className="col-span-2 flex items-center gap-2 text-[14px] font-medium text-ink group-hover:text-blue md:col-span-1">
+                <span className="col-span-2 flex items-center gap-2 text-[14px] font-medium text-ink group-hover:text-blue md:col-span-1 md:col-start-2 lg:col-start-auto">
                   <OdoText>{r.cta}</OdoText>
                   <IconArrow size={14} className="transition-transform duration-300 ease-[cubic-bezier(0,0,.2,1)] group-hover:translate-x-[3px]" />
                 </span>

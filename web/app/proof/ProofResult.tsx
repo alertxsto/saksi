@@ -7,6 +7,7 @@ import { IconExternal, IconShield } from '@/components/ui/icons'
 import { LedgerReceipt } from '@/components/ui/LedgerReceipt'
 import { VerifyPanel } from '@/components/ui/VerifyResult'
 import { explorerLink, getRpcNodes, verifyOnNode } from '@/lib/data'
+import { EXPLORER_CAPTION } from '@/components/regulator/explorer'
 import type { ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
 /**
@@ -33,7 +34,7 @@ export function ProofResult({
   }
 
   return (
-    <div className="grid gap-8 lg:grid-cols-12">
+    <div className="anim-rise grid gap-10 lg:grid-cols-12">
       <div className="flex flex-col gap-5 lg:col-span-7">
         <LedgerReceipt
           opening={opening}
@@ -52,69 +53,84 @@ export function ProofResult({
         />
       </div>
 
-      <aside className="flex flex-col gap-4 lg:col-span-5">
-        <section className="overflow-hidden rounded-lg border border-line bg-card">
-          <div className="border-b border-line px-5 py-3">
-            <p className="label text-ink">Don’t trust us</p>
-            <p className="mt-1 text-[14px] text-ink-2">Check the same record through someone else’s node.</p>
-          </div>
-          <div className="flex flex-col gap-4 p-5">
-            <div>
-              <label htmlFor="rpc" className="label text-ink-2">
-                Switch RPC node
-              </label>
-              <select
-                id="rpc"
-                value={node}
-                disabled={!nodes.data?.length}
-                onChange={(e) => onSwitchRpc(e.target.value)}
-                className="mt-2 h-12 w-full rounded-md border border-line-strong bg-paper-2 px-3 font-mono text-[14px] text-ink outline-none focus:border-blue"
-              >
-                {nodes.data?.length ? (
-                  nodes.data.map((n) => (
-                    <option key={n.id} value={n.id}>
-                      {n.label}
-                    </option>
-                  ))
-                ) : (
-                  <option value="0">{nodes.isPending ? 'Loading nodes…' : 'No RPC node configured'}</option>
-                )}
-              </select>
-            </div>
-            <details className="group overflow-hidden rounded-lg border border-line">
-              <summary className="label flex min-h-11 cursor-pointer list-none items-center justify-between px-3 text-ink hover:text-blue">
-                Raw log · what your browser compares
-                <span aria-hidden="true" className="transition-transform group-open:rotate-45">+</span>
-              </summary>
-              <pre className="max-h-72 overflow-auto border-t border-line bg-vault p-3 font-mono text-[11px] leading-relaxed text-vault-ink">
-                {JSON.stringify(
-                  {
-                    txHash: opening.txHash,
-                    logIndex: opening.logIndex,
-                    eventType: opening.eventType,
-                    legalBasisKey: opening.legalBasisKey,
-                    subjectPseudonym: opening.subjectPseudonym,
-                    purposeText: opening.purposeText,
-                    purposeSalt: opening.purposeSalt,
-                    evidence: opening.evidence,
-                  },
-                  null,
-                  2,
-                )}
-              </pre>
-            </details>
-            {opening.txHash ? (
-              <a
-                href={explorerLink('tx', opening.txHash)}
-                target="_blank"
-                rel="noreferrer"
-                className="label flex min-h-11 items-center justify-between rounded-md border border-line px-3 text-ink hover:border-ink hover:text-blue"
-              >
-                Open transaction on Etherscan <IconExternal size={15} />
-              </a>
-            ) : null}
-          </div>
+      <aside className="flex flex-col gap-6 self-start lg:sticky lg:top-24 lg:col-span-5">
+        <section aria-labelledby="node-pick">
+          <h2 id="node-pick" className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
+            Don’t trust us <span className="text-ink-2">· pick another node</span>
+          </h2>
+          <p className="mt-1.5 text-[14px] leading-relaxed text-ink-2">The same record, read through someone else’s RPC node. Switching runs the check again.</p>
+          <fieldset className="mt-4 border-b border-line" disabled={!nodes.data?.length}>
+            <legend className="sr-only">RPC node</legend>
+            {nodes.data?.length ? (
+              nodes.data.map((n) => {
+                const on = n.id === node
+                return (
+                  <label
+                    key={n.id}
+                    className={`group relative -mx-3 flex min-h-12 cursor-pointer items-center gap-3 rounded-md border-t border-line px-3 transition-colors duration-200 first:border-t-0 ${
+                      on ? 'bg-card' : 'hover:bg-card/60'
+                    }`}
+                  >
+                    <input type="radio" name="rpc" value={n.id} checked={on} onChange={() => onSwitchRpc(n.id)} className="peer sr-only" />
+                    <span
+                      aria-hidden="true"
+                      className={`flex size-[18px] shrink-0 items-center justify-center rounded-full border transition-colors peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-blue ${
+                        on ? 'border-ink' : 'border-line-strong group-hover:border-ink-3'
+                      }`}
+                    >
+                      {on ? <span className="size-2 rounded-full bg-blue" /> : null}
+                    </span>
+                    <span className={`min-w-0 flex-1 truncate font-mono text-[14px] ${on ? 'text-ink' : 'text-ink-2'}`}>{n.label}</span>
+                    {on ? <span className="label text-[11px] text-ink-3">In use</span> : null}
+                  </label>
+                )
+              })
+            ) : (
+              <p className="flex min-h-12 items-center gap-3 border-t border-line font-mono text-[14px] text-ink-2">
+                <span aria-hidden="true" className="size-[18px] rounded-full border border-dashed border-line-strong" />
+                {nodes.isPending ? 'Loading nodes…' : 'No RPC node configured'}
+              </p>
+            )}
+          </fieldset>
         </section>
+
+        <details className="group overflow-hidden rounded-lg border border-line bg-card">
+          <summary className="label flex min-h-12 cursor-pointer list-none items-center justify-between px-4 text-ink hover:text-blue">
+            Raw log · what your browser compares
+            <span aria-hidden="true" className="text-[16px] transition-transform duration-200 group-open:rotate-45">+</span>
+          </summary>
+          <pre className="max-h-72 overflow-auto border-t border-line bg-vault p-4 font-mono text-[11px] leading-relaxed text-vault-ink">
+            {JSON.stringify(
+              {
+                txHash: opening.txHash,
+                logIndex: opening.logIndex,
+                eventType: opening.eventType,
+                legalBasisKey: opening.legalBasisKey,
+                subjectPseudonym: opening.subjectPseudonym,
+                purposeText: opening.purposeText,
+                purposeSalt: opening.purposeSalt,
+                evidence: opening.evidence,
+              },
+              null,
+              2,
+            )}
+          </pre>
+        </details>
+
+        {opening.txHash ? (
+          <a
+            href={explorerLink('tx', opening.txHash)}
+            target="_blank"
+            rel="noreferrer"
+            className="group flex min-h-12 items-center justify-between gap-3 border-y border-line text-ink transition-colors hover:text-blue"
+          >
+            <span className="flex flex-col">
+              <span className="label">Open the transaction</span>
+              <span className="font-mono text-[11px] text-ink-3">{EXPLORER_CAPTION}</span>
+            </span>
+            <IconExternal size={15} className="transition-transform duration-200 group-hover:-translate-y-0.5 group-hover:translate-x-0.5" />
+          </a>
+        ) : null}
         <p className="label text-[11px] leading-relaxed text-ink-2">
           The receipt details stay in the link after “#”. Browsers never send that part to any server.
         </p>
