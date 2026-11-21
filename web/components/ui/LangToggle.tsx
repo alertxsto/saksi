@@ -6,11 +6,11 @@ import { setLang, useLang, type Lang } from '@/lib/client/lang'
 const LANGS: Lang[] = ['en', 'id']
 
 /**
- * EN / ID segmented switch: a 32 px pill (size="lg": 40 px, 12 px corners, the landing CTA's box) whose ink thumb slides to the active side (220 ms, enter easing).
+ * EN / ID segmented switch in the landing CTA's box (40 px, 12 px corners; size="md": a 32 px pill) whose ink thumb slides to the active side (220 ms, enter easing).
  * The slide is enabled one frame after mount, so a page that loads in Indonesian does not animate on arrival.
  * Reduced motion: globals.css zeroes transitions.
  */
-export function LangToggle({ className = '', size = 'md' }: { className?: string; size?: 'md' | 'lg' }) {
+export function LangToggle({ className = '', size = 'lg' }: { className?: string; size?: 'md' | 'lg' }) {
   const lang = useLang()
   const [ready, setReady] = useState(false)
   useEffect(() => {
