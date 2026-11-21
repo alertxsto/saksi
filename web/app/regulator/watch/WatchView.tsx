@@ -64,8 +64,9 @@ export function WatchView({ load }: { load?: () => Promise<WatchData> }) {
           className="text-[34px] leading-[1.04] md:text-[56px] lg:col-span-8"
         />
         <p className="max-w-[46ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[17px] lg:col-span-4 lg:col-start-9">
-          Saksi re-reads every sealed fingerprint and compares it with the company’s own database. Red means a row was
-          changed or removed after it was sealed. Nothing else is red.
+          Saksi re-reads every sealed fingerprint and compares it with the controller’s access record in Saksi’s store,
+          the processing record a citizen may ask for under UU PDP Art. 32. Red means a row was changed or removed after
+          it was sealed. Nothing else is red.
         </p>
       </div>
 

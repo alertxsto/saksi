@@ -6,6 +6,9 @@ import { ProofChrome, RegulatorChrome } from '@/components/regulator/Chrome'
 import { BreachDetailLoader } from '../../../../regulator/BreachDetail'
 import { BreachList } from '../../../../regulator/BreachList'
 import { WatchView } from '../../../../regulator/watch/WatchView'
+import { ReportsQueue } from '../../../../regulator/reports/ReportsQueue'
+import { ControllersView } from '../../../../regulator/controllers/ControllersView'
+import { mockControllerRegister, mockRegulatorReports, mockReviewReport } from '@/lib/mock'
 import { ProofIncomplete } from '../../../../proof/[tx]/[logIndex]/ProofLink'
 import { ProofHome } from '../../../../proof/ProofHome'
 import { ProofResult } from '../../../../proof/ProofResult'
@@ -45,6 +48,16 @@ const VIEWS: Record<string, { chrome: 'reg' | 'proof'; node: () => ReactNode }> 
   'watch-loading': { chrome: 'reg', node: () => <WatchView load={watch('loading')} /> },
   'watch-empty': { chrome: 'reg', node: () => <WatchView load={watch('empty')} /> },
   'watch-error': { chrome: 'reg', node: () => <WatchView load={watch('error')} /> },
+  reports: { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('live')} sign={gallerySign} review={mockReviewReport} /> },
+  'reports-loading': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('loading')} sign={gallerySign} review={mockReviewReport} /> },
+  'reports-empty': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('empty')} sign={gallerySign} review={mockReviewReport} /> },
+  'reports-error': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('error')} sign={gallerySign} review={mockReviewReport} /> },
+  'reports-wrong-wallet': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('live')} sign={strangerSign} review={mockReviewReport} /> },
+  controllers: { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('live')} /> },
+  'controllers-loading': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('loading')} /> },
+  'controllers-empty': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('empty')} /> },
+  'controllers-error': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('error')} /> },
+  'controllers-no-watch': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('stale')} /> },
   proof: { chrome: 'proof', node: () => <ProofHome initialQuery="" /> },
   'proof-fingerprint': { chrome: 'proof', node: () => <ProofHome initialQuery={`0x${'3fa2c41b7e0d'.repeat(5)}5b1e`} /> },
   'proof-match': { chrome: 'proof', node: () => <Shared demo="match" /> },
@@ -54,6 +67,15 @@ const VIEWS: Record<string, { chrome: 'reg' | 'proof'; node: () => ReactNode }> 
   'proof-incomplete': { chrome: 'proof', node: () => <ProofIncomplete mismatch={false} /> },
   'proof-mismatch': { chrome: 'proof', node: () => <ProofIncomplete mismatch /> },
 }
+
+// Gallery signers, no wallet prompt: one signs as the fixture admin, the other shows the wrong-wallet message.
+const FIXTURE_ADMIN = '0x4b2e9c0d7a1f3e5b8c6d2a9f0e1b3c5d7a9e2f41'
+const SIGNATURE = `0x${'ab'.repeat(65)}` as `0x${string}`
+const gallerySign = async () => {
+  await new Promise((r) => setTimeout(r, 600))
+  return { signature: SIGNATURE, address: FIXTURE_ADMIN }
+}
+const strangerSign = async () => ({ signature: SIGNATURE, address: '0x9e1d0c2b3a4f5e6d7c8b9a0f1e2d3c4b5a6f7e80' })
 
 function Narrow({ children }: { children: ReactNode }) {
   return <div className="mx-auto flex max-w-[820px] flex-col gap-6">{children}</div>

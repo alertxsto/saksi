@@ -16,7 +16,7 @@ import { NotFoundScreen } from '@/components/system/NotFoundScreen'
 import { detail, list, PROOF_PATH, replayWatch, SAMPLE, verify, watch } from './loaders'
 
 const FRAME = '/dev/states/regulator/frame?view='
-const FRAME_VIEWS = ['list', 'list-loading', 'list-empty', 'list-error', 'detail', 'detail-late', 'detail-notfound', 'watch', 'watch-stale', 'watch-loading', 'watch-empty', 'watch-error', 'proof', 'proof-fingerprint', 'proof-match', 'proof-altered', 'proof-notfound', 'proof-missing', 'proof-incomplete', 'proof-mismatch']
+const FRAME_VIEWS = ['list', 'list-loading', 'list-empty', 'list-error', 'detail', 'detail-late', 'detail-notfound', 'watch', 'watch-stale', 'watch-loading', 'watch-empty', 'watch-error', 'proof', 'proof-fingerprint', 'proof-match', 'proof-altered', 'proof-notfound', 'proof-missing', 'proof-incomplete', 'proof-mismatch', 'reports', 'reports-loading', 'reports-empty', 'reports-error', 'reports-wrong-wallet', 'controllers', 'controllers-loading', 'controllers-empty', 'controllers-error', 'controllers-no-watch']
 
 /** The climax on demand: R.0412 flips MATCH → ALTERED 4.5 s after mount; Replay remounts it. */
 function ReplayWatch() {

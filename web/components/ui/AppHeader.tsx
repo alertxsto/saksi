@@ -13,7 +13,7 @@ export type AppArea = 'controller' | 'regulator' | 'proof' | 'citizen' | 'operat
 /** The four places a visitor can move between, the same list in every app area. */
 export const AREAS: { area: AppArea; href: string; label: string; hint: string }[] = [
   { area: 'controller', href: '/controller', label: 'Controller', hint: 'Record access, file breach notices' },
-  { area: 'regulator', href: '/regulator', label: 'Regulator', hint: 'Breach notices and Watch' },
+  { area: 'regulator', href: '/regulator', label: 'Regulator', hint: 'Breach notices, Watch, citizen reports, controllers' },
   { area: 'proof', href: '/proof', label: 'Verify', hint: 'Check any receipt against the chain' },
   { area: 'citizen', href: '/citizen', label: 'Citizen app', hint: 'The phone view of the person' },
 ]

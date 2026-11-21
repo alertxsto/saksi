@@ -7,6 +7,8 @@ import { TabBar } from '@/components/ui/TabBar'
 const NAV = [
   { href: '/regulator', label: 'Breach notices' },
   { href: '/regulator/watch', label: 'Watch' },
+  { href: '/regulator/reports', label: 'Citizen reports' },
+  { href: '/regulator/controllers', label: 'Controllers' },
 ]
 
 /** Regulator shell (header + main). Shared by app/regulator/layout.tsx and the /dev frame views. */

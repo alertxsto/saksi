@@ -3,7 +3,8 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 import { cookies } from 'next/headers';
 import { z } from 'zod';
 const name = 'saksi_sid';
-const lifetime = 86_400;
+// 30 days: there is no sign-in yet, so an expired cookie loses the citizen's receipts.
+const lifetime = 30 * 86_400;
 const payload = z.object({ id: z.uuid(), exp: z.number().int() });
 function sign(value: string) {
   const secret = process.env.SESSION_SECRET;
