@@ -96,7 +96,9 @@ export async function confirmAccess(id: string) {
 export async function recentAccess(controllerId: Hex) {
   const rows = await db().select({ id: logs.id, eventType: logs.eventType, legalBasisKey: logs.legalBasisKey, status: logs.status, failReason: logs.failReason,
     txHash: logs.txHash, logIndex: logs.logIndex, blockNumber: logs.blockNumber, code: subjects.code, createdAt: logs.createdAt })
-    .from(logs).leftJoin(subjects, eq(logs.subjectId, subjects.id)).where(eq(logs.controllerId, controllerId)).orderBy(desc(logs.createdAt)).limit(10);
+    // Pending rows are unsigned drafts anyone with a citizen code can create, so they are not controller activity.
+    .from(logs).leftJoin(subjects, eq(logs.subjectId, subjects.id)).where(and(eq(logs.controllerId, controllerId), ne(logs.status, 'pending')))
+    .orderBy(desc(logs.createdAt)).limit(10);
   return { rows: rows.map(({ code, legalBasisKey: basis, ...row }) => {
     const key = hexToString(hash.parse(basis), { size: 32 });
     return { ...row, action: EVENT_TYPES[row.eventType], legalBasisKey: Object.hasOwn(LEGAL_BASES, key) ? key : null,
