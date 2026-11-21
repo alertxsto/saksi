@@ -9,7 +9,6 @@ import { accessTotals, aggregateAccess, downloadReceiptsJson } from '@/component
 import { AccessList, AccessTotalsStrip, DataActions, ProfileGroup, RightsList } from '@/components/citizen-workspace/ProfileSections'
 import { Cta } from '@/components/landing/Cta'
 import { DotoValue } from '@/components/ui/DotoValue'
-import { RiseHeading } from '@/components/citizen/motion'
 import { DotIcon } from '@/components/ui/DotIcon'
 import { IconAlert, IconCopy, IconDownload, IconRefresh, IconTrash } from '@/components/ui/icons'
 import { ProfileSkeleton } from '@/components/ui/Skeleton'
