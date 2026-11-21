@@ -113,6 +113,14 @@ export function SiteFooter({ base = "" }: { base?: string }) {
               A witness for personal data under UU PDP. Hackathon build: every
               company and person is fictional, every record synthetic.
             </p>
+            <p className="mt-6 text-[14px] font-medium">Support</p>
+            <a
+              href="mailto:hello@saksiku.web.id"
+              data-no-translate
+              className="mt-1 flex min-h-11 w-fit items-center text-[15px] tracking-[0.02em] text-[#dad8ce] transition-colors duration-150 hover:text-paper md:min-h-7 md:text-[14px]"
+            >
+              hello@saksiku.web.id
+            </a>
           </div>
           {COLS.map((c) => (
             <nav key={c.h} aria-label={c.h}>
