@@ -391,7 +391,7 @@ export function ReportsQueue({
             {shown.length === 0 ? (
               <Calm
                 icon={<IconUser size={18} />}
-                title={reports.length ? 'Nothing open' : 'No open reports'}
+                title={reports.length ? 'Nothing open' : 'Nothing to review'}
                 body={
                   reports.length
                     ? 'Every report has a signed review. New ones appear here the moment a citizen files one.'

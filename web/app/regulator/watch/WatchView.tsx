@@ -32,7 +32,9 @@ const VERDICT: Record<WatchRowView['status'], { label: string; tone: 'ok' | 'bad
 const short = (name: string) => name.replace(' (fictional)', '').replace(' (fiktif)', '')
 const fieldOf = (r: WatchRowView) => (r.field && r.field !== 'row' && r.field !== 'txHash' ? fieldLabel(r.field) : null)
 
-function Verdict({ r }: { r: WatchRowView }) {
+const SHORT: Record<WatchRowView['status'], string> = { MATCH: 'Matches', ALTERED: 'Changed', DELETED: 'Deleted', NOT_ANCHORED: 'Not sealed' }
+
+function Verdict({ r, compact }: { r: WatchRowView; compact?: boolean }) {
   const v = VERDICT[r.status]
   if (v.tone === 'ok')
     return (
@@ -47,7 +49,7 @@ function Verdict({ r }: { r: WatchRowView }) {
       }`}
     >
       {r.status === 'ALTERED' ? <IconX size={12} strokeWidth={2.8} /> : <IconMinus size={12} strokeWidth={2.8} />}
-      {v.label}
+      {compact ? SHORT[r.status] : v.label}
     </span>
   )
 }
@@ -249,7 +251,7 @@ export function WatchView({ load }: { load?: () => Promise<WatchData> }) {
                                 <span className={`text-[13px] md:hidden ${bad ? 'text-bad' : 'text-ink-3'}`}>{said}</span>
                               </span>
                               <span className="shrink-0 md:hidden">
-                                <Verdict r={r} />
+                                <Verdict r={r} compact />
                               </span>
                             </span>
                             <span className={`hidden truncate text-[14px] md:block ${bad ? 'font-medium text-bad' : r.status === 'NOT_ANCHORED' ? 'text-pending' : 'text-ink-3'}`}>{said}</span>
