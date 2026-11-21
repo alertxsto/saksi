@@ -105,13 +105,15 @@ export async function auditPriority(lang: Lang): Promise<AuditPriority> {
       const answer = flagged.length
         ? await generate('anomaly', anomalyPrompt, input, auditSchema(refs, allowed), template)
         : { value: template, ai: { provider: 'local', model: 'rules', fallbackLevel: 'template' as const, latencyMs: 0 } };
-      const words = new Map(answer.value.items.map((i) => [i.ref, i]));
+      // Belt and braces: a ref the model left in the text becomes the agency name.
+      const named = (text: string) => text.replace(/\bA(\d+)\b/g, (ref, n: string) => flagged[Number(n) - 1]?.name ?? ref);
+      const words = new Map(answer.value.items.map((i) => [i.ref, { reason: named(i.reason), nextStep: named(i.nextStep) }]));
       const items: AuditItem[] = scored.map((s) => {
         const ref = flagged.indexOf(s) >= 0 ? `A${flagged.indexOf(s) + 1}` : '';
         const w = words.get(ref);
         return { ...s, reason: w?.reason ?? '', nextStep: w?.nextStep ?? '' };
       });
-      const value: AuditPriority = { items, summary: answer.value.summary, ai: answer.ai, watchKnown, checkedAt: new Date().toISOString() };
+      const value: AuditPriority = { items, summary: named(answer.value.summary), ai: answer.ai, watchKnown, checkedAt: new Date().toISOString() };
       cache = { ...cache, [lang]: { at: Date.now(), key, value } };
       return value;
     })().finally(() => inFlight.delete(key));
