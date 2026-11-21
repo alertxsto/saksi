@@ -54,7 +54,7 @@ export function CitizenHeaderIdentity({ name: forced }: { name?: string }) {
   )
 }
 
-/** Laptop sidebar footer: avatar, name, "Synthetic citizen", Switch role. */
+/** Laptop sidebar footer: avatar, name, "Synthetic citizen". Switch role lives in the header role menu. */
 export function CitizenSidebarIdentity({ name: forced }: { name?: string }) {
   const name = useCitizenName(forced)
   return (
@@ -67,13 +67,6 @@ export function CitizenSidebarIdentity({ name: forced }: { name?: string }) {
         <p className="truncate text-[14px] font-medium leading-tight text-ink">{name ?? 'Citizen'}</p>
         <p className="mt-0.5 text-[12px] leading-tight text-ink-3">Synthetic citizen</p>
       </div>
-      <Link
-        href="/enter"
-        className="shrink-0 rounded-pill px-2 py-1.5 text-[12px] font-medium text-ink-2 shadow-[0_0_0_1px_var(--color-line-strong)] transition-colors duration-150 hover:bg-ink hover:text-paper"
-      >
-        Switch
-        <span className="sr-only"> role</span>
-      </Link>
     </div>
   )
 }
