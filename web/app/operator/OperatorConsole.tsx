@@ -22,6 +22,7 @@ import {
   type DemoReceipt,
   type ServiceStatus,
   type TamperAction,
+  type TamperReport,
   type WatchSummary,
 } from '@/lib/data'
 import { eventVerb, shortHex, timeAgo } from '@/lib/format'
@@ -69,7 +70,7 @@ const messageOf = (error: unknown) => (error instanceof Error ? error.message : 
 const refOf = (id: string) => `R.${id.replace(/-/g, '').slice(0, 8).toUpperCase()}`
 
 const DONE: Record<TamperAction, string> = {
-  edit: 'edited: the database now says READ',
+  edit: 'edited: the database now says a different action',
   delete: 'deleted from the database',
   restore: 'restored to its recorded state',
 }
@@ -251,6 +252,69 @@ function ReceiptRow({
   )
 }
 
+// ---- what just ran ------------------------------------------------------------------------------
+
+const ACTION_TITLE: Record<TamperAction, string> = { edit: 'UPDATE', delete: 'DELETE', restore: 'RESTORE' }
+
+/**
+ * The proof that the tamper is a real database write: the statement Postgres received (parameterised, values
+ * withheld), the changed columns and the row hashes the tamper_log entry recorded. Purpose text is never shown.
+ */
+export function TamperProof({ report, onDismiss }: { report: TamperReport; onDismiss?: () => void }) {
+  return (
+    <section aria-label="What just ran" aria-live="polite" className="flex min-w-0 flex-col gap-4 rounded-lg border border-ink bg-card p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="label text-[12px] text-bad">
+            {ACTION_TITLE[report.action]} · {refOf(report.eventId)}
+          </p>
+          <p className="mt-1 text-[18px] font-medium text-ink">What just ran on Postgres</p>
+          <p className="mt-0.5 font-mono text-[12px] text-ink-2 [overflow-wrap:anywhere]">
+            tamper_log {report.log.id.slice(0, 8)} · {new Date(report.log.at).toISOString().replace('T', ' ').slice(0, 19)} UTC
+          </p>
+        </div>
+        {onDismiss ? (
+          <Button variant="ghost" size="sm" onClick={onDismiss}>
+            Hide
+          </Button>
+        ) : null}
+      </div>
+
+      <pre className="max-w-full overflow-x-auto whitespace-pre-wrap rounded-md [overflow-wrap:anywhere] bg-ink px-4 py-3 font-mono text-[12px] leading-[1.6] text-paper">
+        {report.statement}
+      </pre>
+      <p className="font-mono text-[12px] text-ink-2 [overflow-wrap:anywhere]">
+        {report.params.map((p) => `${p.name} = ${p.value}`).join('  ·  ')}
+        <span className="text-ink-3">  ·  row snapshot and ciphertext withheld</span>
+      </p>
+
+      <dl className="flex flex-col gap-px overflow-hidden rounded-md border border-line bg-line">
+        {report.changes.map((c) => (
+          <div key={c.field} className="grid min-w-0 gap-1 bg-card px-4 py-3 sm:grid-cols-[140px_1fr]">
+            <dt className="label text-[12px] text-ink">{c.field}</dt>
+            <dd className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-1 font-mono text-[13px]">
+              <span className="text-ink-2 line-through decoration-bad/60">{c.before}</span>
+              <span aria-hidden="true" className="text-ink-3">→</span>
+              <span className="sr-only">changed to</span>
+              <span className="font-bold text-ink">{c.after}</span>
+            </dd>
+          </div>
+        ))}
+        <div className="grid min-w-0 gap-1 bg-card px-4 py-3 sm:grid-cols-[140px_1fr]">
+          <dt className="label text-[12px] text-ink">Row hash</dt>
+          <dd className="flex min-w-0 flex-col gap-1 font-mono text-[12px] text-ink-2">
+            <span className="break-all">before {report.rowHash.before ?? 'no row'}</span>
+            <span className="break-all text-ink">after&nbsp; {report.rowHash.after ?? 'no row'}</span>
+          </dd>
+        </div>
+      </dl>
+      <p className="text-[13px] text-ink-2">
+        The chain was not touched. The phone and Watch compare this row with the sealed event and show the difference.
+      </p>
+    </section>
+  )
+}
+
 // ---- side panels --------------------------------------------------------------------------------
 
 function WatchSummaryPanel({ data, error, updatedAt }: { data: WatchSummary | undefined; error: boolean; updatedAt: number }) {
@@ -335,6 +399,7 @@ function Console({ token }: { token: string }) {
   const queryClient = useQueryClient()
   const { toast } = useToast()
   const [busy, setBusy] = useState<{ id: string; action: TamperAction } | null>(null)
+  const [report, setReport] = useState<TamperReport | null>(null)
 
   const receipts = useQuery({
     queryKey: ['operator', 'receipts'],
@@ -368,7 +433,10 @@ function Console({ token }: { token: string }) {
   const tamper = useMutation({
     mutationFn: ({ id, action }: { id: string; action: TamperAction }) => tamperReceipt(token, action, id),
     onMutate: (vars) => setBusy(vars),
-    onSuccess: (_, { id, action }) => toast(`${refOf(id)} ${DONE[action]}`),
+    onSuccess: (result, { id, action }) => {
+      setReport(result)
+      toast(`${refOf(id)} ${DONE[action]}`)
+    },
     onError: (error) => {
       if (rejected(error)) writeToken(null)
       toast(messageOf(error), 'bad')
@@ -397,6 +465,7 @@ function Console({ token }: { token: string }) {
             </Button>
           </div>
         </div>
+        {report ? <TamperProof report={report} onDismiss={() => setReport(null)} /> : null}
         {receipts.isPending ? (
           <div className="flex flex-col gap-px overflow-hidden rounded-lg border border-line bg-line" aria-label="Loading receipts">
             {[0, 1, 2].map((i) => (
