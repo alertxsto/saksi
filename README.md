@@ -13,7 +13,7 @@ Kalau catatan di database diubah atau dihapus diam-diam, warga dan regulator lan
 ![Solidity](https://img.shields.io/badge/Solidity-Foundry-363636?logo=solidity)
 ![Ethereum Sepolia](https://img.shields.io/badge/Ethereum-Sepolia-627EEA?logo=ethereum&logoColor=white)
 ![Postgres 17](https://img.shields.io/badge/Postgres-17-336791?logo=postgresql&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-27%20forge%20%2B%20203%20vitest-157F3D)
+![Tests](https://img.shields.io/badge/tests-27%20forge%20%2B%20214%20vitest-157F3D)
 
 </div>
 
@@ -47,10 +47,11 @@ Saksi menjadi saksi independen di antara instansi, warga, dan regulator.
 | --- | --- |
 | **Penyegelan on-chain** | Tiga kontrak (`ControllerRegistry`, `AccessJournal`, `BreachReport`). Hanya wallet instansi terdaftar yang bisa menyegel. |
 | **Verifikasi di browser** | `lib/shared/verify.ts` menghitung ulang hash dan membaca event langsung dari node publik pilihan pengguna. |
-| **Watch** | Rekonsiliasi chain dengan database: `MATCH`, `ALTERED` (field mana yang berubah), `DELETED`, `NOT_ANCHORED`. |
+| **Watch** | Rekonsiliasi chain dengan database: `MATCH`, `ALTERED` (field mana yang berubah, termasuk status yang diubah jadi gagal), `DELETED`, `NOT_ANCHORED` (termasuk baris "anchored" tanpa log di jurnal). |
 | **Jendela 72 jam ditegakkan kontrak** | `anchor` me-revert setelah 72 jam, dan satu-satunya jalan adalah `anchorLate` yang mencatat lamanya keterlambatan. |
 | **AI drafter Pasal 46** | Cerita bebas dari instansi diubah menjadi empat bagian wajib (a) sampai (d). Keputusan tepat waktu tetap dari kontrak. |
-| **AI "Jelaskan"** | Penjelasan bukti akses dalam bahasa awam, dengan guard yang menolak jawaban yang membantah verdict. |
+| **AI "Jelaskan"** | Penjelasan bukti akses dalam bahasa awam (mengikuti bahasa layar), dengan guard yang menolak jawaban yang membantah verdict. |
+| **AI prioritas audit (regulator)** | Kode memberi skor setiap instansi dari yang disaksikan Saksi: catatan diubah/dihapus (Watch), pemberitahuan terlambat, laporan warga terbuka, rasio ekspor/berbagi, lonjakan 10 menit, akses malam, segel terlambat, draf yang tak pernah disegel. AI hanya menulis alasan dan satu langkah audit, dicek guard (tanpa kesimpulan hukum, hanya angka dari input). AI tidak pernah melihat data warga. |
 | **Laporan warga** | Warga melaporkan akses yang mencurigakan. Server memeriksa ulang bukti itu ke ledger, lalu regulator meninjau dengan tanda tangan wallet. |
 | **Privasi** | Tidak ada nama, NIK, atau teks bebas di chain. Identitas warga menjadi pseudonim yang berbeda untuk tiap instansi. |
 | **Dwibahasa** | Antarmuka Inggris dan Indonesia, bisa diganti kapan saja tanpa memuat ulang halaman. |
@@ -128,13 +129,13 @@ Opening bukti akses (nilai mentah untuk menghitung ulang hash) ditaruh setelah `
 
 ## Kontrak di Sepolia
 
-Sumber: [`contracts/deployments/sepolia.json`](contracts/deployments/sepolia.json). Chain ID 11155111, blok deployment [12181663](https://sepolia.etherscan.io/block/12181663).
+Sumber: [`contracts/deployments/sepolia.json`](contracts/deployments/sepolia.json). Chain ID 11155111, blok deployment [12181663](https://sepolia.etherscan.io/block/12181663). Source ketiga kontrak terverifikasi di Sourcify dengan status *exact match*: bytecode on-chain sama persis dengan hasil kompilasi `contracts/src` (solc 0.8.24).
 
-| Kontrak | Alamat |
-| --- | --- |
-| ControllerRegistry | [`0x3d9dE4717a7398d24239b8370b23DCAd7a07f737`](https://sepolia.etherscan.io/address/0x3d9dE4717a7398d24239b8370b23DCAd7a07f737) |
-| AccessJournal | [`0xAb9b73586610697deb7Ae59A59e991f5177CB263`](https://sepolia.etherscan.io/address/0xAb9b73586610697deb7Ae59A59e991f5177CB263) |
-| BreachReport | [`0x71Ff16F068A845F3D3dfd63584a31A9de86fE462`](https://sepolia.etherscan.io/address/0x71Ff16F068A845F3D3dfd63584a31A9de86fE462) |
+| Kontrak | Alamat | Source terverifikasi |
+| --- | --- | --- |
+| ControllerRegistry | [`0x3d9dE4717a7398d24239b8370b23DCAd7a07f737`](https://sepolia.etherscan.io/address/0x3d9dE4717a7398d24239b8370b23DCAd7a07f737) | [Sourcify · exact match](https://repo.sourcify.dev/11155111/0x3d9dE4717a7398d24239b8370b23DCAd7a07f737) |
+| AccessJournal | [`0xAb9b73586610697deb7Ae59A59e991f5177CB263`](https://sepolia.etherscan.io/address/0xAb9b73586610697deb7Ae59A59e991f5177CB263) | [Sourcify · exact match](https://repo.sourcify.dev/11155111/0xAb9b73586610697deb7Ae59A59e991f5177CB263) |
+| BreachReport | [`0x71Ff16F068A845F3D3dfd63584a31A9de86fE462`](https://sepolia.etherscan.io/address/0x71Ff16F068A845F3D3dfd63584a31A9de86fE462) | [Sourcify · exact match](https://repo.sourcify.dev/11155111/0x71Ff16F068A845F3D3dfd63584a31A9de86fE462) |
 
 Instansi terdaftar (semuanya fiktif, wallet dipegang tim):
 
@@ -159,7 +160,7 @@ Instansi terdaftar (semuanya fiktif, wallet dipegang tim):
 | Kontrak, `forge test` | **27 lulus**: 22 unit, 4 fuzz (256 run masing-masing), 1 suite invariant stateful (64 run x 200 call) |
 | Invariant | satu laporan di-anchor paling banyak sekali; laporan berstatus tepat waktu jika dan hanya jika di-anchor dalam 72 jam sejak `detectedAt`. Uji mutasi memastikan invariant bisa gagal. |
 | Slither 0.11.6 | 0 high, 0 medium, 3 low (`timestamp` pada jendela 72 jam, false positive by design) |
-| Web, `pnpm test` (Vitest) | **203 lulus di 27 file**: hash commitment dengan vektor independen, verifier terhadap RPC simulasi, kripto, hardening API, guard AI, alur wallet, Watch, laporan warga, dan tidak ada data mock di jalur produksi |
+| Web, `pnpm test` (Vitest) | **214 lulus di 28 file**: hash commitment dengan vektor independen, verifier terhadap RPC simulasi, kripto, hardening API, guard AI, alur wallet, Watch, laporan warga, dan tidak ada data mock di jalur produksi |
 | `pnpm typecheck`, `pnpm build` | lulus |
 
 Detail dan cara reproduksi ada di [`contracts/SECURITY.md`](contracts/SECURITY.md). Ini review mandiri tim untuk hackathon, bukan audit profesional.
@@ -232,7 +233,7 @@ Pemeriksaan:
 
 ```sh
 (cd contracts && forge test)                          # 27 tes
-(cd web && pnpm typecheck && pnpm test && pnpm build)  # 203 tes
+(cd web && pnpm typecheck && pnpm test && pnpm build)  # 214 tes
 ```
 
 Simulasi tamper di database lokal untuk satu catatan yang sudah disegel (dari root repo):
