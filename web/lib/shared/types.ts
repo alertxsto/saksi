@@ -37,3 +37,12 @@ export type AiMeta = { provider: string; model: string; fallbackLevel: 'primary'
 export type Pasal46Fields = { dataAffected: string; whenAndHow: string; actionsTaken: string; contact: string };
 /** Error body returned by every API route. `message` is English and safe to show in the UI. */
 export type ApiError = { error: { code: string; message: string } };
+/**
+ * One row of GET /api/demo/receipts (presenter console, x-demo-token). `state` is the demo tamper state:
+ * intact = as recorded, edited = a demo edit is live, deleted = the demo removed the row.
+ */
+export type DemoReceipt = {
+  id: string; controllerName: string; eventType: EventTypeCode; createdAt: string; txHash: string | null;
+  logIndex: number | null; blockNumber: number | null; status: RecordStatus;
+  state: 'intact' | 'edited' | 'deleted'; restorable: boolean; editable: boolean;
+};

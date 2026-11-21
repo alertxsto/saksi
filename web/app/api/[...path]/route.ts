@@ -6,6 +6,7 @@ import { hash } from '../../../lib/server/chain';
 import { HttpError, clientIp, describeError, input, json, missing, requireDemoToken, secureCookies, validate } from '../../../lib/server/http';
 import { consume } from '../../../lib/server/rate-limit';
 import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai';
+import { demoReceipts } from '../../../lib/server/demo';
 import { serviceStatus } from '../../../lib/server/status';
 import { tamper, tamperInput } from '../../../lib/server/tamper';
 import { watch } from '../../../lib/server/watch';
@@ -46,9 +47,15 @@ async function route(request: Request, context: Context): Promise<Response> {
         const controllerId = url.searchParams.get('controllerId');
         return json(await watch(controllerId === null ? undefined : validate(hash, controllerId)));
       }
-      case 'POST demo/tamper':
+      case 'POST demo/tamper': {
         requireDemoToken(request);
-        return json(await tamper(await input(request, tamperInput)));
+        const body = await input(request, tamperInput);
+        if (!await consume(`demo:${clientIp(request)}`, 30)) throw new HttpError(429, 'RATE_LIMITED', 'Too many tamper actions. Wait a minute and try again.');
+        return json(await tamper(body));
+      }
+      case 'GET demo/receipts':
+        requireDemoToken(request);
+        return json(await demoReceipts());
       case 'POST ai/explain': return json(await explain(await input(request, explainInput)));
       case 'POST controller/breach/draft': return json(await draft(await input(request, draftInput)));
       case 'GET status':
