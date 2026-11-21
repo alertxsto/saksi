@@ -8,6 +8,7 @@ import { CitizenShell } from '@/app/citizen/CitizenShell'
 import { OnboardingView, ReceiptListView } from '@/app/citizen/CitizenHome'
 import { ProfileScreenView, type ConfirmState } from '@/app/citizen/profile/ProfileView'
 import { ReceiptDetailView, type DetailVerifyState } from '@/app/citizen/receipt/[eventId]/ReceiptDetail'
+import type { PassVerdict } from '@/components/citizen/CitizenPass'
 import { WorkspaceSidebarView, type SidebarWatch } from '@/components/citizen-workspace/Sidebar'
 import { ReceiptsSplit, SelectReceiptPane } from '@/components/citizen-workspace/Split'
 import type { AutoVerdicts, GhostReceipt } from '@/lib/data'
@@ -42,8 +43,14 @@ const done = (result: VerifyResult): ReceiptCheck => ({ phase: 'done', result, a
 const noop = () => {}
 
 
-function Sidebar({ path, code = CODE, watch = 'watching', count = ALL.length }: { path: string; code?: string; watch?: SidebarWatch; count?: number }) {
-  return <WorkspaceSidebarView path={path} code={code} watch={watch} count={count} onCopy={noop} />
+type PassLine = { verdict: PassVerdict; title: string }
+const PASS_OK: PassLine = { verdict: 'ok', title: `All ${ALL.length} receipts match the chain` }
+const PASS_CHECKING: PassLine = { verdict: 'checking', title: 'Checking 2 receipts against the chain' }
+const PASS_TAMPER: PassLine = { verdict: 'tamper', title: '1 record no longer matches the chain' }
+const PASS_EMPTY: PassLine = { verdict: 'empty', title: 'No one has opened your data yet' }
+
+function Sidebar({ path, code = CODE, watch = 'watching', count = ALL.length, pass = PASS_OK }: { path: string; code?: string; watch?: SidebarWatch; count?: number; pass?: PassLine }) {
+  return <WorkspaceSidebarView path={path} code={code} watch={watch} count={count} verdict={pass.verdict} title={pass.title} onCopy={noop} />
 }
 
 function List(props: Partial<Parameters<typeof ReceiptListView>[0]>) {
@@ -93,7 +100,7 @@ function screen(s: WorkspaceState): { path: string; body: ReactNode; sidebar?: R
     case 'list':
       return { path: '/citizen', body: <ReceiptsSplit focus="list" list={<List freshIds={[ALL[0].eventId]} />} pane={<SelectReceiptPane />} /> }
     case 'checking':
-      return { path: '/citizen', body: <ReceiptsSplit focus="list" list={<List verdicts={CHECKING_V} />} pane={<SelectReceiptPane />} /> }
+      return { path: '/citizen', sidebar: <Sidebar path="/citizen" pass={PASS_CHECKING} />, body: <ReceiptsSplit focus="list" list={<List verdicts={CHECKING_V} />} pane={<SelectReceiptPane />} /> }
     case 'detail':
       return {
         path: '/citizen/receipt/x',
@@ -107,6 +114,7 @@ function screen(s: WorkspaceState): { path: string; body: ReactNode; sidebar?: R
     case 'altered':
       return {
         path: '/citizen/receipt/x',
+        sidebar: <Sidebar path="/citizen/receipt/x" pass={PASS_TAMPER} />,
         body: (
           <ReceiptsSplit
             focus="pane"
@@ -116,11 +124,11 @@ function screen(s: WorkspaceState): { path: string; body: ReactNode; sidebar?: R
         ),
       }
     case 'deleted':
-      return { path: '/citizen', body: <ReceiptsSplit focus="list" list={<List ghosts={[GHOST]} />} pane={<SelectReceiptPane />} /> }
+      return { path: '/citizen', sidebar: <Sidebar path="/citizen" pass={PASS_TAMPER} />, body: <ReceiptsSplit focus="list" list={<List ghosts={[GHOST]} />} pane={<SelectReceiptPane />} /> }
     case 'empty':
       return {
         path: '/citizen',
-        sidebar: <Sidebar path="/citizen" count={0} />,
+        sidebar: <Sidebar path="/citizen" count={0} pass={PASS_EMPTY} />,
         body: <ReceiptsSplit focus="list" list={<List state="empty" receipts={[]} verdicts={{}} />} pane={<SelectReceiptPane count={0} />} />,
       }
     case 'loading':
@@ -132,7 +140,7 @@ function screen(s: WorkspaceState): { path: string; body: ReactNode; sidebar?: R
     case 'error':
       return {
         path: '/citizen',
-        sidebar: <Sidebar path="/citizen" watch="paused" />,
+        sidebar: <Sidebar path="/citizen" watch="paused" pass={{ verdict: 'empty', title: 'Receipts didn’t load' }} />,
         body: (
           <ReceiptsSplit
             focus="list"
@@ -148,7 +156,7 @@ function screen(s: WorkspaceState): { path: string; body: ReactNode; sidebar?: R
     case 'profile-altered':
       return { path: '/citizen/profile', body: <Profile receipts={WITH_TAMPER} verdicts={{ ...ALTERED_V, [ALL[0].eventId]: 'verifying' }} /> }
     case 'profile-empty':
-      return { path: '/citizen/profile', sidebar: <Sidebar path="/citizen/profile" count={0} />, body: <Profile receipts={[]} verdicts={{}} /> }
+      return { path: '/citizen/profile', sidebar: <Sidebar path="/citizen/profile" count={0} pass={PASS_EMPTY} />, body: <Profile receipts={[]} verdicts={{}} /> }
     case 'profile-confirm':
       return { path: '/citizen/profile', body: <Profile confirm="open" /> }
   }

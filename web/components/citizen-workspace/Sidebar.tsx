@@ -5,11 +5,15 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Suspense, type ComponentType } from 'react'
 import { LiveDot } from '@/components/ui/Chip'
-import { IconArrowUpRight, IconCopy, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
+import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
+import { passStatus } from '@/components/citizen/passStatus'
+import { IconArrowUpRight, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
 import { LogoMark } from '@/components/ui/Logo'
 import { useToast } from '@/components/ui/Toast'
 import { copyText, toCitizenError, type ReceiptsResponse } from '@/lib/data'
+import { checkOf, useReceiptChecks } from '@/lib/client/receipt-checks'
 import { useOnline } from '@/lib/hooks'
+import { verdictKind } from '@/lib/receipt-state'
 
 type IconProps = { size?: number; strokeWidth?: number; className?: string }
 
@@ -23,14 +27,16 @@ export type SidebarWatch = 'watching' | 'paused' | 'offline' | 'none' | 'loading
 
 /**
  * Laptop sidebar for the citizen app (replaces the phone TabBar from 1024 px of shell width): logo, three
- * destinations, and the profile pinned at the bottom as a small vault chip with the code and the live
- * watch state. Purely presentational; `WorkspaceSidebar` feeds it from the shared ['receipts'] query.
+ * destinations, and the profile pinned at the bottom as the compact Citizen Pass (verdict + code + QR)
+ * and the live watch state. Purely presentational; `WorkspaceSidebar` feeds it from the shared ['receipts'] query.
  */
 export function WorkspaceSidebarView({
   path,
   code,
   count,
   watch,
+  verdict = 'empty',
+  title,
   onCopy,
 }: {
   path: string
@@ -38,6 +44,10 @@ export function WorkspaceSidebarView({
   /** Receipts in this profile (badge on Receipts); undefined while unknown. */
   count?: number
   watch: SidebarWatch
+  /** Verdict on the compact pass; the container derives it from the phone's own chain checks. */
+  verdict?: PassVerdict
+  /** One line on the compact pass; defaults to the watch state. */
+  title?: string
   onCopy: () => void
 }) {
   return (
@@ -63,15 +73,15 @@ export function WorkspaceSidebarView({
                   href={href}
                   aria-current={active ? 'page' : undefined}
                   className={`group flex h-10 items-center gap-3 rounded-md px-2.5 text-[15px] transition-colors duration-150 ease-[cubic-bezier(.65,0,.2,1)] ${
-                    active ? 'bg-card font-medium text-ink shadow-[0_0_0_1px_var(--color-line)]' : 'text-ink-2 hover:bg-ink/[.05] hover:text-ink'
+                    active ? 'bg-ink font-medium text-paper' : 'text-ink-2 hover:bg-ink/[.05] hover:text-ink'
                   }`}
                 >
-                  <Icon size={18} strokeWidth={active ? 2 : 1.75} className={active ? 'text-blue' : ''} />
+                  <Icon size={18} strokeWidth={active ? 2 : 1.75} />
                   <span className="flex-1">{label}</span>
                   {label === 'Receipts' && count !== undefined && count > 0 ? (
-                    <span className="tnum text-[13px] text-ink-3">{count}</span>
+                    <span className={`tnum text-[13px] ${active ? 'text-paper/70' : 'text-ink-3'}`}>{count}</span>
                   ) : null}
-                  {away ? <IconArrowUpRight size={14} className="text-ink-3 group-hover:text-ink-2" /> : null}
+                  {away ? <IconArrowUpRight size={14} className={active ? 'text-paper/70' : 'text-ink-3 group-hover:text-ink-2'} /> : null}
                 </Link>
               </li>
             )
@@ -83,45 +93,38 @@ export function WorkspaceSidebarView({
 
       <div className="px-3 pb-4">
         {code ? (
-          <div className="overflow-hidden rounded-lg border border-line bg-card">
-            <div className="flex items-center justify-between gap-2 py-2.5 pl-3.5 pr-2">
-              <div className="min-w-0">
-                <p className="text-[13px] text-ink-2">Your code</p>
-                <p className="mt-0.5 font-mono text-[16px] font-medium tracking-[0.08em] text-ink" aria-label={`Code ${code.split('').join(' ')}`}>
-                  {code}
-                </p>
-              </div>
-              <button
-                type="button"
-                onClick={onCopy}
-                aria-label="Copy code"
-                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-2 transition-colors duration-150 hover:bg-paper-2 hover:text-ink"
-              >
-                <IconCopy size={15} />
-              </button>
-            </div>
+          <>
+            <CitizenPass code={code} verdict={verdict} title={title ?? WATCH_TEXT[watch]} size="compact" onCopy={onCopy} />
             <WatchLine watch={watch} />
-          </div>
+          </>
         ) : (
-          <div className="rounded-lg border border-line bg-card px-3.5 py-3">
-            <p className="text-[14px] font-medium text-ink">{watch === 'loading' ? 'Loading profile…' : 'No demo profile'}</p>
+          <div className="rounded-[16px] bg-card px-3.5 py-3 shadow-[0_0_0_1px_var(--color-line)]">
+            <p className="text-[14px] font-medium text-ink">{watch === 'loading' ? 'Loading profile…' : 'No profile yet'}</p>
             <p className="mt-0.5 text-[13px] leading-snug text-ink-2">
               {watch === 'loading' ? 'Checking this browser.' : 'Create one to get a code.'}
             </p>
           </div>
         )}
-        <p className="mt-2.5 px-1 text-[12px] text-ink-3">Synthetic demo</p>
+        {code ? null : <p className="mt-2.5 px-1 text-[12px] text-ink-3">Synthetic profile</p>}
       </div>
     </aside>
   )
 }
 
+const WATCH_TEXT: Record<SidebarWatch, string> = {
+  watching: 'Live · every 3 s',
+  offline: 'Offline · paused',
+  paused: 'Paused',
+  none: 'Paused',
+  loading: 'Loading…',
+}
+
+/** The watch state under the pass, one quiet line. */
 function WatchLine({ watch }: { watch: SidebarWatch }) {
-  const text = watch === 'watching' ? 'Live · every 3 s' : watch === 'offline' ? 'Offline · paused' : 'Paused'
   return (
-    <p role="status" className="flex items-center gap-2 border-t border-line px-3.5 py-2 text-[13px] text-ink-2">
+    <p role="status" className="mt-2.5 flex items-center gap-2 px-1 text-[12px] text-ink-3">
       {watch === 'watching' ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
-      {text}
+      {WATCH_TEXT[watch]} · synthetic profile
     </p>
   )
 }
@@ -160,6 +163,21 @@ function LiveSidebar({ path }: { path: string }) {
           ? 'paused'
           : 'watching'
 
+  // The compact pass reads the same in-browser chain checks the list does (no new state, no fetch).
+  const store = useReceiptChecks()
+  const receipts = q.data?.receipts ?? []
+  const kinds = receipts.map((r) => verdictKind(checkOf(store.checks, r)))
+  const pass = passStatus({
+    state: !q.data ? (q.isError ? 'error' : 'loading') : receipts.length === 0 ? 'empty' : 'ready',
+    total: receipts.length,
+    matched: kinds.filter((k) => k === 'MATCH').length,
+    checking: kinds.filter((k) => k === 'CHECKING').length,
+    anchored: receipts.filter((r) => r.status === 'anchored').length,
+    sealing: receipts.filter((r) => r.status === 'pending' || r.status === 'submitted').length,
+    tampered: kinds.filter((k) => k === 'ALTERED').length + (q.data ? store.hidden.length : 0),
+    watching: watch === 'watching',
+  })
+
   const onCopy = async () => {
     try {
       await copyText(code)
@@ -175,6 +193,8 @@ function LiveSidebar({ path }: { path: string }) {
       code={noSession ? '' : code}
       count={q.data?.receipts.length}
       watch={watch}
+      verdict={pass.verdict}
+      title={pass.title}
       onCopy={() => void onCopy()}
     />
   )

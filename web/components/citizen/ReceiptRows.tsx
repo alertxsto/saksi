@@ -1,13 +1,14 @@
 'use client'
 
 import Link from 'next/link'
-import type { SVGProps } from 'react'
+import type { CSSProperties, SVGProps } from 'react'
 import { Cta } from '@/components/landing/Cta'
 import { DotIcon, type DotIconName } from '@/components/ui/DotIcon'
 import { IconArrowUpRight, IconCheck, IconSpinner, IconX } from '@/components/ui/icons'
 import type { AutoVerdict, GhostReceipt } from '@/lib/data'
-import { actSentence, formatWIB, proofPath, timeAgo } from '@/lib/format'
+import { actSentence, formatWIB, proofPath, timeAgo, timeBucket } from '@/lib/format'
 import type { ReceiptOpening } from '@/lib/shared/types'
+import '@/app/citizen/stub-list.css'
 
 /** Drill-in chevron (rows); same stroke family as components/ui/icons. */
 export function IconChevron({ size = 16, ...p }: { size?: number } & SVGProps<SVGSVGElement>) {
@@ -65,33 +66,51 @@ export function TamperPill({ children }: { children: string }) {
 /**
  * The one status on the right of a row. Verified: a small green check. Sealing: amber text. Tamper: red
  * pill. Not sealed / not on this node: quiet grey text (red is tamper only). Recorded, not checked: nothing.
+ * `onInk`: the selected (ink-filled) stub on the laptop, where amber and grey need their light variants.
  */
-function RowStatus({ opening, verdict }: { opening: ReceiptOpening; verdict?: AutoVerdict }) {
+function RowStatus({ opening, verdict, onInk = false }: { opening: ReceiptOpening; verdict?: AutoVerdict; onInk?: boolean }) {
+  const quiet = onInk ? 'text-paper/70' : 'text-ink-3'
   if (verdict === 'altered') return <TamperPill>Altered</TamperPill>
-  if (opening.status === 'failed') return <span className="text-[13px] text-ink-3">Not sealed</span>
-  if (opening.status === 'pending' || opening.status === 'submitted') return <span className="text-[13px] font-medium text-pending">Sealing…</span>
+  if (opening.status === 'failed') return <span className={`shrink-0 text-[13px] ${quiet}`}>Not sealed</span>
+  if (opening.status === 'pending' || opening.status === 'submitted')
+    return <span className={`shrink-0 text-[13px] font-medium ${onInk ? 'text-pending-v' : 'text-pending'}`}>Sealing…</span>
   if (verdict === 'verifying')
     return (
-      <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
+      <span className={`flex shrink-0 items-center gap-1.5 text-[13px] ${quiet}`}>
         <IconSpinner size={13} /> Checking
       </span>
     )
   if (verdict === 'match')
     return (
-      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ok-bg text-ok" title="Matches the chain">
+      <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-ok-bg text-ok" title="Matches the chain">
         <IconCheck size={13} strokeWidth={2.6} aria-hidden="true" />
         <span className="sr-only">Matches the chain</span>
       </span>
     )
-  if (verdict === 'not_found') return <span className="text-[13px] text-ink-3">Not on this node</span>
+  if (verdict === 'not_found') return <span className={`shrink-0 text-[13px] ${quiet}`}>Not on this node</span>
   return null
 }
 
+const WIB = 'Asia/Jakarta'
+/** "13:16" in WIB: the time printed on the torn-off side of the stub. */
+function clockWIB(iso: string): string {
+  return new Date(iso).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone: WIB })
+}
+/** "Today" for receipts from today (WIB), otherwise "20 Nov". */
+function dayWIB(iso: string, now: number): string {
+  const d = new Date(iso)
+  if (now && timeBucket(iso, now) !== 'EARLIER') return 'Today'
+  return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', timeZone: WIB })
+}
+/** Second line of a stub: the verb, short enough to leave room for the purpose. */
+const STUB_VERB = ['Read your data', 'Updated your data', 'Exported your data', 'Shared with a third party']
+const stubVerb = (eventType: number) => STUB_VERB[eventType] ?? 'Used your data'
+
 /**
- * One receipt in an inset group (riset-ui/35): initials avatar, two lines of text, one status on the right,
- * chevron. `isNew` adds a blue dot before the time and a soft blue wash while it slides in. `verdict`
- * 'altered' flashes the row red once, turns the avatar and the second line red and deep-links into the
- * comparison (?check=1 re-runs the check on open). `selected` marks the receipt open in the laptop pane.
+ * One receipt as a ticket stub (riset-ui/36 A): the time on the torn-off left side, a perforation, who and
+ * what on two lines, one status on the right. `isNew` adds a 6 px blue dot and slides the stub in.
+ * `verdict` 'altered' flashes the stub red once, turns the second line red and deep-links into the
+ * comparison (?check=1 re-runs the check on open). `selected` (laptop pane open) fills the stub with ink.
  */
 export function ReceiptRow({
   opening,
@@ -109,86 +128,100 @@ export function ReceiptRow({
 }) {
   const altered = verdict === 'altered'
   const href = `/citizen/receipt/${opening.eventId}${altered ? '?check=1' : ''}`
-  const when = now ? timeAgo(opening.createdAt, now) : '—'
+  const fresh = isNew && !altered
   return (
-    <Link
-      href={href}
-      data-verdict={verdict ?? 'none'}
-      aria-current={selected ? 'page' : undefined}
-      className={`cz-row group relative flex min-h-16 items-center gap-3 pl-4 transition-colors duration-150 ${
-        altered ? 'cz-tamper bg-bad-bg/50' : isNew ? 'cz-row-in bg-blue-bg/40' : selected ? 'bg-paper-2/70' : 'hover:bg-paper-2/50'
-      } ${selected ? 'ws-row-selected' : ''}`}
-    >
-      <Avatar name={opening.controllerName} tone={altered ? 'bad' : 'neutral'} />
-      <span className="cz-row-main flex min-w-0 flex-1 items-center gap-3 self-stretch py-3 pr-3">
-        <span className="min-w-0 flex-1">
-          <span className="block text-[16px] font-medium leading-snug text-ink">
-            {who(opening)} {actSentence(opening.eventType)}
-          </span>
-          <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-[14px] leading-snug ${altered ? 'text-bad' : 'text-ink-2'}`}>
-            {isNew && !altered ? <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue" /> : null}
-            <span className="truncate">
-              {altered ? 'Changed after it was sealed' : opening.purposeText} · {when}
-            </span>
-            {isNew && !altered ? <span className="sr-only">, just arrived</span> : null}
-          </span>
+    <div className={`sl-focus sl-shadow-sm ${fresh ? 'cz-row-in' : ''}`}>
+      <Link
+        href={href}
+        data-verdict={verdict ?? 'none'}
+        aria-current={selected ? 'page' : undefined}
+        className={`sl-stub group relative flex min-h-[72px] items-stretch overflow-hidden rounded-[16px] transition-colors duration-150 ${
+          selected ? 'bg-ink text-paper' : 'bg-card text-ink hover:bg-white'
+        }`}
+      >
+        {altered ? <span aria-hidden="true" className="cz-tamper pointer-events-none absolute inset-0" /> : null}
+        <span className="relative flex w-[74px] shrink-0 flex-col items-center justify-center py-3">
+          <span className="tnum text-[17px] font-semibold leading-tight tracking-[-0.02em]">{clockWIB(opening.createdAt)}</span>
+          <span className={`text-[12px] leading-tight ${selected ? 'text-paper/70' : 'text-ink-2'}`}>{dayWIB(opening.createdAt, now)}</span>
         </span>
-        <RowStatus opening={opening} verdict={verdict} />
-        <IconChevron size={16} aria-hidden="true" className={`shrink-0 ${altered ? 'text-bad' : 'text-ink-3 group-hover:text-ink-2'}`} />
-      </span>
-    </Link>
+        <span aria-hidden="true" className={`sl-perf-v absolute bottom-3 left-[73px] top-3 ${selected ? 'text-paper/30' : 'text-line-strong'}`} />
+        <span className="relative flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-3.5">
+          <span className="min-w-0 flex-1">
+            <span className="flex min-w-0 items-center gap-2">
+              {fresh ? <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue" /> : null}
+              <span className="truncate text-[16px] font-semibold leading-snug tracking-[-0.01em]">{who(opening)}</span>
+              {fresh ? <span className="sr-only">, just arrived</span> : null}
+            </span>
+            <span
+              className={`block truncate text-[14px] leading-snug ${
+                altered ? (selected ? 'text-bad-v' : 'text-bad') : selected ? 'text-paper/75' : 'text-ink-2'
+              }`}
+            >
+              {altered ? 'Changed after it was sealed' : `${stubVerb(opening.eventType)} · ${opening.purposeText}`}
+            </span>
+          </span>
+          <RowStatus opening={opening} verdict={verdict} onInk={selected} />
+        </span>
+      </Link>
+    </div>
   )
 }
 
 /**
- * DELETED ghost: a receipt the phone remembers but the company's database no longer returns. Same row
- * anatomy on a dashed, sunken surface (it is an absence), red "Deleted" pill, what they did struck through,
- * and the link to the on-chain proof that still exists.
+ * DELETED ghost: a receipt the phone remembers but the company's database no longer returns. A torn stub
+ * in red: the same time side and perforation, what they did struck through, a red "Deleted" pill, then the
+ * explanation and both ways out (the on-chain proof that still exists, and the report to the regulator).
  */
 export function GhostRow({ ghost, now }: { ghost: GhostReceipt; now: number }) {
   const o = ghost.opening
   return (
-    <article
-      aria-label={`Deleted record: ${who(o)} ${actSentence(o.eventType)}`}
-      className="cz-tamper-soft overflow-hidden rounded-lg border border-dashed border-line-strong bg-paper-2/60"
-    >
-      <div className="flex min-h-16 items-center gap-3 px-4 py-3">
-        <Avatar name={o.controllerName} tone="ghost" />
-        <div className="min-w-0 flex-1">
-          <p className="text-[16px] font-medium leading-snug text-ink-3 line-through decoration-bad decoration-[1.5px]">
-            {who(o)} {actSentence(o.eventType)}
-          </p>
-          <p className="mt-0.5 truncate text-[14px] leading-snug text-ink-3">
-            {o.purposeText} · sealed {now ? timeAgo(o.createdAt, now) : formatWIB(o.createdAt)}
-          </p>
+    <div className="cz-tamper-soft sl-shadow-sm rounded-t-[16px]">
+      <article aria-label={`Deleted record: ${who(o)} ${actSentence(o.eventType)}`} className="sl-torn relative rounded-t-[16px] bg-bad-bg/70 pb-2 text-ink">
+        <div className="relative flex min-h-[72px] items-stretch">
+          <span className="flex w-[74px] shrink-0 flex-col items-center justify-center py-3 text-ink-3">
+            <span className="tnum text-[17px] font-semibold leading-tight tracking-[-0.02em] line-through decoration-bad decoration-[1.5px]">{clockWIB(o.createdAt)}</span>
+            <span className="text-[12px] leading-tight">{dayWIB(o.createdAt, now)}</span>
+          </span>
+          <span aria-hidden="true" className="sl-perf-v absolute bottom-3 left-[73px] top-3 text-bad/35" />
+          <div className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-4 pr-3.5">
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-[16px] font-semibold leading-snug tracking-[-0.01em] text-ink-3 line-through decoration-bad decoration-[1.5px]">{who(o)}</p>
+              <p className="truncate text-[14px] leading-snug text-ink-2">
+                {o.purposeText} · sealed {now ? timeAgo(o.createdAt, now) : formatWIB(o.createdAt)}
+              </p>
+            </div>
+            <TamperPill>Deleted</TamperPill>
+          </div>
         </div>
-        <TamperPill>Deleted</TamperPill>
-      </div>
-      <div className="border-t border-line px-4 pb-1 pt-3">
-        <p className="text-[15px] leading-relaxed text-ink">
-          <span className="text-bad">This record disappeared from the company&apos;s database.</span>{' '}
-          <strong className="font-semibold">The chain still has it.</strong>
-        </p>
-        <p className="mt-1 text-[13px] leading-snug text-ink-3">
-          Seen {now ? timeAgo(new Date(ghost.lastSeenAt).toISOString(), now) : 'earlier'} · missing now · still sealed on chain
-        </p>
-        <Link href={proofPath(o)} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
-          View on-chain proof <IconArrowUpRight size={14} />
-        </Link>
-        {o.txHash && o.logIndex !== null ? (
-          <Link href={`/citizen/receipt/${o.eventId}`} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
-            Report to the regulator <span aria-hidden="true">›</span>
-          </Link>
-        ) : null}
-      </div>
-    </article>
+        <span aria-hidden="true" className="sl-perf mx-4 block text-bad/35" />
+        <div className="px-4 pb-2 pt-3">
+          <p className="text-[15px] leading-relaxed text-ink">
+            <span className="text-bad">This record disappeared from the company&apos;s database.</span>{' '}
+            <strong className="font-semibold">The chain still has it.</strong>
+          </p>
+          <p className="mt-1 text-[13px] leading-snug text-ink-2">
+            Seen {now ? timeAgo(new Date(ghost.lastSeenAt).toISOString(), now) : 'earlier'} · missing now · still sealed on chain
+          </p>
+          <div className="mt-1 flex flex-wrap items-center gap-x-5">
+            <Link href={proofPath(o)} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
+              View on-chain proof <IconArrowUpRight size={14} />
+            </Link>
+            {o.txHash && o.logIndex !== null ? (
+              <Link href={`/citizen/receipt/${o.eventId}`} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
+                Report to the regulator <span aria-hidden="true">›</span>
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </article>
+    </div>
   )
 }
 
 /**
- * The phone turned red (riset-ui/26 C1): a tinted block at the top whose headline is the count, one
- * line of provenance above it and a single dark "See what changed". Arrives once (height + one shake);
- * reduced motion: just there.
+ * The phone turned red (riset-ui/26 C1), as a ticket: the count is the headline on the top half, the
+ * provenance and a single dark "See what changed" sit on the tear-off half. Arrives once (height + one
+ * shake); reduced motion: just there.
  */
 export function TamperBanner({
   altered,
@@ -210,27 +243,32 @@ export function TamperBanner({
       : `disappeared from the company's database`
   return (
     <div className="cz-banner">
-      <section role="alert" aria-label="Tampering detected" className="cz-banner-box rounded-xl border border-bad/25 bg-bad-bg p-4">
-        <p className="text-[26px] font-medium leading-[1.1] tracking-[-0.02em] text-ink">
-          <span className="text-bad">{count}</span> {rest}
-        </p>
-        {altered > 0 && deleted > 0 ? (
-          <p className="mt-2 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
-            And {deleted} record{deleted === 1 ? '' : 's'} disappeared from the company&apos;s database.
+      <section role="alert" aria-label="Tampering detected" className="cz-banner-box sl-shadow">
+        <div className="sl-ticket rounded-t-xl bg-bad-bg px-5 pb-4 pt-5" style={{ '--notch': '100%' } as CSSProperties}>
+          <p className="text-[26px] font-semibold leading-[1.1] tracking-[-0.025em] text-ink">
+            <span className="text-bad">{count}</span> {rest}
           </p>
-        ) : null}
-        <p className="mt-2 flex items-start gap-2 text-[14px] leading-relaxed text-ink-2">
-          <DotIcon name="cross" size={16} className="mt-[3px] shrink-0 text-bad" />
-          <span>
-            {checked > 0 ? `Your phone checked ${checked} receipt${checked === 1 ? '' : 's'} against the chain just now` : 'Your phone checked the chain'}
-            , not Saksi&apos;s server.
-          </span>
-        </p>
-        {href ? (
-          <Cta href={href} className="mt-4 w-full justify-between">
-            See what changed
-          </Cta>
-        ) : null}
+          {altered > 0 && deleted > 0 ? (
+            <p className="mt-2 text-[16px] leading-[1.5] text-ink-2">
+              And {deleted} record{deleted === 1 ? '' : 's'} disappeared from the company&apos;s database.
+            </p>
+          ) : null}
+        </div>
+        <div className="sl-ticket relative rounded-b-xl bg-bad-bg px-5 pb-5 pt-4" style={{ '--notch': '0%' } as CSSProperties}>
+          <span aria-hidden="true" className="sl-perf absolute left-5 right-5 top-0 text-bad/40" />
+          <p className="flex items-start gap-2 text-[14px] leading-relaxed text-ink-2">
+            <DotIcon name="cross" size={16} className="mt-[3px] shrink-0 text-bad" />
+            <span>
+              {checked > 0 ? `Your phone checked ${checked} receipt${checked === 1 ? '' : 's'} against the chain just now` : 'Your phone checked the chain'}
+              , not Saksi&apos;s server.
+            </span>
+          </p>
+          {href ? (
+            <Cta href={href} className="mt-4 w-full justify-between">
+              See what changed
+            </Cta>
+          ) : null}
+        </div>
       </section>
     </div>
   )

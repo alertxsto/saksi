@@ -1,0 +1,77 @@
+/* Citizen list half of direction A · Receipt Stub (riset-ui/36): the pass, stub rows, the torn ghost stub,
+   the tamper ticket, the floating ink tab bar and the laptop filter pills. Every class is prefixed sl-.
+   Motion is one-shot (except the live dot) and drops out under reduced motion. */
+
+/* Ticket with a round notch on each side at --notch (px from the top). The wrapper carries the shadow. */
+.sl-ticket {
+  --notch: 50%;
+  --r: 12px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 var(--notch), #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch), #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at 0 var(--notch), #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch), #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+.sl-shadow { filter: drop-shadow(0 1px 0 rgb(30 26 22 / 0.1)) drop-shadow(0 10px 22px rgb(30 26 22 / 0.07)); }
+.sl-shadow-sm { filter: drop-shadow(0 1px 0 rgb(30 26 22 / 0.09)) drop-shadow(0 4px 12px rgb(30 26 22 / 0.05)); }
+
+/* Stub: a bite top and bottom at --cut (px from the left), where the time stub tears off. */
+.sl-stub {
+  --cut: 74px;
+  --r: 7px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at var(--cut) 0, #0000 97%, #000 100%) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--r) at var(--cut) 100%, #0000 97%, #000 100%) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at var(--cut) 0, #0000 97%, #000 100%) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--r) at var(--cut) 100%, #0000 97%, #000 100%) bottom / 100% 51% no-repeat;
+}
+/* The mask clips outlines, so the focus ring sits on the unmasked wrapper. */
+.sl-focus:has(> a:focus-visible) { outline: 2px solid var(--color-blue); outline-offset: 2px; border-radius: 18px; }
+.sl-focus > a:focus-visible { outline: none; }
+
+/* Perforations: dashed hairlines in currentColor. */
+.sl-perf {
+  height: 1.5px;
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 0);
+  background-size: 8px 1.5px;
+  background-repeat: repeat-x;
+}
+.sl-perf-v {
+  width: 1.5px;
+  background-image: linear-gradient(180deg, currentColor 50%, transparent 0);
+  background-size: 1.5px 7px;
+  background-repeat: repeat-y;
+}
+
+/* Torn edge (deleted receipt): the bottom of the ticket is ripped off in small teeth. */
+.sl-torn {
+  --t: 12px;
+  -webkit-mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--t) / 2) no-repeat,
+    conic-gradient(from -45deg at 50% 0, #000 90deg, #0000 0) bottom / var(--t) calc(var(--t) / 2) repeat-x;
+  mask:
+    linear-gradient(#000 0 0) top / 100% calc(100% - var(--t) / 2) no-repeat,
+    conic-gradient(from -45deg at 50% 0, #000 90deg, #0000 0) bottom / var(--t) calc(var(--t) / 2) repeat-x;
+}
+
+@keyframes sl-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(91 203 138 / 0.55); }
+  100% { box-shadow: 0 0 0 7px rgb(91 203 138 / 0); }
+}
+.sl-live { animation: sl-pulse 2.4s ease-out infinite; }
+
+@keyframes sl-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.sl-rise { animation: sl-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* Floating ink tab bar: the active pill slides between tabs. */
+.sl-tab { transition: color 200ms var(--ease-out, ease-out), background-color 200ms var(--ease-out, ease-out); }
+
+@media (prefers-reduced-motion: reduce) {
+  .sl-live, .sl-rise { animation: none !important; }
+  .sl-tab { transition: none; }
+}
