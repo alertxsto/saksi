@@ -13,6 +13,18 @@ export type PassCounts = {
   watching: boolean
 }
 
+/** Two-line version for the compact pass in the laptop sidebar (about 24 characters a line). */
+export function passShortTitle(c: PassCounts): string {
+  if (c.tampered > 0) return 'Tampering found'
+  if (c.state === 'loading') return 'Loading receipts'
+  if (c.state === 'error') return 'Receipts didn’t load'
+  if (c.state === 'empty' || c.total === 0) return 'No receipts yet'
+  if (c.checking > 0) return `Checking ${c.checking} ${c.checking === 1 ? 'receipt' : 'receipts'}`
+  if (c.matched > 0) return c.matched === c.total ? `All ${c.total} match the chain` : `${c.matched} of ${c.total} match the chain`
+  if (c.sealing > 0) return `${c.sealing} being sealed`
+  return `${c.total} on record`
+}
+
 /** The one sentence on the Citizen Pass (riset-ui/35 home §2 status, now on the pass). */
 export function passStatus(c: PassCounts): { verdict: PassVerdict; title: string; subtitle: string } {
   const live = c.watching ? '' : 'Paused · '
