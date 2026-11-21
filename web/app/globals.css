@@ -1100,3 +1100,11 @@ html.lenis, html.lenis body { height: auto; }
 @media (prefers-reduced-motion: reduce) { .ws-tab::after { transition: none; } }
 .en-panel { animation: blur-rise 640ms var(--ease-out-expo) both; animation-delay: calc(120ms + var(--i, 0) * 70ms); }
 @media (prefers-reduced-motion: reduce) { .en-panel { animation: none; } }
+/* ── INTEGRATE ── (/integrate developer page). Code panels sit on the vault; token colours reuse the vault
+   palette: strings ice, keywords ai-v, numbers pending-v, comments dot-2, shell flags vault-ink-2. */
+.ig-code { tab-size: 2; scrollbar-color: var(--color-vault-line) transparent; }
+.ig-code .ig-s { color: var(--color-ice); }
+.ig-code .ig-k { color: var(--color-ai-v); }
+.ig-code .ig-n { color: var(--color-pending-v); }
+.ig-code .ig-c { color: var(--color-dot-2); font-style: italic; }
+.ig-code .ig-f { color: var(--color-vault-ink-2); }
