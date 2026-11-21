@@ -2,11 +2,14 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { useState } from 'react'
+import { Badge } from '@/components/ui/Badge'
 import { Chip } from '@/components/ui/Chip'
 import { IconExternal, IconShield } from '@/components/ui/icons'
 import { LedgerReceipt } from '@/components/ui/LedgerReceipt'
 import { VerifyPanel } from '@/components/ui/VerifyResult'
 import { explorerLink, getRpcNodes, verifyOnNode } from '@/lib/data'
+import { actSentence } from '@/lib/format'
+import { IDLE, receiptHeadline, verdictKind, type ReceiptCheck } from '@/lib/receipt-state'
 import type { ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
 /**
@@ -25,22 +28,41 @@ export function ProofResult({
   const nodes = useQuery({ queryKey: ['rpc-nodes'], queryFn: getRpcNodes, staleTime: Infinity })
   const [node, setNode] = useState('0')
   const [run, setRun] = useState(0)
+  // The link's contents are untrusted until this browser has checked them: no status badge before a verdict.
+  const [check, setCheck] = useState<ReceiptCheck>(IDLE)
+  const head = receiptHeadline(opening, check)
+  const verdict = verdictKind(check)
 
   const onVerify = (attempt: number) => (verify ? verify(opening, node, attempt) : verifyOnNode(opening, node))
   const onSwitchRpc = (id: string) => {
     setNode(id)
+    setCheck(IDLE)
     setRun((r) => r + 1)
   }
 
   return (
     <div className="grid gap-8 lg:grid-cols-12">
       <div className="flex flex-col gap-5 lg:col-span-7">
+        {head.claimed ? (
+          <p role="alert" className="rounded-lg border-2 border-bad bg-bad-bg p-3 text-[15px] leading-snug text-ink">
+            <span className="label block text-[11px] font-bold text-bad">The chain disagrees with this receipt</span>
+            <span className="mt-1 block">
+              {head.who} <strong className="font-semibold text-bad">{head.act}</strong>. The receipt says{' '}
+              <span className="line-through decoration-bad decoration-2">{actSentence(opening.eventType)}</span>.
+            </span>
+          </p>
+        ) : null}
         <LedgerReceipt
           opening={opening}
+          check={check}
           header={
             <div className="flex items-center justify-between gap-2">
-              <span className="label text-ink">Receipt · {opening.eventId}</span>
-              <Chip icon={<IconShield size={12} />}>Opened from link</Chip>
+              <span className="label min-w-0 truncate text-ink">Receipt · {opening.eventId}</span>
+              {verdict ? (
+                <Badge kind={verdict} size="sm" />
+              ) : (
+                <Chip icon={<IconShield size={12} />}>Opened from link</Chip>
+              )}
             </div>
           }
         />
@@ -49,6 +71,7 @@ export function ProofResult({
           opening={opening}
           autoStart={autoStart || run > 0}
           run={onVerify}
+          onCheck={setCheck}
         />
       </div>
 
