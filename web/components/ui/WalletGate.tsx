@@ -26,11 +26,11 @@ const MIN_GAS_LABEL = '0.002'
 
 /** Check names, in the order useWalletState runs them (the state names the first check that fails). */
 const CHECKS: Record<WalletState, string> = {
-  no_wallet: 'Wallet found',
-  disconnected: 'Connected',
-  wrong_network: `On ${CHAIN_NAME}`,
-  not_registered: 'Registered controller',
-  no_gas: 'Enough gas',
+  no_wallet: 'Signature app found (MetaMask)',
+  disconnected: 'Signature connected',
+  wrong_network: `On the ${CHAIN_NAME} public ledger`,
+  not_registered: 'Registered as this agency',
+  no_gas: 'Enough test ETH to seal',
   ready: 'Ready to seal',
 }
 
@@ -65,7 +65,7 @@ export function WalletChecks({ state, checking = false, compact = false }: { sta
   const st = checkStates(state, checking)
   if (compact) {
     return (
-      <ol aria-label="Wallet checks" className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
+      <ol aria-label="Signature checks" className="flex flex-wrap items-center gap-x-1.5 gap-y-2">
         {WALLET_STATES.map((s, i) => (
           <li key={s} aria-current={st[i] === 'failing' ? 'step' : undefined} className="relative flex items-center gap-2">
             <span aria-hidden="true" className={`flex size-4 shrink-0 items-center justify-center rounded-full ${MARK[st[i]]}`}>
@@ -81,7 +81,7 @@ export function WalletChecks({ state, checking = false, compact = false }: { sta
     )
   }
   return (
-    <ol aria-label="Wallet checks" className="flex flex-col">
+    <ol aria-label="Signature checks" className="flex flex-col">
       {WALLET_STATES.map((s, i) => (
         <li
           key={s}
@@ -129,12 +129,12 @@ type GateCopy = { title: string; body: ReactNode; action: ReactNode; extra: Reac
 function gateCopy(wallet: WalletView, h: Pick<GateProps, 'onConnect' | 'onSwitchNetwork' | 'onRefresh' | 'onCopy'>): GateCopy {
   const { state, isChecking, address, balance, isConnecting, isSwitching } = wallet
   if (isChecking)
-    return { title: 'Checking your wallet…', body: `Reading the network, the controller registry and your balance on ${CHAIN_NAME}.`, action: null, extra: null }
+    return { title: 'Checking the agency’s signature…', body: `Reading the agency registry and the signing balance on ${CHAIN_NAME}.`, action: null, extra: null }
   switch (state) {
     case 'no_wallet':
       return {
         title: 'MetaMask is not installed',
-        body: 'Controllers sign each record with their registered wallet. Install MetaMask in this browser, then reload.',
+        body: 'Every record is signed with the agency’s digital signature, which lives in MetaMask. Install it in this browser, then reload.',
         action: (
           <ButtonLink href={METAMASK_URL} external variant="dark" arrow>
             Install MetaMask
@@ -144,11 +144,11 @@ function gateCopy(wallet: WalletView, h: Pick<GateProps, 'onConnect' | 'onSwitch
       }
     case 'disconnected':
       return {
-        title: 'Connect your controller wallet',
-        body: 'Saksi reads the on-chain controller registry to check that this address belongs to a registered controller.',
+        title: 'Connect the agency’s signature',
+        body: 'Saksi checks the public agency registry to confirm this signature belongs to a registered agency. Nothing is signed yet.',
         action: (
           <Button variant="dark" arrow loading={isConnecting} disabled={isConnecting} onClick={h.onConnect}>
-            {isConnecting ? 'Waiting for MetaMask…' : 'Connect wallet'}
+            {isConnecting ? 'Waiting for MetaMask…' : 'Connect signature'}
           </Button>
         ),
         extra: null,
@@ -156,7 +156,7 @@ function gateCopy(wallet: WalletView, h: Pick<GateProps, 'onConnect' | 'onSwitch
     case 'wrong_network':
       return {
         title: `Switch to ${CHAIN_NAME}`,
-        body: `Your wallet is on another network. Saksi records live on ${CHAIN_NAME}.`,
+        body: `MetaMask is set to another network. Saksi keeps its public ledger on ${CHAIN_NAME}.`,
         action: (
           <Button variant="dark" arrow loading={isSwitching} disabled={isSwitching} onClick={h.onSwitchNetwork}>
             {isSwitching ? 'Confirm in MetaMask…' : `Switch to ${CHAIN_NAME}`}
@@ -166,8 +166,8 @@ function gateCopy(wallet: WalletView, h: Pick<GateProps, 'onConnect' | 'onSwitch
       }
     case 'not_registered':
       return {
-        title: 'This address is not a registered controller',
-        body: 'The controller registry has no active entry for this wallet. Send the address below to your Saksi admin (the regulator) and ask them to register it. Then check again.',
+        title: 'This signature isn’t registered as an agency',
+        body: 'The agency registry has no entry for this signature. Send the address below to your Saksi administrator (the regulator) and ask them to register it. Then check again.',
         action: (
           <Button variant="light" icon={<IconRefresh size={15} />} onClick={h.onRefresh}>
             Check again
@@ -178,12 +178,12 @@ function gateCopy(wallet: WalletView, h: Pick<GateProps, 'onConnect' | 'onSwitch
     default:
       // no_gas (ready never reaches the gate copy)
       return {
-        title: `Not enough ${CHAIN_NAME} ETH`,
-        body: `Sealing a record costs a little gas. You need at least ${MIN_GAS_LABEL} ${CHAIN_NAME} ETH. Get free test ETH from the faucet, then check again.`,
+        title: 'Not enough test ETH to seal',
+        body: `Each seal pays a tiny network fee in free ${CHAIN_NAME} test ETH. You need at least ${MIN_GAS_LABEL}. Get some from the faucet, then check again.`,
         action: (
           <span className="flex flex-wrap gap-3">
             <ButtonLink href={FAUCET_URL} external variant="dark" arrow>
-              Get {CHAIN_NAME} ETH
+              Get free test ETH
             </ButtonLink>
             <Button variant="light" icon={<IconRefresh size={15} />} onClick={h.onRefresh}>
               Check again
@@ -194,7 +194,7 @@ function gateCopy(wallet: WalletView, h: Pick<GateProps, 'onConnect' | 'onSwitch
           <p className="flex flex-wrap items-center gap-3 font-mono text-[13px] text-ink-2">
             <span className="text-ink">{shortHex(address, 6, 4)}</span>
             <span aria-hidden="true" className="h-3 w-px bg-line-strong" />
-            <span className="text-pending">Balance {formatEth(balance)}</span>
+            <span className="text-pending">Holds {formatEth(balance)}</span>
           </p>
         ),
       }
@@ -234,7 +234,7 @@ export function WalletGate({ wallet, onConnect, onSwitchNetwork, onRefresh, onCo
               <IconCheck size={10} strokeWidth={3.2} />
             </span>
             <span>
-              <strong className="font-medium text-ink">Registered as {controller?.name ?? 'a controller'}</strong> · read from the controller
+              <strong className="font-medium text-ink">Registered as {controller?.name ?? 'this agency'}</strong> · confirmed in the agency
               registry on {CHAIN_NAME}
             </span>
           </p>
@@ -273,7 +273,7 @@ export function WalletGate({ wallet, onConnect, onSwitchNetwork, onRefresh, onCo
   }
 
   return (
-    <section role="status" aria-busy={isChecking || undefined} aria-label="Wallet check" className="rounded-xl border border-line bg-card">
+    <section role="status" aria-busy={isChecking || undefined} aria-label="Signature check" className="rounded-xl border border-line bg-card">
       <div className="grid gap-10 p-6 md:p-10 lg:grid-cols-12 lg:gap-12">
         <div className="flex flex-col items-start gap-5 lg:col-span-7">
           <h2 key={key} className="ctl-in max-w-[24ch] text-balance text-[26px] font-medium leading-[1.12] tracking-[-0.02em] text-ink md:text-[32px]">
