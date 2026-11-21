@@ -133,7 +133,9 @@ export function toRecentAccess(row: RecentAccessWire): RecentAccess {
 }
 
 export function toBreachDraft(wire: DraftWire): BreachDraft {
-  return { fields: wire.fields, meta: wire.ai, aiRunId: wire.aiRunId }
+  // Keep only the four Art. 46 parts: the draft can carry extras (detectedAtGuess) that prepare rejects.
+  const { dataAffected, whenAndHow, actionsTaken, contact } = wire.fields
+  return { fields: { dataAffected, whenAndHow, actionsTaken, contact }, meta: wire.ai, aiRunId: wire.aiRunId }
 }
 
 export function toBreachDetail(wire: BreachDetailWire, contract: Hex | null): BreachDetailView {

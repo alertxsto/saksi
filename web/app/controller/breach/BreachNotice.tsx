@@ -69,7 +69,9 @@ export function BreachNotice() {
   const [aiRunId, setAiRunId] = useState<string | null>(null)
   const [fields, setFields] = useState<Pasal46Fields | null>(null)
   const [edited, setEdited] = useState<Edited>({})
-  const [detectedAtSec, setDetectedAtSec] = useState(() => (typeof window === 'undefined' ? 0 : Math.floor(Date.now() / 1000)))
+  // Two minutes back by default: the chain clock trails wall time, and a detection time ahead of the
+  // latest block is rejected as FUTURE_DETECTION.
+  const [detectedAtSec, setDetectedAtSec] = useState(() => (typeof window === 'undefined' ? 0 : Math.floor(Date.now() / 1000) - 120))
   const [affected, setAffected] = useState('')
   const [checkState, setCheck] = useState<CheckState>({ status: 'idle' })
   const [mode, setMode] = useState<'on_time' | 'late' | null>(null)
@@ -173,7 +175,7 @@ export function BreachNotice() {
     setFields(null)
     setEdited({})
     setAffected('')
-    setDetectedAtSec(Math.floor(Date.now() / 1000))
+    setDetectedAtSec(Math.floor(Date.now() / 1000) - 120)
     setCheck({ status: 'idle' })
     setMode(null)
   }

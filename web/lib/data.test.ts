@@ -206,3 +206,12 @@ describe('DEMO_CONTROLLER_IDS', () => {
     expect(DEMO_CONTROLLER_IDS).toHaveLength(3)
   })
 })
+
+describe('toBreachDraft', () => {
+  it('keeps only the four Art. 46 parts so breach prepare accepts them', async () => {
+    const { toBreachDraft } = await import('./data')
+    const fields = { dataAffected: 'a', whenAndHow: 'b', actionsTaken: 'c', contact: 'd', detectedAtGuess: '08:00' }
+    const draft = toBreachDraft({ fields, ai: { provider: 'p', model: 'm', fallbackLevel: 'primary', latencyMs: 1 }, aiRunId: 'x' } as never)
+    expect(Object.keys(draft.fields).sort()).toEqual(['actionsTaken', 'contact', 'dataAffected', 'whenAndHow'])
+  })
+})
