@@ -44,10 +44,10 @@ const noop = () => {}
 
 
 type PassLine = { verdict: PassVerdict; title: string }
-const PASS_OK: PassLine = { verdict: 'ok', title: `All ${ALL.length} receipts match the chain` }
-const PASS_CHECKING: PassLine = { verdict: 'checking', title: 'Checking 2 receipts against the chain' }
-const PASS_TAMPER: PassLine = { verdict: 'tamper', title: '1 record no longer matches the chain' }
-const PASS_EMPTY: PassLine = { verdict: 'empty', title: 'No one has opened your data yet' }
+const PASS_OK: PassLine = { verdict: 'ok', title: `All ${ALL.length} match the chain` }
+const PASS_CHECKING: PassLine = { verdict: 'checking', title: 'Checking 2 receipts' }
+const PASS_TAMPER: PassLine = { verdict: 'tamper', title: 'Tampering found' }
+const PASS_EMPTY: PassLine = { verdict: 'empty', title: 'No receipts yet' }
 
 function Sidebar({ path, code = CODE, watch = 'watching', count = ALL.length, pass = PASS_OK }: { path: string; code?: string; watch?: SidebarWatch; count?: number; pass?: PassLine }) {
   return <WorkspaceSidebarView path={path} code={code} watch={watch} count={count} verdict={pass.verdict} title={pass.title} onCopy={noop} />

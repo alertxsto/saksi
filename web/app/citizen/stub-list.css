@@ -45,15 +45,15 @@
   background-repeat: repeat-y;
 }
 
-/* Torn edge (deleted receipt): the bottom of the ticket is ripped off in small teeth. */
+/* Torn edge (deleted receipt): the bottom of the ticket ends in a row of torn-off scallops. */
 .sl-torn {
   --t: 12px;
   -webkit-mask:
     linear-gradient(#000 0 0) top / 100% calc(100% - var(--t) / 2) no-repeat,
-    conic-gradient(from -45deg at 50% 0, #000 90deg, #0000 0) bottom / var(--t) calc(var(--t) / 2) repeat-x;
+    radial-gradient(circle at 50% 0, #000 calc(var(--t) / 2 - 0.5px), #0000 calc(var(--t) / 2)) bottom / var(--t) calc(var(--t) / 2) repeat-x;
   mask:
     linear-gradient(#000 0 0) top / 100% calc(100% - var(--t) / 2) no-repeat,
-    conic-gradient(from -45deg at 50% 0, #000 90deg, #0000 0) bottom / var(--t) calc(var(--t) / 2) repeat-x;
+    radial-gradient(circle at 50% 0, #000 calc(var(--t) / 2 - 0.5px), #0000 calc(var(--t) / 2)) bottom / var(--t) calc(var(--t) / 2) repeat-x;
 }
 
 @keyframes sl-pulse {

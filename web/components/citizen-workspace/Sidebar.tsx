@@ -6,7 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Suspense, type ComponentType } from 'react'
 import { LiveDot } from '@/components/ui/Chip'
 import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
-import { passStatus } from '@/components/citizen/passStatus'
+import { passShortTitle, passStatus } from '@/components/citizen/passStatus'
 import { IconArrowUpRight, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
 import { LogoMark } from '@/components/ui/Logo'
 import { useToast } from '@/components/ui/Toast'
@@ -105,7 +105,7 @@ export function WorkspaceSidebarView({
             </p>
           </div>
         )}
-        {code ? null : <p className="mt-2.5 px-1 text-[12px] text-ink-3">Synthetic profile</p>}
+        <p className="mt-1 px-1 text-[12px] text-ink-3">Synthetic profile</p>
       </div>
     </aside>
   )
@@ -124,7 +124,7 @@ function WatchLine({ watch }: { watch: SidebarWatch }) {
   return (
     <p role="status" className="mt-2.5 flex items-center gap-2 px-1 text-[12px] text-ink-3">
       {watch === 'watching' ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
-      {WATCH_TEXT[watch]} · synthetic profile
+      {WATCH_TEXT[watch]}
     </p>
   )
 }
@@ -167,7 +167,7 @@ function LiveSidebar({ path }: { path: string }) {
   const store = useReceiptChecks()
   const receipts = q.data?.receipts ?? []
   const kinds = receipts.map((r) => verdictKind(checkOf(store.checks, r)))
-  const pass = passStatus({
+  const counts = {
     state: !q.data ? (q.isError ? 'error' : 'loading') : receipts.length === 0 ? 'empty' : 'ready',
     total: receipts.length,
     matched: kinds.filter((k) => k === 'MATCH').length,
@@ -176,7 +176,8 @@ function LiveSidebar({ path }: { path: string }) {
     sealing: receipts.filter((r) => r.status === 'pending' || r.status === 'submitted').length,
     tampered: kinds.filter((k) => k === 'ALTERED').length + (q.data ? store.hidden.length : 0),
     watching: watch === 'watching',
-  })
+  } as const
+  const pass = passStatus(counts)
 
   const onCopy = async () => {
     try {
@@ -194,7 +195,7 @@ function LiveSidebar({ path }: { path: string }) {
       count={q.data?.receipts.length}
       watch={watch}
       verdict={pass.verdict}
-      title={pass.title}
+      title={passShortTitle(counts)}
       onCopy={() => void onCopy()}
     />
   )
