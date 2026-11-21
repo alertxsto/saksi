@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { Cite } from '@/components/ui/Cite'
+import { useT } from '@/lib/client/lang'
 import { matches, PIN_QUERY, progress, pin, range, REDUCED_QUERY, subscribe } from '@/lib/motion/scroll'
 import type { SourceId } from '@/lib/sources'
 
@@ -132,6 +133,7 @@ export function ProblemMoment() {
   }, [])
 
   let wi = 0
+  const t = useT()
   return (
     <section ref={trackRef} aria-labelledby="problem-title" className="pm-track relative">
       <div className="pm-stage">
@@ -147,7 +149,7 @@ export function ProblemMoment() {
             {STATEMENT.map((s, si) => (
               <span key={si} className={s.tone === 'ink' ? 'pm-ink' : 'pm-mute'}>
                 {si ? ' ' : null}
-                {s.t.split(' ').map((w, k) => (
+                {t(s.t).split(' ').map((w, k) => (
                   <span key={k}>
                     {k ? ' ' : null}
                     <span className="pm-w" style={{ '--i': wi++ } as CSSProperties}>

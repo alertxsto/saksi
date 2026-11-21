@@ -3,6 +3,8 @@ import { Doto, Geist, Geist_Mono } from 'next/font/google'
 import { Providers } from '@/lib/client/providers'
 import { ToastProvider } from '@/components/ui/Toast'
 import { SITE_URL } from '@/lib/env'
+import { LANG_BOOT } from '@/lib/client/lang'
+import { LangRuntime } from '@/components/ui/LangRuntime'
 import './globals.css'
 
 const geistSans = Geist({ variable: '--font-geist-sans', subsets: ['latin'] })
@@ -54,7 +56,11 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: LayoutProps<'/'>) {
   return (
-    <html lang="en" className={`${geistSans.variable} ${geistMono.variable} ${doto.variable} antialiased`}>
+    <html lang="en" suppressHydrationWarning className={`${geistSans.variable} ${geistMono.variable} ${doto.variable} antialiased`}>
+      <head>
+        {/* EN / ID: read the saved language before paint so an Indonesian page never flashes English */}
+        <script dangerouslySetInnerHTML={{ __html: LANG_BOOT }} />
+      </head>
       <body className="min-h-dvh bg-paper text-ink">
         <a
           href="#main"
@@ -64,6 +70,7 @@ export default function RootLayout({ children }: LayoutProps<'/'>) {
         </a>
         <Providers>
           <ToastProvider>{children}</ToastProvider>
+          <LangRuntime />
         </Providers>
       </body>
     </html>

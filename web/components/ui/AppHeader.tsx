@@ -109,8 +109,8 @@ export function AppHeader({ actor: actorProp, role, area, nav = [], right, switc
               {right}
             </SheetRow>
           ) : null}
-          <SheetRow i={nav.length + 1} className={nav.length || right ? 'mt-3' : 'mt-1'}>
-            <Cta href={switchHref} size="md" className="nav-cta h-11! w-full justify-between">
+          <SheetRow i={nav.length + 1} className={`${nav.length || right ? 'mt-1 border-t border-line pt-2' : ''}`}>
+            <Cta href={switchHref} variant="light" size="md" className="nav-sheet-ghost h-11! w-full justify-center px-3!">
               Switch role
             </Cta>
           </SheetRow>
@@ -135,7 +135,7 @@ function LiveSheetList({ nav, onPick }: { nav: NavItem[]; onPick: () => void }) 
 function SheetList({ nav, path, onPick }: { nav: NavItem[]; path: string; onPick: () => void }) {
   const current = activeHref(nav, path)
   return (
-    <ul>
+    <ul className="nav-grid grid grid-cols-2 gap-x-1">
       {nav.map((n, i) => (
         <li key={n.href} className="nav-sheet-row" style={{ '--i': i } as CSSProperties}>
           <Link href={n.href} onClick={onPick} aria-current={n.href === current ? 'page' : undefined} className={SHEET_LINK}>

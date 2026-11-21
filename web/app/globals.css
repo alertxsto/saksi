@@ -1122,3 +1122,10 @@ html { --hdr: 68px; }
 /* Inset grouped list (riset-ui/35): hairline dividers start after the avatar, like iOS grouped tables. */
 .cz-group > li + li .cz-row-main,
 .cz-group > div + div .cz-row-main { border-top: 1px solid var(--color-line); }
+
+/* EN / ID switch: an Indonesian page stays hidden until LangRuntime has swapped the copy (lib/client/lang.ts).
+   The animation reveals it anyway after 2 s, so a failed script never leaves a blank page. */
+html[data-lang-pending] body { opacity: 0; animation: lang-reveal 0s 2s forwards; }
+@keyframes lang-reveal { to { opacity: 1; } }
+
+.nav-sheet-link[aria-current="page"] { background: var(--color-paper-2); }

@@ -1,13 +1,9 @@
-import type { CSSProperties, ElementType } from 'react'
+import type { ElementType } from 'react'
+import { WordSplit } from './WordSplit'
 
-/** Split a string into word spans carrying a running index (--i). Spaces stay real text nodes. */
+/** Split a string into word spans carrying a running index (--i). Spaces stay real text nodes. EN / ID aware. */
 export function words(text: string, from = 0, className = 'w') {
-  return text.split(' ').flatMap((w, k) => [
-    k ? ' ' : null,
-    <span key={k} className={className} style={{ '--i': from + k } as CSSProperties}>
-      {w}
-    </span>,
-  ])
+  return <WordSplit text={text} from={from} className={className} />
 }
 
 /**

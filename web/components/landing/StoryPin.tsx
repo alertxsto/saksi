@@ -173,8 +173,8 @@ function Pinned() {
               {CHIPS.map((g, k) => (
                 <div key={k} data-chips={k} className="col-start-1 row-start-1 flex flex-wrap content-start gap-2 opacity-0">
                   {g.items.map((t) => (
-                    <span key={t} className="label inline-flex h-7 items-center gap-2 rounded-pill border border-ice/70 px-3 text-ice">
-                      <span className="size-1.5 rounded-full bg-ice" />
+                    <span key={t} className="label inline-flex h-7 items-center gap-2 rounded-pill bg-ice px-3 font-semibold text-vault">
+                      <IconCheck />
                       {t}
                     </span>
                   ))}
@@ -259,8 +259,8 @@ function Split({ mobile = false }: { mobile?: boolean }) {
   )
   const status = (
     <div className="relative mt-5 h-7">
-      <span data-status="match" className="label absolute left-0 top-0 inline-flex h-7 items-center gap-2 rounded-pill border border-ok-v/70 px-3 text-ok-v">
-        <span className="size-1.5 rounded-full bg-ok-v" />
+      <span data-status="match" className="label absolute left-0 top-0 inline-flex h-7 items-center gap-2 rounded-pill bg-ok-v px-3 font-semibold text-vault">
+        <IconCheck />
         Match
       </span>
       <span

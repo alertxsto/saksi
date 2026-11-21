@@ -1,4 +1,7 @@
+'use client'
+
 import type { CSSProperties } from 'react'
+import { useT } from '@/lib/client/lang'
 import { hash01 } from '@/lib/motion/hash'
 
 const POOL = '0123456789ABCDEF'
@@ -9,7 +12,9 @@ const POOL = '0123456789ABCDEF'
  * cubic-bezier(.23,1,.32,1), 28 ms per letter. Glyphs are seeded, so SSR and client markup match.
  * CSS lives in globals.css (.odo-*); reduced motion keeps the label still.
  */
-export function OdoText({ children: label }: { children: string }) {
+export function OdoText({ children }: { children: string }) {
+  // drawn letter by letter, so the EN / ID DOM pass cannot reach it: translate the whole label here
+  const label = useT()(children)
   const seed = label.length * 31
   return (
     <span className="odo">

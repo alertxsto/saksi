@@ -10,7 +10,7 @@
  *
  * Slots: `center` (absolutely centred, like the landing links), `aside` (desktop-only quiet link before the
  * menu button, like the landing's "Sign in"), `sheet(close)` (the menu sheet body; full width on phones,
- * a compact 320 px panel on the right at every width). An in-flow spacer keeps content clear of the fixed bar; pages and
+ * full width on phones like the landing menu card, a 360 px panel on the right from lg). An in-flow spacer keeps content clear of the fixed bar; pages and
  * sticky sidebars use `var(--hdr)` (68 / 76 px) for the same offset.
  * `frame` (gallery frames): sticky instead of fixed, so several headers can sit on one page.
  */
@@ -19,6 +19,7 @@ import Link from 'next/link'
 import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { subscribe } from '@/lib/motion/scroll'
 import { LogoMark } from './Logo'
+import { LangToggle } from './LangToggle'
 
 export const NAV_LINK =
   'nav-link flex min-h-11 items-center whitespace-nowrap rounded-sm px-3 text-[14px] font-medium tracking-[0.01em] transition-colors duration-150'
@@ -85,6 +86,7 @@ export function SiteHeader({
           </Link>
           {center ? <div className="absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center">{center}</div> : null}
           {aside ? <div className="relative z-[1] ml-auto mr-1 hidden lg:flex">{aside}</div> : null}
+          <LangToggle className={aside ? 'ml-auto lg:ml-1' : 'ml-auto'} />
           <button
             ref={btnRef}
             type="button"
@@ -92,7 +94,7 @@ export function SiteHeader({
             aria-controls={menuId}
             aria-label={open ? 'Close menu' : 'Open menu'}
             onClick={() => setOpen((v) => !v)}
-            className={`nav-burger relative z-[1] flex size-11 shrink-0 items-center justify-center rounded-md transition-colors duration-150 ${aside ? 'ml-auto lg:ml-1' : 'ml-auto'}`}
+            className="nav-burger relative z-[1] ml-1 flex size-11 shrink-0 items-center justify-center rounded-md transition-colors duration-150"
           >
             <span aria-hidden="true" className="nav-burger-bar" />
             <span aria-hidden="true" className="nav-burger-bar" />
@@ -101,7 +103,7 @@ export function SiteHeader({
 
         <div id={menuId} className="nav-menu mx-auto max-w-[1344px]" hidden={!open}>
           {open ? (
-            <div className="nav-sheet ml-auto mt-2 max-w-[320px] rounded-lg border p-2">{sheet(() => setOpen(false))}</div>
+            <div className="nav-sheet mt-2 rounded-lg border p-2 lg:ml-auto lg:max-w-[360px]">{sheet(() => setOpen(false))}</div>
           ) : null}
         </div>
       </header>

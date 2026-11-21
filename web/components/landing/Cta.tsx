@@ -13,7 +13,7 @@ const V: Record<Variant, string> = {
 
 /**
  * Landing CTA: rounded r-md, colour-only hover (150 ms, .65,0,.2,1), odometer label. The dark variant keeps
- * Saksi's blue r-sm arrow tile; the paper variant (on vault) carries zaro's 6 px square bullet in blue.
+ * Saksi's blue r-sm arrow tile; the paper variant (on vault) is a plain label.
  */
 export function Cta({
   href,
@@ -37,7 +37,6 @@ export function Cta({
         arrow ? 'pl-5 pr-1.5' : 'px-5'
       } ${V[variant]} ${className}`}
     >
-      {variant === 'paper' ? <span aria-hidden="true" className="size-1.5 bg-blue" /> : null}
       <OdoText>{children}</OdoText>
       {arrow ? (
         <span

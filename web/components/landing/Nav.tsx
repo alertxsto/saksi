@@ -6,6 +6,7 @@ import { LogoMark } from '@/components/ui/Logo'
 import { REDUCED_QUERY, subscribe } from '@/lib/motion/scroll'
 import { Cta } from './Cta'
 import { OdoText } from './OdoText'
+import { LangToggle } from '@/components/ui/LangToggle'
 
 const LINKS = [
   ['#how', 'How it works'],
@@ -110,9 +111,7 @@ export function Nav({ base = '' }: { base?: string }) {
             ),
           )}
         </nav>
-        <Link href="/enter" className={`${LINK} ml-auto mr-1 hidden lg:flex`}>
-          <OdoText>Sign in</OdoText>
-        </Link>
+        <LangToggle className="ml-auto mr-1 hidden lg:flex" />
         <Cta href="/enter" size="md" className="nav-cta max-lg:ml-auto max-lg:h-11 max-[379px]:hidden">
           Open the app
         </Cta>
@@ -148,22 +147,14 @@ export function Nav({ base = '' }: { base?: string }) {
                   </a>
                 </li>
               ))}
-              <li className="nav-sheet-row" style={{ '--i': LINKS.length } as CSSProperties}>
-                <Link
-                  href="/enter"
-                  onClick={() => setOpen(false)}
-                  className="nav-sheet-link flex min-h-11 items-center rounded-md px-3 text-[16px] font-medium tracking-[-0.01em] transition-colors duration-150"
-                >
-                  Sign in
-                </Link>
-              </li>
             </ul>
           </nav>
-          {/* "Open the app" already sits in the bar above, so the sheet keeps one quiet action */}
-          <div className="nav-sheet-row mt-1 border-t border-line pt-2" style={{ '--i': LINKS.length + 1 } as CSSProperties}>
-            <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-11! w-full justify-center px-3!">
+          {/* "Open the app" already sits in the bar above, so the sheet keeps one quiet action and the language switch */}
+          <div className="nav-sheet-row mt-1 flex items-center gap-2 border-t border-line pt-2" style={{ '--i': LINKS.length + 1 } as CSSProperties}>
+            <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-11! min-w-0 flex-1 justify-center px-3!">
               Verify a receipt
             </Cta>
+            <LangToggle className="h-11! [&>button]:h-10 [&>button]:min-w-11" />
           </div>
         </div>
       </div>

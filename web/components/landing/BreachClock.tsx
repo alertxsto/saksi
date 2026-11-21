@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, type CSSProperties } from 'react'
 import { Cite } from '@/components/ui/Cite'
-import { IconCheck } from '@/components/ui/icons'
 import { matches, PIN_QUERY, pin, range, REDUCED_QUERY, subscribe } from '@/lib/motion/scroll'
 import { Heading } from './Words'
 
@@ -175,12 +174,8 @@ export function BreachClock() {
             <span className="bc-lateby label absolute right-0 top-[84px] whitespace-nowrap sm:top-12 text-[11px] text-pending">If sealed at 100 H · late by 28 H</span>
           </div>
 
-          <p className="bc-verdict mt-2 flex flex-wrap items-center gap-x-3 gap-y-2 text-[18px] font-medium text-ok md:text-[22px]">
-            <span className="flex size-7 items-center justify-center rounded-sm bg-ok text-white">
-              <IconCheck size={16} strokeWidth={2.6} />
-            </span>
-            <span className="whitespace-nowrap">On time</span>
-            <span className="label basis-full text-[12px] text-ink-2 sm:basis-auto">Sealed at 53.5 H of 72 H · 18.5 H to spare · computed by the contract</span>
+          <p className="bc-verdict mt-2 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <span className="label text-[12px] text-ink-2">Sealed at 53.5 H of 72 H · 18.5 H to spare · computed by the contract</span>
           </p>
         </div>
       </div>
