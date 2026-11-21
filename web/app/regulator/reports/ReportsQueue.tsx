@@ -4,14 +4,13 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, useState } from 'react'
 import type { Hex } from 'viem'
 import { useAccount, useConnect, useSignMessage } from 'wagmi'
-import { Badge, type StatusKind } from '@/components/ui/Badge'
+import { VerdictStamp } from '@/components/citizen/VerdictStamp'
 import { Button } from '@/components/ui/Button'
-import { IconExternal, IconRefresh, IconShield, IconWallet } from '@/components/ui/icons'
+import { IconArrowUpRight, IconCheck, IconRefresh, IconUser, IconWallet } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/ui/Toast'
-import { Quiet } from '@/components/regulator/Quiet'
-import { RiseHeading } from '@/components/regulator/Rise'
-import { StatRow } from '@/components/regulator/StatRow'
+import { Sheet } from '@/components/regulator/Sheet'
+import { ago, Calm, Fact, PageHeader, plainTime, ProofRow, sealedPhrase, TechnicalProof, useArrivals } from '@/components/regulator/Workspace'
 import {
   getRegulatorReports,
   REPORT_REASON_LABEL,
@@ -23,17 +22,26 @@ import {
   type ReviewResult,
 } from '@/lib/data'
 import { explorerTx } from '@/lib/env'
-import { formatWIB, shortHex } from '@/lib/format'
+import { shortHex } from '@/lib/format'
+import { useNow } from '@/lib/hooks'
 import { EVENT_LABELS } from '@/lib/shared/types'
+import '../regulator.css'
 
 const POLL_MS = 5000
-const VERDICT_KIND: Record<ReportVerdict, StatusKind> = { MATCH: 'MATCH', ALTERED: 'ALTERED', DELETED: 'DELETED', NOT_FOUND: 'NOT_FOUND' }
-const VERDICT_NOTE: Record<ReportVerdict, string> = {
-  MATCH: 'Store matches the chain',
-  ALTERED: 'Store differs from the chain',
-  DELETED: 'Missing from the store, still on chain',
-  NOT_FOUND: 'Not on chain yet, or the node did not answer',
+
+/** The server's verdict in witness words. Red only for a record changed or deleted after sealing. */
+const VERDICT: Record<ReportVerdict, { short: string; line: string; tone: 'ok' | 'bad' | 'muted' }> = {
+  MATCH: { short: 'Matches', line: 'Matches the sealed record', tone: 'ok' },
+  ALTERED: { short: 'Changed', line: 'Changed after sealing', tone: 'bad' },
+  DELETED: { short: 'Deleted', line: 'Deleted by the agency, still on the public ledger', tone: 'bad' },
+  NOT_FOUND: { short: 'Not found', line: 'Not on the public ledger yet, or the node did not answer', tone: 'muted' },
 }
+const PILL: Record<'ok' | 'bad' | 'muted', string> = {
+  ok: 'text-ok',
+  bad: 'bg-bad-bg text-bad border border-bad/25 px-2',
+  muted: 'bg-paper-2 text-ink-2 border border-line px-2',
+}
+const short = (name: string) => name.replace(' (fictional)', '').replace(' (fiktif)', '')
 
 type Sign = (message: string) => Promise<{ signature: Hex; address: string }>
 type Review = (id: string, signedAt: string, signature: Hex) => Promise<ReviewResult>
@@ -61,107 +69,218 @@ const errorText = (e: unknown) => {
   return m.split('\n')[0] || 'Could not mark the report reviewed.'
 }
 
-function ListSkeleton() {
+function QueueSkeleton() {
   return (
-    <ul className="flex flex-col border-t border-line" aria-busy="true" aria-label="Loading reports">
-      {Array.from({ length: 4 }, (_, i) => (
-        <li key={i} className="grid gap-3 border-b border-line py-5 md:grid-cols-[1fr_auto] md:items-center">
-          <span className="flex flex-col gap-2">
-            <Skeleton className="h-5 w-2/5" />
-            <Skeleton className="h-3.5 w-3/5" />
+    <ul className="flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line bg-card" aria-busy="true" aria-label="Loading reports">
+      {Array.from({ length: 5 }, (_, i) => (
+        <li key={i} className="flex items-start gap-3 px-4 py-4">
+          <Skeleton className="mt-1.5 size-2 rounded-full" />
+          <span className="flex flex-1 flex-col gap-2">
+            <Skeleton className="h-4 w-1/2" />
+            <Skeleton className="h-3 w-4/5" />
           </span>
-          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-5 w-16" />
         </li>
       ))}
     </ul>
   )
 }
 
-function ReportRow({
-  r,
-  busy,
-  error,
-  onMarkReviewed,
-}: {
-  r: RegulatorReportWire
-  busy: boolean
-  error?: string
-  onMarkReviewed: (id: string) => void
-}) {
+function DetailSkeleton() {
+  return (
+    <div className="flex flex-col gap-4 rounded-lg border border-line bg-card p-6" aria-hidden="true">
+      <Skeleton className="h-4 w-40" />
+      <Skeleton className="h-7 w-3/4" />
+      <Skeleton className="h-16 w-full" />
+      <Skeleton className="h-48 w-full" />
+    </div>
+  )
+}
+
+function VerdictPill({ v }: { v: ReportVerdict }) {
+  const m = VERDICT[v]
+  return (
+    <span className={`inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-pill text-[12px] font-medium ${PILL[m.tone]}`}>
+      {m.tone === 'ok' ? <IconCheck size={12} strokeWidth={2.6} /> : null}
+      {m.short}
+    </span>
+  )
+}
+
+/** One queue entry: agency + time on line one, the citizen's reason on line two, the server verdict on the right. */
+function QueueRow({ r, selected, fresh, now, onSelect }: { r: RegulatorReportWire; selected: boolean; fresh: boolean; now: number; onSelect: (id: string) => void }) {
   const open = r.status === 'open'
   return (
-    <li className="anim-rise border-b border-line py-5">
-      <div className="grid gap-4 md:grid-cols-[minmax(0,1fr)_auto] md:items-start md:gap-8">
-        <div className="flex min-w-0 flex-col gap-1.5">
-          <p className="flex items-center gap-2.5 text-[16px] font-medium leading-snug tracking-[-0.01em] text-ink">
-            <span aria-hidden="true" className={`size-[7px] shrink-0 rounded-full ${open ? 'bg-blue' : 'bg-line-strong'}`} />
-            {REPORT_REASON_LABEL[r.reason]}
-          </p>
-          <p className="pl-[17px] text-[14px] leading-relaxed text-ink-2">
-            <span className="text-ink">{r.controllerName}</span> · {EVENT_LABELS[r.eventType]} · citizen{' '}
-            <span className="font-mono text-[13px] text-ink">{r.citizenMasked}</span> · reported {formatWIB(r.createdAt)}
-          </p>
-          {r.note ? (
-            <p className="ml-[17px] mt-1 max-w-[62ch] border-l-2 border-line pl-3 text-[14px] leading-relaxed text-ink-2">“{r.note}”</p>
-          ) : null}
-          <p className="flex flex-wrap items-center gap-x-4 gap-y-1 pl-[17px] text-[13px] text-ink-3">
-            {r.sealedAt ? <span>Sealed {formatWIB(r.sealedAt * 1000)}</span> : <span>Not sealed on chain</span>}
-            {r.txHash ? (
-              <a
-                href={explorerTx(r.txHash)}
-                target="_blank"
-                rel="noreferrer"
-                className="inline-flex min-h-8 items-center gap-1 font-mono text-[12px] text-ink-2 hover:text-blue"
-              >
-                {shortHex(r.txHash, 8, 6)}
-                {r.logIndex !== null ? ` · log ${r.logIndex}` : ''}
-                <IconExternal size={12} />
-              </a>
-            ) : null}
-            {!open && r.reviewedAt ? (
-              <span>
-                Reviewed {formatWIB(r.reviewedAt)}
-                {r.reviewedBy ? <> by <span className="font-mono text-[12px]">{shortHex(r.reviewedBy, 6, 4)}</span></> : null}
-              </span>
-            ) : null}
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3 pl-[17px] md:flex-col md:items-end md:pl-0">
-          <span className="flex flex-col items-start gap-1 md:items-end">
-            <Badge kind={VERDICT_KIND[r.serverVerdict]} size="sm" />
-            <span className="text-[12px] text-ink-3">{VERDICT_NOTE[r.serverVerdict]}</span>
+    <li className={fresh ? 'rg2-new' : ''}>
+      <button
+        type="button"
+        onClick={() => onSelect(r.id)}
+        aria-current={selected ? 'true' : undefined}
+        className="rg2-entry relative flex w-full items-start gap-3 px-4 py-3.5 text-left"
+      >
+        <span aria-hidden="true" className={`mt-[7px] size-2 shrink-0 rounded-full ${open ? 'bg-blue' : 'bg-line-strong'}`} />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="flex items-baseline justify-between gap-3">
+            <span className={`truncate text-[15px] ${open ? 'font-medium text-ink' : 'text-ink-2'}`}>{short(r.controllerName)}</span>
+            <span className="shrink-0 text-[12px] text-ink-3">{now ? ago(r.createdAt, now) : ''}</span>
           </span>
-          {open ? (
-            <Button variant="light" size="sm" loading={busy} disabled={busy} icon={<IconWallet size={15} />} onClick={() => onMarkReviewed(r.id)}>
-              {busy ? 'Waiting for signature' : 'Mark reviewed'}
-            </Button>
-          ) : (
-            <span className="inline-flex h-7 items-center rounded-pill border border-line px-2.5 text-[12px] font-medium text-ink-2">Reviewed</span>
-          )}
-        </div>
-      </div>
-      {error ? (
-        <p role="alert" className="mt-3 pl-[17px] text-[14px] text-ink">
-          {error}
-        </p>
-      ) : null}
+          <span className="flex items-center justify-between gap-3">
+            <span className="truncate text-[13px] text-ink-2">{REPORT_REASON_LABEL[r.reason]}</span>
+            <VerdictPill v={r.serverVerdict} />
+          </span>
+        </span>
+      </button>
     </li>
   )
 }
 
 /**
- * Citizen reports queue. Each verdict was computed by the server against the chain when the report arrived.
- * Marking a report reviewed asks the ControllerRegistry admin wallet for a message signature.
+ * The report as a ticket: the agency and the citizen's reason on top, the server's verdict stamped on it,
+ * the sealed record facts under the perforation, then the signed review. Keyed by id so the stamp lands
+ * each time a report opens.
+ */
+function ReportDetail({
+  r,
+  admin,
+  busy,
+  error,
+  now,
+  onMarkReviewed,
+}: {
+  r: RegulatorReportWire
+  admin: string | null
+  busy: boolean
+  error?: string
+  now: number
+  onMarkReviewed: (id: string) => void
+}) {
+  const open = r.status === 'open'
+  const v = VERDICT[r.serverVerdict]
+  const stamp = r.serverVerdict === 'MATCH' ? 'ok' : r.serverVerdict === 'ALTERED' ? 'bad' : null
+  return (
+    <article className="rg2-swap flex flex-col gap-5" aria-label={`Report about ${short(r.controllerName)}`}>
+      <div className={r.serverVerdict === 'ALTERED' || r.serverVerdict === 'DELETED' ? 'st-shadow-bad' : 'st-shadow'}>
+        <div className="st-half-top relative rounded-t-lg bg-card px-5 pb-6 pt-5 lg:px-6">
+          <p className="flex items-center gap-2 text-[13px] text-ink-3">
+            <span aria-hidden="true" className={`size-2 rounded-full ${open ? 'bg-blue' : 'bg-line-strong'}`} />
+            {open ? `Open · reported ${now ? ago(r.createdAt, now) : plainTime(r.createdAt)}` : 'Reviewed'}
+          </p>
+          <div className="mt-3 flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-[14px] text-ink-2">
+                Citizen <span className="font-mono text-[13px] text-ink">{r.citizenMasked}</span> reported
+              </p>
+              <h2 className="mt-1 text-balance text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink lg:text-[26px]">
+                {short(r.controllerName)}
+              </h2>
+              <p className="mt-2 text-[16px] leading-snug text-ink">{REPORT_REASON_LABEL[r.reason]}</p>
+            </div>
+            {stamp ? (
+              <div aria-hidden="true" className="-mr-1 -mt-1">
+                <VerdictStamp kind={stamp} size={104} />
+              </div>
+            ) : null}
+          </div>
+          {r.note ? (
+            <blockquote className="mt-4 rounded-md bg-paper-2/70 px-4 py-3 text-[15px] leading-relaxed text-ink-2">“{r.note}”</blockquote>
+          ) : null}
+          <p className={`mt-4 text-[14px] font-medium ${v.tone === 'bad' ? 'text-bad' : v.tone === 'ok' ? 'text-ok' : 'text-ink-2'}`}>
+            {v.line}
+          </p>
+          <p className="mt-0.5 text-[13px] text-ink-3">Saksi’s server re-checked this receipt against the public ledger when the report arrived.</p>
+          <span aria-hidden="true" className="st-perf absolute inset-x-4 bottom-0 text-line-strong" />
+        </div>
+        <div className="st-half-bottom rounded-b-lg bg-card px-5 pb-2 pt-3 lg:px-6">
+          <dl>
+            <Fact k="Agency">{r.controllerName}</Fact>
+            <Fact k="Citizen">
+              <span className="font-mono text-[14px]">{r.citizenMasked}</span> <span className="text-ink-3">· masked</span>
+            </Fact>
+            <Fact k="What they did">{EVENT_LABELS[r.eventType]}</Fact>
+            <Fact k="Sealed record">{sealedPhrase(r.sealedAt)}</Fact>
+            <Fact k="Server verdict" tone={v.tone === 'bad' ? 'bad' : v.tone === 'ok' ? 'ok' : undefined}>
+              {v.line}
+            </Fact>
+            <Fact k="Legal grounding">UU PDP Pasal 32 · the processing record a citizen may ask for</Fact>
+          </dl>
+          <TechnicalProof>
+            <ProofRow k="Transaction">
+              {r.txHash ? (
+                <a href={explorerTx(r.txHash)} target="_blank" rel="noreferrer" className="inline-flex min-h-8 items-center gap-1 hover:text-blue">
+                  {shortHex(r.txHash, 8, 6)} <IconArrowUpRight size={12} />
+                </a>
+              ) : (
+                'None'
+              )}
+            </ProofRow>
+            <ProofRow k="Log index">{r.logIndex ?? 'None'}</ProofRow>
+            {r.sealedAt ? <ProofRow k="Block time">{new Date(r.sealedAt * 1000).toISOString().replace('.000', '')}</ProofRow> : null}
+            <ProofRow k="Report id">{r.id.slice(0, 8)}</ProofRow>
+          </TechnicalProof>
+        </div>
+      </div>
+
+      <section aria-label="Review" className="rounded-lg border border-line bg-card px-5 py-4 lg:px-6">
+        {open ? (
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className="max-w-[44ch] text-[13px] leading-relaxed text-ink-2">
+              Signed with the registry admin wallet
+              {admin ? <span className="font-mono text-[12px] text-ink"> {shortHex(admin, 6, 4)}</span> : null}. A message signature: no
+              transaction, no gas.
+            </p>
+            <Button variant="dark" size="sm" loading={busy} disabled={busy} icon={<IconWallet size={15} />} onClick={() => onMarkReviewed(r.id)}>
+              {busy ? 'Waiting for signature' : 'Mark reviewed'}
+            </Button>
+          </div>
+        ) : (
+          <p className="flex items-start gap-2.5 text-[14px] text-ink">
+            <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full bg-[#157f3d] text-white">
+              <IconCheck size={12} strokeWidth={3} />
+            </span>
+            <span>
+              Reviewed{r.reviewedAt ? ` · ${plainTime(r.reviewedAt)}` : ''}
+              <span className="block text-[13px] text-ink-3">
+                Signed by the registry admin{r.reviewedBy ? <span className="font-mono text-[12px]"> {shortHex(r.reviewedBy, 6, 4)}</span> : null}
+              </span>
+            </span>
+          </p>
+        )}
+        {error ? (
+          <p role="alert" className="mt-3 border-t border-line pt-3 text-[14px] text-ink">
+            {error}
+          </p>
+        ) : null}
+      </section>
+    </article>
+  )
+}
+
+/**
+ * Citizen reports: the queue on the left, the report on the right (from 1024); a bottom sheet on phones.
+ * Each verdict was computed by the server against the chain when the report arrived. Marking a report
+ * reviewed asks the ControllerRegistry admin wallet for a message signature.
  * `load` / `sign` / `review` come from the /dev gallery; the app uses the real API and the injected wallet.
  */
-export function ReportsQueue({ load, sign, review }: { load?: () => Promise<RegulatorReportsWire>; sign?: Sign; review?: Review }) {
+export function ReportsQueue({
+  load,
+  sign,
+  review,
+  pollMs,
+}: {
+  load?: () => Promise<RegulatorReportsWire>
+  sign?: Sign
+  review?: Review
+  /** Gallery only: poll the mock loader (to replay a report arriving). */
+  pollMs?: number
+}) {
   const instance = useId()
   const walletSign = useWalletSigner()
   const { toast } = useToast()
+  const now = useNow() ?? 0
   const q = useQuery({
     queryKey: ['regulator-reports', load ? instance : 'live'],
     queryFn: load ?? getRegulatorReports,
-    refetchInterval: load ? false : POLL_MS,
+    refetchInterval: load ? (pollMs ?? false) : POLL_MS,
     refetchIntervalInBackground: false,
     retry: false,
   })
@@ -169,6 +288,8 @@ export function ReportsQueue({ load, sign, review }: { load?: () => Promise<Regu
   const [busy, setBusy] = useState<string | null>(null)
   const [errors, setErrors] = useState<Record<string, string>>({})
   const [done, setDone] = useState<Record<string, ReviewResult>>({})
+  const [sel, setSel] = useState<string | null>(null)
+  const [sheet, setSheet] = useState(false)
 
   const data = q.data
   const reports = (data?.reports ?? []).map((r) => {
@@ -177,10 +298,16 @@ export function ReportsQueue({ load, sign, review }: { load?: () => Promise<Regu
   })
   const shown = filter === 'open' ? reports.filter((r) => r.status === 'open') : reports
   const open = reports.filter((r) => r.status === 'open').length
-  const disagree = reports.filter((r) => r.serverVerdict === 'ALTERED' || r.serverVerdict === 'DELETED').length
   const admin = data?.admin ?? null
+  const fresh = useArrivals(data ? data.reports.map((r) => r.id) : null)
+  const current = reports.find((r) => r.id === sel) ?? shown[0]
 
   const onRetry = () => void q.refetch()
+  const onSelect = (id: string) => {
+    setSel(id)
+    // From 1024 the report opens in the pane beside the queue; the sheet is for phones.
+    if (window.matchMedia('(max-width: 1023px)').matches) setSheet(true)
+  }
   const onMarkReviewed = async (id: string) => {
     setBusy(id)
     setErrors(({ [id]: _, ...rest }) => rest)
@@ -201,97 +328,94 @@ export function ReportsQueue({ load, sign, review }: { load?: () => Promise<Regu
     }
   }
 
-  return (
-    <div className="flex flex-col gap-10 md:gap-12">
-      <div className="grid gap-6 lg:grid-cols-12 lg:items-end">
-        <RiseHeading
-          as="h1"
-          lead="Citizens flag it."
-          tail="The chain checks it."
-          className="text-[34px] leading-[1.04] md:text-[56px] lg:col-span-7"
-        />
-        <p className="max-w-[46ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[17px] lg:col-span-4 lg:col-start-9">
-          A citizen can report any access on their receipt. When a report arrives, Saksi checks that receipt against the
-          chain itself, so the verdict here comes from the chain, not from the citizen or the company.
-        </p>
-      </div>
+  const detail = current ? (
+    <ReportDetail
+      key={current.id}
+      r={current}
+      admin={admin}
+      busy={busy === current.id}
+      error={errors[current.id]}
+      now={now}
+      onMarkReviewed={(id) => void onMarkReviewed(id)}
+    />
+  ) : null
 
-      <StatRow
-        label="Citizen reports"
-        stats={[
-          { label: 'Open', value: data ? open : null, hint: 'Waiting for review', tone: 'ink' },
-          { label: 'Reviewed', value: data ? reports.length - open : null, hint: 'Signed off by the admin wallet', tone: 'ok' },
-          { label: 'Chain disagrees', value: data ? disagree : null, hint: 'Altered or deleted in the store', tone: 'bad', alarm: true },
-        ]}
+  return (
+    <div className="flex flex-col gap-6 lg:gap-8">
+      <PageHeader
+        title="Citizen reports"
+        desc="A citizen can report any access on their receipt. Saksi re-checks that receipt against the public ledger, so the verdict comes from the ledger, not from the citizen or the agency."
       />
 
-      <section aria-labelledby="queue-h" className="flex flex-col gap-4">
-        <div className="flex flex-wrap items-end justify-between gap-4">
-          <h2 id="queue-h" className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
-            Queue <span className="text-ink-2">· newest first</span>
-          </h2>
-          <div role="group" aria-label="Show" className="inline-flex rounded-md border border-line bg-card p-1">
-            {(['open', 'all'] as const).map((f) => (
-              <button
-                key={f}
-                type="button"
-                aria-pressed={filter === f}
-                onClick={() => setFilter(f)}
-                className={`min-h-9 rounded-sm px-3.5 text-[14px] font-medium transition-colors duration-150 ${
-                  filter === f ? 'bg-ink text-paper' : 'text-ink-2 hover:text-ink'
-                }`}
-              >
-                {f === 'open' ? `Open${data ? ` · ${open}` : ''}` : `All${data ? ` · ${reports.length}` : ''}`}
-              </button>
-            ))}
+      {q.isPending ? (
+        <div className="grid gap-6 lg:grid-cols-[400px_minmax(0,1fr)]">
+          <QueueSkeleton />
+          <div className="hidden lg:block">
+            <DetailSkeleton />
           </div>
         </div>
+      ) : q.isError ? (
+        <Calm
+          title="Couldn’t load citizen reports"
+          body={`${q.error.message} Nothing is shown, so nothing is decided.`}
+          icon={<IconRefresh size={18} />}
+          action={
+            <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
+              Try again
+            </Button>
+          }
+        />
+      ) : (
+        <div className="grid items-start gap-6 lg:grid-cols-[400px_minmax(0,1fr)] xl:grid-cols-[420px_minmax(0,1fr)]">
+          <section aria-labelledby="queue-h" className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6">
+            <div className="flex items-center justify-between gap-3">
+              <h2 id="queue-h" className="text-[15px] font-semibold text-ink">
+                Queue <span className="font-normal text-ink-3">· newest first</span>
+              </h2>
+              <div role="group" aria-label="Show" className="inline-flex gap-1">
+                {(['open', 'all'] as const).map((f) => (
+                  <button
+                    key={f}
+                    type="button"
+                    aria-pressed={filter === f}
+                    onClick={() => setFilter(f)}
+                    className={`tnum h-8 rounded-pill px-3 text-[13px] font-medium transition-colors duration-150 ${
+                      filter === f ? 'bg-ink text-paper' : 'border border-line text-ink-2 hover:border-line-strong hover:text-ink'
+                    }`}
+                  >
+                    {f === 'open' ? `Open · ${open}` : `All · ${reports.length}`}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {shown.length === 0 ? (
+              <Calm
+                icon={<IconUser size={18} />}
+                title={reports.length ? 'Nothing open' : 'No open reports'}
+                body={
+                  reports.length
+                    ? 'Every report has a signed review. New ones appear here the moment a citizen files one.'
+                    : 'No open reports. Saksi will list them here the moment a citizen files one.'
+                }
+              />
+            ) : (
+              <ul aria-label="Citizen reports" className="flex flex-col divide-y divide-line overflow-hidden rounded-lg border border-line bg-card">
+                {shown.map((r) => (
+                  <QueueRow key={r.id} r={r} selected={current?.id === r.id} fresh={fresh.has(r.id)} now={now} onSelect={onSelect} />
+                ))}
+              </ul>
+            )}
+          </section>
 
-        <p className="flex items-start gap-2.5 text-[14px] leading-relaxed text-ink-2">
-          <IconShield size={16} className="mt-0.5 shrink-0 text-ink" />
-          <span>
-            Only the registry admin wallet
-            {admin ? (
-              <>
-                {' '}
-                <span className="font-mono text-[13px] text-ink">{shortHex(admin, 6, 4)}</span>
-              </>
-            ) : null}{' '}
-            can mark a report reviewed. It signs a message, so there is no transaction and no gas.
-          </span>
-        </p>
+          <div className="hidden min-w-0 lg:block">
+            {detail ?? <Calm title="Pick a report" body="Its sealed record and the server’s verdict open here." />}
+          </div>
+        </div>
+      )}
 
-        {q.isPending ? (
-          <ListSkeleton />
-        ) : q.isError ? (
-          <Quiet
-            glyph="eye"
-            title="Couldn’t load citizen reports"
-            body={`${q.error.message} The counts above stay empty until the list loads.`}
-            action={
-              <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
-                Try again
-              </Button>
-            }
-          />
-        ) : shown.length === 0 ? (
-          <Quiet
-            glyph="check"
-            title={reports.length ? 'Nothing open' : 'No citizen reports yet'}
-            body={
-              reports.length
-                ? 'Every report has been reviewed. New ones appear here within a few seconds.'
-                : 'When a citizen reports an access from their receipt, it appears here with the chain’s verdict.'
-            }
-          />
-        ) : (
-          <ul className="flex flex-col border-t border-line" aria-label="Citizen reports">
-            {shown.map((r) => (
-              <ReportRow key={r.id} r={r} busy={busy === r.id} error={errors[r.id]} onMarkReviewed={(id) => void onMarkReviewed(id)} />
-            ))}
-          </ul>
-        )}
-      </section>
+      <Sheet open={sheet && !!current} onClose={() => setSheet(false)} title="Citizen report" sub={current ? short(current.controllerName) : undefined} desktop={false}>
+        {detail}
+      </Sheet>
     </div>
   )
 }

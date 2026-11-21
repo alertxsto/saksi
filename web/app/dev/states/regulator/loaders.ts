@@ -1,7 +1,7 @@
 // Gallery-only loaders (mock data). The app screens never import these.
-import type { WatchView } from '@/lib/data'
+import type { RegulatorReportsWire, WatchView } from '@/lib/data'
 import { encodeOpening, proofPath } from '@/lib/format'
-import { mockAllReceipts, mockBreachDetail, mockBreachList, mockVerify, mockWatchView, type GalleryScenario, type VerifyDemo } from '@/lib/mock'
+import { mockRegulatorReportsData, mockAllReceipts, mockBreachDetail, mockBreachList, mockVerify, mockWatchView, type GalleryScenario, type VerifyDemo } from '@/lib/mock'
 
 // Fixed clock so the sample receipt is stable between loads.
 export const SAMPLE = mockAllReceipts(Date.UTC(2026, 10, 21, 7, 3), 'K7M2QD')[1]
@@ -36,5 +36,15 @@ export function replayWatch(afterMs = 4500): () => Promise<WatchView> {
             : { ref: r.ref, eventId: r.eventId, txHash: r.txHash, logIndex: r.logIndex, controllerName: r.controllerName, status: 'MATCH' as const, blockNumber: r.blockNumber ?? 7_123_120 },
       ),
     }
+  }
+}
+
+/** A citizen files a report while the regulator watches: the newest report appears `afterMs` after mount. */
+export function arrivingReports(afterMs = 2500): () => Promise<RegulatorReportsWire> {
+  const at = Date.now() + afterMs
+  return async () => {
+    const d = mockRegulatorReportsData()
+    if (Date.now() < at) return { ...d, reports: d.reports.slice(1), counts: { open: d.counts.open - 1, reviewed: d.counts.reviewed } }
+    return { ...d, reports: [{ ...d.reports[0], createdAt: new Date(at).toISOString() }, ...d.reports.slice(1)] }
   }
 }

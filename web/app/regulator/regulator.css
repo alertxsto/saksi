@@ -1,0 +1,83 @@
+/* Regulator workspace v2 (riset-ui/37). Register entries, side sheet / bottom sheet, arrival highlight.
+   Every class is prefixed rg2- so nothing collides with the older rg- rules in globals.css.
+   Durations: 150 hover, 220 content, 320 sheets. Enter cubic-bezier(.2,.8,.2,1), leave cubic-bezier(.4,0,1,1). */
+
+:root {
+  --rg2-in: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --rg2-out: cubic-bezier(0.4, 0, 1, 1);
+  --rg2-accent: #157f3d;
+}
+
+/* ---- page + content swaps ------------------------------------------------------------------- */
+@keyframes rg2-fade {
+  from { opacity: 0; transform: translateY(4px); }
+  to { opacity: 1; transform: none; }
+}
+.rg2-swap { animation: rg2-fade 220ms var(--rg2-in) both; }
+
+/* A new row arrives: slide down 8px + fade, then a blue wash that fades over 1.2 s. */
+@keyframes rg2-arrive {
+  from { opacity: 0; transform: translateY(-8px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes rg2-wash {
+  0%, 15% { background-color: color-mix(in srgb, var(--color-blue-bg) 90%, transparent); }
+  100% { background-color: transparent; }
+}
+.rg2-new { animation: rg2-arrive 220ms var(--rg2-in) both, rg2-wash 1200ms var(--rg2-out) 220ms both; }
+/* Tamper found while watching: the same arrival, washed red instead of blue. */
+@keyframes rg2-wash-bad {
+  0%, 15% { background-color: var(--color-bad-bg); }
+  100% { background-color: transparent; }
+}
+.rg2-new-bad { animation: rg2-arrive 220ms var(--rg2-in) both, rg2-wash-bad 1200ms var(--rg2-out) 220ms both; }
+
+/* ---- register entries ----------------------------------------------------------------------- */
+.rg2-entry { transition: background-color 150ms var(--rg2-in); }
+.rg2-entry:hover { background-color: rgb(30 26 22 / 0.035); }
+.rg2-entry[aria-current='true'],
+.rg2-entry[aria-selected='true'] {
+  background-color: var(--color-card);
+  box-shadow: inset 0 0 0 1px var(--color-line-strong);
+}
+/* Tamper rows: a faint red wash across the whole row (red stays tamper-only). */
+.rg2-entry-bad { background-color: color-mix(in srgb, var(--color-bad-bg) 45%, transparent); }
+.rg2-entry-bad:hover { background-color: color-mix(in srgb, var(--color-bad-bg) 70%, transparent); }
+.rg2-serial { font-variant-numeric: tabular-nums; letter-spacing: 0.02em; }
+
+/* ---- sheet: right side sheet from 1024, bottom sheet below ------------------------------------ */
+@keyframes rg2-scrim-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes rg2-scrim-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes rg2-up-in { from { transform: translateY(100%); } to { transform: none; } }
+@keyframes rg2-up-out { from { transform: none; } to { transform: translateY(100%); } }
+@keyframes rg2-side-in { from { transform: translateX(100%); } to { transform: none; } }
+@keyframes rg2-side-out { from { transform: none; } to { transform: translateX(100%); } }
+
+.rg2-scrim { background: rgb(30 26 22 / 0.28); animation: rg2-scrim-in 320ms var(--rg2-in) both; }
+.rg2-scrim[data-phase='closing'] { animation: rg2-scrim-out 240ms var(--rg2-out) both; }
+.rg2-sheet { animation: rg2-up-in 320ms var(--rg2-in) both; }
+.rg2-sheet[data-phase='closing'] { animation: rg2-up-out 240ms var(--rg2-out) both; }
+@media (min-width: 1024px) {
+  .rg2-sheet { animation-name: rg2-side-in; }
+  .rg2-sheet[data-phase='closing'] { animation-name: rg2-side-out; }
+}
+.rg2-grabber { width: 36px; height: 5px; border-radius: 999px; background: var(--color-line-strong); }
+
+/* ---- technical proof disclosure ------------------------------------------------------------- */
+.rg2-proof > summary { list-style: none; cursor: pointer; }
+.rg2-proof > summary::-webkit-details-marker { display: none; }
+.rg2-proof > summary .rg2-caret { transition: transform 220ms var(--rg2-in); }
+.rg2-proof[open] > summary .rg2-caret { transform: rotate(90deg); }
+.rg2-proof[open] > div { animation: rg2-fade 220ms var(--rg2-in) both; }
+
+/* Hours bar inside breach rows: overrun past 72 h in amber. */
+.rg2-track { height: 4px; border-radius: 999px; background: var(--color-paper-2); position: relative; overflow: hidden; }
+
+@media (prefers-reduced-motion: reduce) {
+  .rg2-swap, .rg2-new, .rg2-new-bad, .rg2-scrim, .rg2-sheet, .rg2-proof[open] > div { animation: none !important; }
+  .rg2-entry, .rg2-proof > summary .rg2-caret { transition: none; }
+}
+
+@media print {
+  .rg2-scrim, .rg2-sheet { display: none; }
+}

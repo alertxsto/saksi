@@ -8,13 +8,15 @@ import { BreachList } from '../../../../regulator/BreachList'
 import { WatchView } from '../../../../regulator/watch/WatchView'
 import { ReportsQueue } from '../../../../regulator/reports/ReportsQueue'
 import { ControllersView } from '../../../../regulator/controllers/ControllersView'
+import { Overview } from '../../../../regulator/Overview'
+import type { RegNavKey } from '@/components/regulator/Sidebar'
 import { mockControllerRegister, mockRegulatorReports, mockReviewReport } from '@/lib/mock'
 import { ProofIncomplete } from '../../../../proof/[tx]/[logIndex]/ProofLink'
 import { ProofHome } from '../../../../proof/ProofHome'
 import { ProofResult } from '../../../../proof/ProofResult'
 import { RiseHeading } from '@/components/regulator/Rise'
 import { NotFoundScreen } from '@/components/system/NotFoundScreen'
-import { detail, list, replayWatch, SAMPLE, verify, watch } from '../loaders'
+import { arrivingReports, detail, list, replayWatch, SAMPLE, verify, watch } from '../loaders'
 
 function ReplayWatch() {
   const [load] = useState(() => replayWatch())
@@ -35,7 +37,15 @@ function Shared({ demo }: { demo: 'match' | 'altered' | 'notfound' }) {
   )
 }
 
+const R = (s: 'live' | 'loading' | 'empty' | 'error' | 'stale') => () => mockRegulatorReports(s)
+const C = (s: 'live' | 'loading' | 'empty' | 'error' | 'stale') => () => mockControllerRegister(s)
+
 const VIEWS: Record<string, { chrome: 'reg' | 'proof'; node: () => ReactNode }> = {
+  overview: { chrome: 'reg', node: () => <Overview loadReports={R('live')} loadRegister={C('live')} loadBreaches={list('live')} /> },
+  'overview-loading': { chrome: 'reg', node: () => <Overview loadReports={R('loading')} loadRegister={C('loading')} loadBreaches={list('loading')} /> },
+  'overview-empty': { chrome: 'reg', node: () => <Overview loadReports={R('empty')} loadRegister={C('empty')} loadBreaches={list('empty')} /> },
+  'overview-error': { chrome: 'reg', node: () => <Overview loadReports={R('error')} loadRegister={C('error')} loadBreaches={list('error')} /> },
+  'reports-arrive': { chrome: 'reg', node: () => <ArrivingReports /> },
   list: { chrome: 'reg', node: () => <BreachList load={list('live')} loadDetail={detail('live')} /> },
   'list-loading': { chrome: 'reg', node: () => <BreachList load={list('loading')} loadDetail={detail('live')} /> },
   'list-empty': { chrome: 'reg', node: () => <BreachList load={list('empty')} loadDetail={detail('live')} /> },
@@ -53,7 +63,7 @@ const VIEWS: Record<string, { chrome: 'reg' | 'proof'; node: () => ReactNode }> 
   'reports-empty': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('empty')} sign={gallerySign} review={mockReviewReport} /> },
   'reports-error': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('error')} sign={gallerySign} review={mockReviewReport} /> },
   'reports-wrong-wallet': { chrome: 'reg', node: () => <ReportsQueue load={() => mockRegulatorReports('live')} sign={strangerSign} review={mockReviewReport} /> },
-  controllers: { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('live')} /> },
+  controllers: { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('live')} loadReports={R('live')} loadBreaches={list('live')} /> },
   'controllers-loading': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('loading')} /> },
   'controllers-empty': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('empty')} /> },
   'controllers-error': { chrome: 'reg', node: () => <ControllersView load={() => mockControllerRegister('error')} /> },
@@ -77,6 +87,14 @@ const gallerySign = async () => {
 }
 const strangerSign = async () => ({ signature: SIGNATURE, address: '0x9e1d0c2b3a4f5e6d7c8b9a0f1e2d3c4b5a6f7e80' })
 
+function ArrivingReports() {
+  const [load] = useState(() => arrivingReports())
+  return <ReportsQueue load={load} sign={gallerySign} review={mockReviewReport} pollMs={1000} />
+}
+
+const ACTIVE = (view: string): RegNavKey | undefined =>
+  view.startsWith('overview') ? 'overview' : view.startsWith('reports') ? 'reports' : view.startsWith('controllers') ? 'agencies' : view.startsWith('watch') ? 'watch' : view.startsWith('list') || view.startsWith('detail') ? 'breach' : undefined
+
 function Narrow({ children }: { children: ReactNode }) {
   return <div className="mx-auto flex max-w-[820px] flex-col gap-6">{children}</div>
 }
@@ -92,6 +110,10 @@ export function Frame() {
       </main>
     )
   }
-  const Chrome = v.chrome === 'reg' ? RegulatorChrome : ProofChrome
-  return <Chrome>{v.node()}</Chrome>
+  if (v.chrome === 'proof') return <ProofChrome>{v.node()}</ProofChrome>
+  return (
+    <RegulatorChrome active={ACTIVE(view)} loadReports={R('live')}>
+      {v.node()}
+    </RegulatorChrome>
+  )
 }
