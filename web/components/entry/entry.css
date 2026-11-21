@@ -102,28 +102,31 @@
 .en-slot[data-picked] > .en-door { transform: scale(0.99); }
 .en-doors[data-picking] .en-slot:not([data-picked]) > .en-door { opacity: 0.5; filter: saturate(0.6); }
 
-/* Real-life strip: one ticket, four steps. Phone: rows with horizontal perforations. */
+/* Real-life strip: one compact ticket, four steps. Desktop: one row with vertical perforations. Phone: one-line rows. */
 .en-strip { display: grid; background: var(--color-card); border-radius: 16px; animation: en-rise 320ms cubic-bezier(.2,.8,.2,1) 60ms both; }
-.en-step { position: relative; padding: 16px 20px; }
+.en-step { position: relative; display: flex; align-items: center; gap: 12px; padding: 11px 16px; }
 .en-step + .en-step::before {
-  content: ""; position: absolute; left: 20px; right: 20px; top: 0; height: 1.5px; color: var(--color-line-strong);
+  content: ""; position: absolute; left: 16px; right: 16px; top: 0; height: 1.5px; color: var(--color-line-strong);
   background-image: linear-gradient(90deg, currentColor 50%, transparent 0); background-size: 8px 1.5px; background-repeat: repeat-x;
 }
 .en-step-n {
-  display: inline-flex; align-items: center; justify-content: center; width: 24px; height: 24px; border-radius: 999px;
+  display: inline-flex; align-items: center; justify-content: center; flex: none; width: 24px; height: 24px; border-radius: 999px;
   border: 1.5px solid var(--role); color: var(--role); font-size: 12px; font-weight: 650; font-variant-numeric: tabular-nums;
 }
+.en-more svg { transition: transform 150ms cubic-bezier(.2,.8,.2,1); }
+.en-more:hover svg { transform: translateX(2px); }
 @media (min-width: 1024px) {
   .en-strip { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-  .en-step { padding: 20px 22px 22px; }
+  .en-step { padding: 14px 20px; }
   .en-step + .en-step::before {
-    left: 0; right: auto; top: 18px; bottom: 18px; width: 1.5px; height: auto;
+    left: 0; right: auto; top: 12px; bottom: 12px; width: 1.5px; height: auto;
     background-image: linear-gradient(180deg, currentColor 50%, transparent 0); background-size: 1.5px 7px; background-repeat: repeat-y;
   }
 }
 
 @media (prefers-reduced-motion: reduce) {
   .en-slot, .en-strip { animation: none; }
+  .en-more svg { transition: none; }
   .en-slot > .en-door, .en-slot > .en-door::after { transition: none; }
   .en-doors .en-slot:hover > .en-door, .en-slot[data-picked] > .en-door { transform: none; }
 }

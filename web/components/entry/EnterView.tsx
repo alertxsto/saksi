@@ -63,11 +63,11 @@ export function EnterLayout({ citizen, controller, as }: { citizen: ReactNode; c
   )
 
   return (
-    <div className="flex flex-col gap-7 md:gap-8">
+    <div className="flex flex-col gap-6 md:gap-7">
       <header className="en-head flex flex-col gap-3">
         <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-ink md:text-[44px]">Who are you today?</h1>
         <p className="max-w-[60ch] text-[16px] leading-[1.55] text-ink-2 md:text-[17px]">
-          Saksi is the witness between the agencies that hold your data and you. Pick a seat: all three see the same sealed record.
+          Saksi is the witness between the agencies that hold your data and you. Pick a seat: all three see the same sealed record, and in this prototype you can play each one.
         </p>
       </header>
 

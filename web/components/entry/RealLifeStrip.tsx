@@ -1,64 +1,54 @@
+import Link from 'next/link'
 import type { CSSProperties } from 'react'
+import { IconArrow } from '@/components/ui/icons'
 import { ROLE_META } from './RoleChip'
 import './entry.css'
 
 /**
- * "How Saksi works in real life": four steps on one ticket, separated by perforations.
- * Desktop: four columns with vertical perforations. Phone: four rows with horizontal perforations.
+ * "How Saksi works in real life": four short steps on one ticket, separated by perforations, kept to a single
+ * compact row on desktop so the three doors below stay above the fold. The long version lives on /why.
+ * Phone: four one-line rows with horizontal perforations.
  */
 
 const SAKSI = '#6b645b'
 
-const STEPS: { who: string; accent: string; title: string; body: string }[] = [
-  {
-    who: 'Agency',
-    accent: ROLE_META.agency.accent,
-    title: 'An officer looks up your NIK',
-    body: 'At a bank, hospital or agency, through its own system or the Dukcapil gateway.',
-  },
-  {
-    who: 'Saksi',
-    accent: SAKSI,
-    title: 'That system calls Saksi, automatically',
-    body: 'Saksi seals a fingerprint of the access on a public ledger. No NIK or personal data goes on it.',
-  },
-  {
-    who: 'Citizen',
-    accent: ROLE_META.citizen.accent,
-    title: 'You get a receipt, and your phone checks it',
-    body: 'In the app you already use (in production, IKD or SatuSehat). If the agency edits or deletes the record later, it turns red.',
-  },
-  {
-    who: 'Regulator',
-    accent: ROLE_META.regulator.accent,
-    title: 'The regulator sees every record',
-    body: 'Komdigi today, the PDP agency later: every agency’s record and every citizen report.',
-  },
+const STEPS: { who: string; accent: string; title: string }[] = [
+  { who: 'Agency', accent: ROLE_META.agency.accent, title: 'An officer opens your record' },
+  { who: 'Saksi', accent: SAKSI, title: 'Saksi seals the access' },
+  { who: 'Citizen', accent: ROLE_META.citizen.accent, title: 'Your phone gets a receipt' },
+  { who: 'Regulator', accent: ROLE_META.regulator.accent, title: 'The regulator sees it too' },
 ]
 
 export function RealLifeStrip() {
   return (
-    <section aria-labelledby="real-life-title" className="flex flex-col gap-3">
-      <h2 id="real-life-title" className="text-[15px] font-semibold text-ink">
-        How Saksi works in real life
-      </h2>
+    <section aria-labelledby="real-life-title" className="flex flex-col gap-2.5">
+      <div className="flex items-baseline justify-between gap-4">
+        <h2 id="real-life-title" className="text-[15px] font-semibold text-ink">
+          How Saksi works in real life
+        </h2>
+        <Link
+          href="/why"
+          className="en-more inline-flex min-h-11 shrink-0 items-center gap-1.5 text-[14px] font-medium text-ink-2 underline-offset-4 hover:text-ink hover:underline"
+        >
+          Learn more
+          <IconArrow size={14} />
+        </Link>
+      </div>
       <ol className="en-strip en-shadow">
         {STEPS.map((s, i) => (
           <li key={s.who} className="en-step" style={{ '--i': i, '--role': s.accent } as CSSProperties}>
-            <div className="flex items-center gap-2.5">
-              <span aria-hidden="true" className="en-step-n">
-                {i + 1}
-              </span>
-              <span className="text-[13px] font-medium" style={{ color: s.accent }}>
+            <span aria-hidden="true" className="en-step-n">
+              {i + 1}
+            </span>
+            <span className="flex min-w-0 flex-col">
+              <span className="text-[12px] font-medium leading-[1.3]" style={{ color: s.accent }}>
                 {s.who}
               </span>
-            </div>
-            <p className="mt-2.5 text-[16px] font-semibold leading-[1.3] tracking-[-0.01em] text-ink">{s.title}</p>
-            <p className="mt-1 text-[14px] leading-[1.5] text-ink-2">{s.body}</p>
+              <span className="text-[14px] font-semibold leading-[1.3] tracking-[-0.005em] text-ink">{s.title}</span>
+            </span>
           </li>
         ))}
       </ol>
-      <p className="text-[14px] text-ink-2">In this prototype, you can play all three roles.</p>
     </section>
   )
 }
