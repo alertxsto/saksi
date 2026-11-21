@@ -1,6 +1,5 @@
 import Link from "next/link";
 import { LogoMark } from "@/components/ui/Logo";
-import { RegMarks } from "@/components/ui/RegMarks";
 import { QrBlock } from "@/components/ui/QrBlock";
 import {
   CHAIN_NAME,
@@ -12,7 +11,7 @@ import { Cta } from "./Cta";
 import { OdoText } from "./OdoText";
 import { QrFlash } from "./QrFlash";
 import { WitnessSealArt } from "./WitnessSealArt";
-import { FrameRules, Heading } from "./Words";
+import { FrameRules, words } from "./Words";
 
 const CONTRACTS = (
   Object.entries(CONTRACT_ADDRS) as [string, string | undefined][]
@@ -60,18 +59,18 @@ export function SiteFooter({ base = "" }: { base?: string }) {
         <FrameRules vault />
         <div className="frame relative grid gap-12 px-3 pb-20 pt-24 md:px-8 md:pb-[104px] md:pt-40 lg:grid-cols-12 lg:items-end lg:gap-6">
           <div className="lg:col-span-8">
-            <Heading
-              lead="Scan. Get a receipt."
-              tail="Verify it."
-              tailClass="text-vault-ink-2"
-              className="max-w-[13ch] text-[48px] leading-[0.98] tracking-[-0.03em] sm:text-[64px] lg:text-[clamp(72px,7.4vw,112px)]"
-            />
+            {/* one phrase per line: Scan. / Get a receipt. / Verify it. */}
+            <h2 data-words="" className="text-balance text-[48px] font-medium leading-[0.98] tracking-[-0.03em] sm:text-[64px] lg:text-[clamp(72px,7.4vw,112px)]">
+              <span className="block">{words('Scan.')}</span>
+              <span className="block">{words('Get a receipt.', 1)}</span>
+              <span className="block text-vault-ink-2">{words('Verify it.', 4)}</span>
+            </h2>
             <p className="mt-8 max-w-[46ch] text-[16px] leading-[1.6] tracking-[0.01em] text-vault-ink-2 md:text-[18px]">
               Become the citizen on your own phone. A company records an
               access, the receipt arrives, and your phone checks it against the
               chain.
             </p>
-            <div className="mt-10 flex flex-nowrap gap-2.5 sm:gap-3">
+            <div className="mt-10 flex flex-wrap gap-2.5 sm:gap-3">
               <Cta href="/enter" variant="paper" className="max-sm:px-4 max-sm:text-[15px]">
                 Open the app
               </Cta>
@@ -84,7 +83,6 @@ export function SiteFooter({ base = "" }: { base?: string }) {
             </div>
           </div>
           <QrFlash className="relative hidden w-[260px] justify-self-start lg:block lg:col-span-4 lg:w-[min(100%,320px)] lg:justify-self-end">
-            <RegMarks className="qr-mark bg-dot-2" size={8} />
             <div className="rounded-md bg-card p-4">
               <QrBlock
                 value={`${SITE}/enter?as=citizen`}
