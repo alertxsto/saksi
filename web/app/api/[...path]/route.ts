@@ -7,6 +7,7 @@ import { HttpError, clientIp, describeError, input, json, missing, requireDemoTo
 import { consume } from '../../../lib/server/rate-limit';
 import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai';
 import { demoReceipts } from '../../../lib/server/demo';
+import { stageStats } from '../../../lib/server/stats';
 import { serviceStatus } from '../../../lib/server/status';
 import { tamper, tamperInput } from '../../../lib/server/tamper';
 import { watch } from '../../../lib/server/watch';
@@ -52,6 +53,7 @@ async function route(request: Request, context: Context): Promise<Response> {
       case 'POST controller/breach/submit': return json(await submitBreach(await input(request, submitInput)));
       case 'POST controller/breach/confirm': return json(await confirmBreach((await input(request, confirmInput)).id));
       case 'GET regulator/breaches': return json(await listBreaches());
+      case 'GET stats': return json(await stageStats());
       case 'GET watch': {
         const controllerId = url.searchParams.get('controllerId');
         return json(await watch(controllerId === null ? undefined : validate(hash, controllerId)));
