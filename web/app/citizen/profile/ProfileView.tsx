@@ -50,7 +50,7 @@ export function ProfileView() {
     if (kind && (kind !== 'NOT_FOUND' || r.status === 'anchored')) verdicts[r.eventId] = VERDICT[kind]
   }
   // Deleted receipts (ghosts plus hidden), counted the same way as the list and the sidebar.
-  const { deleted } = useTamperCounts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
+  const { deleted } = useTamperCounts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess, store.hidden)
   const del = useMutation({
     mutationFn: deleteProfile,
     onSuccess: () => {

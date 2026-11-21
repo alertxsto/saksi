@@ -177,7 +177,7 @@ function LiveSidebar({ path }: { path: string }) {
     else if (kinds[i] === 'ALTERED') verdicts[r.eventId] = 'altered'
   })
   // Same deleted count as the list: ghosts plus hidden receipts that are not already ghosts.
-  const tamper = useTamperCounts(code, receipts, verdicts, q.isSuccess)
+  const tamper = useTamperCounts(code, receipts, verdicts, q.isSuccess, store.hidden)
   const counts = {
     state: !q.data ? (q.isError ? 'error' : 'loading') : receipts.length === 0 ? 'empty' : 'ready',
     total: receipts.length,

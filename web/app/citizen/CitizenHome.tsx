@@ -275,7 +275,7 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
     // NOT FOUND only means something once the company says the receipt is sealed.
     if (kind && (kind !== 'NOT_FOUND' || r.status === 'anchored')) verdicts[r.eventId] = VERDICT[kind]
   }
-  const { ghosts, hiddenExtra } = useTamperCounts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
+  const { ghosts, hiddenExtra } = useTamperCounts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess, store.hidden)
 
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
   // An open receipt keeps its own "no profile" screen (ReceiptMissingView) instead.

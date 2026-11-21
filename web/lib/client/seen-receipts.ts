@@ -2,9 +2,8 @@
 
 import { useEffect, useState } from 'react'
 import type { Hex } from 'viem'
-import { alteredIds, type AutoVerdicts, type GhostReceipt } from '@/lib/data'
+import type { AutoVerdicts, GhostReceipt } from '@/lib/data'
 import type { ReceiptOpening } from '@/lib/shared/types'
-import { useReceiptChecks } from './receipt-checks'
 
 // The phone remembers every sealed receipt it was shown, per profile code, so a receipt the company later
 // deletes from its database still shows up as DELETED. Only copies this browser has checked against the
@@ -81,12 +80,12 @@ export function useGhostReceipts(code: string, receipts: ReceiptOpening[], verdi
 
 /**
  * The tamper counts every citizen pass shows: altered verdicts, plus deleted receipts (ghosts and the chain
- * scan's hidden receipts once data is in, a hidden key that is already a ghost counted once). Same inputs as useGhostReceipts.
+ * scan's hidden receipts once data is in, a hidden key that is already a ghost counted once). `hidden` is
+ * useReceiptChecks().hidden; the rest are useGhostReceipts' inputs.
  */
-export function useTamperCounts(code: string, receipts: ReceiptOpening[], verdicts: AutoVerdicts, loaded: boolean) {
+export function useTamperCounts(code: string, receipts: ReceiptOpening[], verdicts: AutoVerdicts, loaded: boolean, hidden: readonly string[]) {
   const ghosts = useGhostReceipts(code, receipts, verdicts, loaded)
-  const { hidden } = useReceiptChecks()
   const ghostKeys = new Set(ghosts.map((g) => `${g.opening.txHash?.toLowerCase()}:${g.opening.logIndex}`))
   const hiddenExtra = code ? hidden.filter((key) => !ghostKeys.has(key)).length : 0
-  return { ghosts, hiddenExtra, altered: alteredIds(verdicts, receipts).length, deleted: ghosts.length + hiddenExtra }
+  return { ghosts, hiddenExtra, altered: receipts.filter((r) => verdicts[r.eventId] === 'altered').length, deleted: ghosts.length + hiddenExtra }
 }
