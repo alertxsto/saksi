@@ -357,6 +357,13 @@ export function AnyoneRow() {
       >
         Check a receipt without signing in
       </Link>
+      <span className="mt-2 block text-[13px] text-ink-3">
+        Presenter?{' '}
+        <Link href="/operator" className="underline decoration-line underline-offset-4 transition-colors duration-150 hover:text-ink-2">
+          Evidence room
+        </Link>{' '}
+        edits or deletes a sealed record to show the citizen&rsquo;s phone turning red.
+      </span>
     </p>
   )
 }
