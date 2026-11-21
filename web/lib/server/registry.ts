@@ -6,6 +6,7 @@ import { controllers } from '../../db/schema';
 import { events, rpc, addresses, deployBlock } from './chain';
 import { HttpError } from './http';
 import { controllerId } from '../shared/commit';
+import { controllerDisplayName } from '../shared/controller-names';
 const slugify = (text: string) => text.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 /**
  * The registry stores only the id and a display name. Recover the slug when the id is keccak256("ctrl:" + slug) of the
@@ -34,8 +35,8 @@ export async function controller(id: Hex) {
       (revocation.blockNumber === registration.blockNumber && revocation.logIndex > registration.logIndex))) ? revocation : registration;
     if (last?.eventName === 'ControllerRevoked') break;
     if (last?.eventName === 'ControllerRegistered') {
-      const name = last.args.name;
-      const row = { id, name, slug: inferSlug(id, name), eoa: last.args.eoa.toLowerCase(), registryTx: last.transactionHash };
+      const name = controllerDisplayName(id, last.args.name);
+      const row = { id, name, slug: inferSlug(id, last.args.name), eoa: last.args.eoa.toLowerCase(), registryTx: last.transactionHash };
       await db().insert(controllers).values(row).onConflictDoNothing({ target: controllers.id });
       return row;
     }

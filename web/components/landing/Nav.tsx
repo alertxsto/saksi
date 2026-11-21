@@ -114,10 +114,10 @@ export function Nav({ base = '' }: { base?: string }) {
           <OdoText>Sign in</OdoText>
         </Link>
         <Cta href="/citizen" size="md" className="nav-cta max-lg:ml-auto max-lg:h-11 max-[379px]:hidden">
-          Open live demo
+          Open the app
         </Cta>
         <Cta href="/citizen" size="md" className="nav-cta ml-auto h-11! min-[380px]:hidden">
-          Live demo
+          Open the app
         </Cta>
         <button
           ref={btnRef}
@@ -164,7 +164,7 @@ export function Nav({ base = '' }: { base?: string }) {
               Verify a receipt
             </Cta>
             <Cta href="/citizen" size="md" className="nav-cta h-12! w-full justify-between">
-              Live demo
+              Open the app
             </Cta>
           </div>
         </div>

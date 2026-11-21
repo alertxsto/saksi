@@ -87,6 +87,6 @@ export function requireDemoToken(request: Request) {
   const configured = process.env.DEMO_ADMIN_TOKEN;
   const provided = request.headers.get('x-demo-token');
   if (!configured || !provided || Buffer.byteLength(configured) !== Buffer.byteLength(provided) || !timingSafeEqual(Buffer.from(configured), Buffer.from(provided))) {
-    throw new HttpError(403, 'FORBIDDEN', 'A valid demo token is required.');
+    throw new HttpError(403, 'FORBIDDEN', 'A valid admin token is required.');
   }
 }

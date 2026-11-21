@@ -151,7 +151,7 @@ export function CitizenPanel({
       id="citizen"
       index={index}
       glyph="eye"
-      chip="Demo profile"
+      chip="Synthetic profile"
       name="Citizen"
       who="The person the data is about."
       does={['See each time an agency or company opens your data.', 'Check every receipt against the chain, in your own browser.']}
@@ -174,14 +174,14 @@ export function CitizenPanel({
             disabled={creating || session.status === 'checking'}
             onClick={onCreateProfile}
           >
-            {creating ? 'Creating your profile…' : 'Create a demo profile'}
+            {creating ? 'Creating your profile…' : 'Create a synthetic profile'}
           </Button>
         )
       }
       note={
         <>
           {error ? <p className="mb-2 text-ink">{error}</p> : null}
-          <p>In production, citizens sign in with the national digital ID (IKD). This demo uses a synthetic profile.</p>
+          <p>In production, citizens sign in with the national digital ID (IKD). For now Saksi uses a synthetic profile.</p>
         </>
       }
     />

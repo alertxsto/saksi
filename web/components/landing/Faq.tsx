@@ -39,7 +39,7 @@ export const FAQ: { q: string; a: string; cite?: readonly SourceId[] }[] = [
   },
   {
     q: 'What does it cost, and who pays?',
-    a: 'The company (the controller) signs every record in its own wallet, so it pays the gas: one small transaction per access. Saksi’s server never holds a key and pays nothing. The demo runs on the Sepolia testnet, where gas costs no real money. Batching many records into one transaction (Merkle) and moving to an L2 are on the roadmap, not built.',
+    a: 'The company (the controller) signs every record in its own wallet, so it pays the gas: one small transaction per access. Saksi’s server never holds a key and pays nothing. Saksi runs on the Sepolia testnet, where gas costs no real money. Batching many records into one transaction (Merkle) and moving to an L2 are on the roadmap, not built.',
   },
   {
     q: 'What if a company never records an access?',
@@ -52,7 +52,7 @@ export const FAQ: { q: string; a: string; cite?: readonly SourceId[] }[] = [
   },
   {
     q: 'Why Sepolia and not mainnet?',
-    a: 'This is a hackathon demo with synthetic data only. A public testnet gives judges real, checkable transactions without anyone spending real money. The contracts and the in-browser verifier are ordinary EVM code; moving to mainnet or an L2 is a roadmap step we have not taken.',
+    a: 'Saksi uses synthetic data only for now. A public testnet gives judges real, checkable transactions without anyone spending real money. The contracts and the in-browser verifier are ordinary EVM code; moving to mainnet or an L2 is a roadmap step we have not taken.',
   },
   {
     q: 'What does the AI do?',
@@ -75,7 +75,7 @@ export function Faq() {
           <div className="flex flex-col justify-between gap-8 lg:sticky lg:top-28 lg:h-[calc(100svh-208px)] lg:max-h-[560px]">
             <Heading id="faq-title" lead="Questions people ask." tail="Short answers." className="text-[34px] leading-[1.04] md:text-[56px]" />
             <div className="hidden lg:block">
-              <Cta href="/citizen">Open live demo</Cta>
+              <Cta href="/citizen">Open the citizen app</Cta>
             </div>
           </div>
         </div>

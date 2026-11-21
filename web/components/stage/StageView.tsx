@@ -198,7 +198,7 @@ export function StageView({
                 <>
                   <p className="stg-idle-title">Waiting for the first receipt</p>
                   <p className="stg-idle-body">
-                    Scan the code to become a citizen. When the demo company opens your data, the receipt lands here, sealed on
+                    Scan the code to become a citizen. When a company opens your data, the receipt lands here, sealed on
                     the chain.
                   </p>
                 </>

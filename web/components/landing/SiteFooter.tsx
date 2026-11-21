@@ -67,13 +67,13 @@ export function SiteFooter({ base = "" }: { base?: string }) {
               className="max-w-[13ch] text-[48px] leading-[0.98] tracking-[-0.03em] sm:text-[64px] lg:text-[clamp(72px,7.4vw,112px)]"
             />
             <p className="mt-8 max-w-[46ch] text-[16px] leading-[1.6] tracking-[0.01em] text-vault-ink-2 md:text-[18px]">
-              Become the citizen on your own phone. The demo company records an
+              Become the citizen on your own phone. A company records an
               access, the receipt arrives, and your phone checks it against the
               chain.
             </p>
             <div className="mt-10 flex flex-wrap gap-3">
               <Cta href="/citizen" variant="paper" className="max-sm:w-full max-sm:justify-center">
-                Open the citizen demo
+                Open the citizen app
               </Cta>
               <Cta href="/proof" variant="ghost-vault" className="max-sm:w-full max-sm:justify-between">
                 Verify a receipt
@@ -85,7 +85,7 @@ export function SiteFooter({ base = "" }: { base?: string }) {
             <div className="rounded-md bg-card p-4">
               <QrBlock
                 value={`${SITE}/citizen`}
-                label="QR code to open the Saksi citizen demo"
+                label="QR code to open the Saksi citizen app"
               />
             </div>
             <p className="label mt-4 text-center text-[12px] text-vault-ink-2">

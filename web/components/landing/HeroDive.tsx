@@ -158,7 +158,7 @@ export function HeroDive() {
             </p>
             <div className="m-in mt-8 flex flex-wrap gap-3" style={d(380)}>
               <Cta href="/citizen" className="max-sm:w-full max-sm:justify-between">
-                Open live demo
+                Open the app
               </Cta>
               <Cta href="/proof" variant="light" className="max-sm:w-full max-sm:justify-center">
                 Verify a receipt

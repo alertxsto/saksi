@@ -4,7 +4,7 @@ import { CHAIN_NAME, SITE_URL } from '@/lib/env'
 
 export const metadata: Metadata = {
   title: 'Stage',
-  description: 'Live projected screen for the Saksi demo: scan to become a citizen, watch receipts get sealed.',
+  description: 'Live projected screen for Saksi: scan to become a citizen, watch receipts get sealed.',
   robots: { index: false },
 }
 

@@ -4,6 +4,7 @@ import {
 } from 'viem';
 import { sepolia } from 'viem/chains';
 import { accessAbi, breachAbi, registryAbi } from './abi';
+import { controllerDisplayName } from './controller-names';
 
 export { accessAbi, breachAbi, registryAbi };
 
@@ -250,7 +251,7 @@ export async function findControllerName(controllerId: Hex, eoa: Address) {
       const logs = await client.getLogs({ ...range, address: registry, event: registeredEvent, strict: true, args: { controllerId, eoa } });
       for (const log of logs) if (!log.removed) name = log.args.name;
     }
-    return name;
+    return controllerDisplayName(controllerId, name);
   });
 }
 

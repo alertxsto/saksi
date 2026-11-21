@@ -127,10 +127,10 @@ function SystemNav() {
           ))}
         </nav>
         <Cta href="/citizen" size="md" className="ml-auto max-[379px]:hidden">
-          Open live demo
+          Open the app
         </Cta>
         <Cta href="/citizen" size="md" className="ml-auto min-[380px]:hidden">
-          Live demo
+          Open the app
         </Cta>
       </div>
     </header>

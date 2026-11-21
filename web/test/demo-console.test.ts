@@ -49,7 +49,7 @@ describe('presenter endpoints require the demo token', () => {
       await call(GET, 'GET', 'status', { demoToken: provided }),
     ]) {
       expect(response.status).toBe(403);
-      expect(await response.json()).toEqual({ error: { code: 'FORBIDDEN', message: 'A valid demo token is required.' } });
+      expect(await response.json()).toEqual({ error: { code: 'FORBIDDEN', message: 'A valid admin token is required.' } });
     }
     expect(execute).not.toHaveBeenCalled();
   });

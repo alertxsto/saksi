@@ -12,7 +12,7 @@ const COPY: Record<NotFoundKind, { tail: string; body: string }> = {
   },
   receipt: {
     tail: 'This receipt isn’t in your profile.',
-    body: 'It may belong to a deleted demo profile, or the link was copied only in part. Your other receipts are still in your list.',
+    body: 'It may belong to a deleted profile, or the link was copied only in part. Your other receipts are still in your list.',
   },
   proof: {
     tail: 'No sealed record at this transaction.',

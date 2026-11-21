@@ -10,7 +10,7 @@ import { HttpError, missing } from './http';
 
 export const tamperInput = z.strictObject({ action: z.enum(['edit', 'delete', 'restore']), eventId: z.uuid() });
 const table = 'access_events';
-const conflict = () => new HttpError(409, 'TAMPER_CONFLICT', 'The demo row changed or cannot be altered in this state.');
+const conflict = () => new HttpError(409, 'TAMPER_CONFLICT', 'The row changed or cannot be altered in this state.');
 type Snapshot = Record<string, unknown>;
 
 /** One changed column, as the presenter screen shows it. Encrypted columns are never decrypted here. */

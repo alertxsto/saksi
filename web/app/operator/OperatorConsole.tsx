@@ -87,7 +87,7 @@ function TokenGate() {
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault()
     const candidate = value.trim()
-    if (!candidate) return setError('Paste the demo admin token first.')
+    if (!candidate) return setError('Paste the admin token first.')
     setChecking(true)
     setError(null)
     try {
@@ -96,7 +96,7 @@ function TokenGate() {
       setValue('')
       toast('Console unlocked for this tab')
     } catch (err) {
-      setError(rejected(err) ? 'That token was rejected. Check DEMO_ADMIN_TOKEN on the server.' : messageOf(err))
+      setError(rejected(err) ? 'That token was rejected. Check the admin token on the server.' : messageOf(err))
     } finally {
       setChecking(false)
     }
@@ -115,7 +115,7 @@ function TokenGate() {
       </div>
       <div>
         <label htmlFor={id} className="label text-ink">
-          Demo admin token
+          Admin token
         </label>
         <input
           id={id}
@@ -127,10 +127,10 @@ function TokenGate() {
           aria-invalid={Boolean(error)}
           aria-describedby={`${id}-h`}
           className="mt-2 h-14 w-full rounded-md border border-line-strong bg-paper-2 px-4 font-mono text-[18px] text-ink outline-none placeholder:text-ink-3 focus:border-blue aria-[invalid=true]:border-bad"
-          placeholder="DEMO_ADMIN_TOKEN"
+          placeholder="Admin token"
         />
         <p id={`${id}-h`} role={error ? 'alert' : undefined} className={`mt-1.5 text-[13px] ${error ? 'text-bad' : 'text-ink-2'}`}>
-          {error ?? 'Sent only as the x-demo-token header, never in the address bar.'}
+          {error ?? 'Sent only in a request header, never in the address bar.'}
         </p>
       </div>
       <Button type="submit" size="lg" arrow loading={checking} full>
@@ -144,8 +144,8 @@ function TokenGate() {
 
 const STATE_LABEL: Record<DemoReceipt['state'], { text: string; className: string }> = {
   intact: { text: 'As recorded', className: 'text-ok' },
-  edited: { text: 'Edited by demo', className: 'text-bad' },
-  deleted: { text: 'Deleted by demo', className: 'text-bad' },
+  edited: { text: 'Edited by operator', className: 'text-bad' },
+  deleted: { text: 'Deleted by operator', className: 'text-bad' },
 }
 
 function ReceiptRow({
@@ -427,7 +427,7 @@ function Console({ token }: { token: string }) {
     if (!lostToken) return
     writeToken(null)
     queryClient.removeQueries({ queryKey: ['operator'] })
-    toast('The demo token was rejected. Paste it again.', 'bad')
+    toast('The admin token was rejected. Paste it again.', 'bad')
   }, [lostToken, queryClient, toast])
 
   const tamper = useMutation({

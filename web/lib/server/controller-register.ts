@@ -7,6 +7,7 @@ import type { WatchRow } from '../shared/types';
 import { addresses, deployBlock, events, rpc } from './chain';
 import { openReportsByController } from './reports';
 import { watch } from './watch';
+import { controllerDisplayName } from '../shared/controller-names';
 
 export type RegistryChange = {
   kind: 'registered' | 'revoked'; controllerId: Hex; eoa: Hex; name?: string; blockNumber: bigint; logIndex: number; txHash: Hex;
@@ -114,7 +115,7 @@ async function scanRegistry(): Promise<Scan> {
       client.getLogs({ address: registry, event: events[4], fromBlock, toBlock, strict: true }),
     ]);
     for (const log of registered) {
-      if (!log.removed) changes.push({ kind: 'registered', controllerId: log.args.controllerId, eoa: log.args.eoa, name: log.args.name,
+      if (!log.removed) changes.push({ kind: 'registered', controllerId: log.args.controllerId, eoa: log.args.eoa, name: controllerDisplayName(log.args.controllerId, log.args.name),
         blockNumber: log.blockNumber, logIndex: log.logIndex, txHash: log.transactionHash });
     }
     for (const log of revoked) {

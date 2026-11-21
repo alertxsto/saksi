@@ -429,7 +429,7 @@ export async function readReceiptFile(file: Pick<File, 'text'>): Promise<Receipt
 /** One recent receipt on GET /api/stats. Public: no names, no purpose text, citizen code already masked. */
 export type StageRecentWire = {
   id: string
-  /** Controller display name, e.g. "Demo One". */
+  /** Controller display name, e.g. "Bank Kredit Contoh (fiktif)". */
   controllerName: string
   eventType: EventTypeCode
   /** Masked by the server, e.g. "JV••••". Never the full code. */
