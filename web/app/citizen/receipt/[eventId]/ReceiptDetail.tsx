@@ -21,6 +21,7 @@ import { useToast } from '@/components/ui/Toast'
 import { VerifyStage, type VerifyPhase } from '@/components/ui/VerifyResult'
 import { runCheck, useAutoVerify, useReceiptCheck } from '@/lib/client/receipt-checks'
 import { downloadReceiptFile, explain, findReceipt, shareProof, toCitizenError, type ExplainResponse } from '@/lib/data'
+import { rememberedReceipt } from '@/lib/client/seen-receipts'
 import { timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { contentKey, receiptHeadline, verdictNote, type ReceiptCheck } from '@/lib/receipt-state'
@@ -189,8 +190,10 @@ function Detail({ opening, reload }: { opening: ReceiptOpening; reload: () => Pr
   /** ALTERED: save the receipt file the chain still matches, so the citizen holds the evidence. */
   const onKeepEvidence = async () => {
     try {
-      await downloadReceiptFile(opening)
-      toast('Saved. This file still matches the chain.')
+      // The database row was edited, so save the copy this phone saw match the chain when there is one.
+      const sealed = rememberedReceipt(opening.eventId)
+      await downloadReceiptFile(sealed ?? opening)
+      toast(sealed ? 'Saved. This file still matches the chain.' : 'Saved. The chain still holds the sealed fingerprint.')
     } catch {
       toast('Download failed', 'info')
     }

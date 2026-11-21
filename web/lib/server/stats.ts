@@ -1,5 +1,5 @@
 import 'server-only';
-import { count, desc, eq, max, ne } from 'drizzle-orm';
+import { count, desc, eq, inArray, max } from 'drizzle-orm';
 import { db } from '../../db/client';
 import { accessEvents, controllers, subjects } from '../../db/schema';
 import type { EventTypeCode, RecordStatus } from '../shared/types';
@@ -25,7 +25,8 @@ export async function stageStats(): Promise<StageStats> {
     }).from(accessEvents)
       .innerJoin(controllers, eq(controllers.id, accessEvents.controllerId))
       .leftJoin(subjects, eq(subjects.id, accessEvents.subjectId))
-      .where(ne(accessEvents.status, 'failed'))
+      // Only rows a wallet signed: prepare is open to anyone, so pending drafts never reach the projector.
+      .where(inArray(accessEvents.status, ['submitted', 'anchored']))
       .orderBy(desc(accessEvents.createdAt)).limit(RECENT),
   ]);
   return {

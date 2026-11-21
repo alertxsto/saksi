@@ -257,11 +257,11 @@ export function VerifyResult({
           {[
             ['Block', result.blockNumber ? Number(result.blockNumber).toLocaleString('en-US') : '—'],
             ['Confirms', result.confirmations?.toLocaleString('en-US') ?? '—'],
-            ['Node', result.rpc.split('.')[0] ?? result.rpc],
-          ].map(([k, v], i) => (
+            ['Node', rpcLabel(result.rpc), result.rpc],
+          ].map(([k, v, full], i) => (
             <div key={k} className={`min-w-0 py-2.5 ${i ? 'border-l border-line pl-3' : ''}`}>
               <dt className="label text-[11px] text-ink-2">{k}</dt>
-              <dd className="tnum mt-1 truncate text-ink" title={v}>
+              <dd className="tnum mt-1 truncate text-ink" title={full ?? v}>
                 {v}
               </dd>
             </div>

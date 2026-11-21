@@ -13,6 +13,7 @@ import { IconAlert, IconCopy, IconRefresh, IconTrash } from '@/components/ui/ico
 import { ProfileSkeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
+import { forgetSeenReceipts } from '@/lib/client/seen-receipts'
 import { copyText, deleteProfile, getProfile, toCitizenError, type CitizenProfile } from '@/lib/data'
 import { SITE_URL } from '@/lib/env'
 import { controllerLinkForCode } from '@/lib/format'
@@ -28,6 +29,7 @@ export function ProfileView() {
   const del = useMutation({
     mutationFn: deleteProfile,
     onSuccess: () => {
+      forgetSeenReceipts()
       setConfirmOpen(false)
       qc.removeQueries({ queryKey: ['receipts'] })
       qc.removeQueries({ queryKey: ['profile'] })

@@ -27,6 +27,20 @@ function write(store: Store) {
   }
 }
 
+/** Forget every remembered receipt (the citizen deleted the profile). */
+export function forgetSeenReceipts() {
+  try {
+    localStorage.removeItem(KEY)
+  } catch {
+    // Nothing stored.
+  }
+}
+
+/** The copy of a receipt this browser last saw match the chain, if any. */
+export function rememberedReceipt(eventId: string): ReceiptOpening | null {
+  return read()?.seen[eventId]?.opening ?? null
+}
+
 const sameIds = (a: GhostReceipt[], b: GhostReceipt[]) =>
   a.length === b.length && a.every((g, i) => g.opening.eventId === b[i].opening.eventId)
 

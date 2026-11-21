@@ -105,7 +105,8 @@ export function OnboardingView({
   const loading = status === 'loading'
   const limited = status === 'error' && error?.code === 'RATE_LIMITED'
   return (
-    <div className="flex flex-1 flex-col">
+    // No tab bar here: cancel the shell's tab-bar padding so the sticky button bar sits flush at the bottom.
+    <div className="-mb-[calc(5rem+env(safe-area-inset-bottom))] flex flex-1 flex-col">
       <div className="vault grain relative overflow-hidden rounded-xl border border-vault-line bg-vault">
         <div className="relative z-[1] mx-auto w-[62%] max-w-[240px] py-1" aria-hidden="true">
           <VaultSeal grid={false} />
@@ -135,7 +136,9 @@ export function OnboardingView({
         ))}
       </ul>
 
-      <div className="mt-auto pt-7">
+      <div aria-hidden="true" className="min-h-6 flex-1" />
+      {/* Sticky so a judge who just scanned the QR sees the one button without scrolling, even on short phones. */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-paper/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
         {status === 'error' && error ? (
           <div role="alert" className="anim-rise mb-3 flex items-start gap-2.5 border-y border-line-strong py-3 text-[14px] text-ink-2">
             {limited ? <IconClock size={17} className="mt-0.5 shrink-0 text-ink" /> : <IconAlert size={17} className="mt-0.5 shrink-0 text-ink" />}
@@ -246,9 +249,11 @@ function ReceiptList() {
   const verdicts: AutoVerdicts = {}
   for (const r of receipts) {
     const kind = verdictKind(checkOf(store.checks, r))
-    if (kind) verdicts[r.eventId] = VERDICT[kind]
+    // NOT FOUND only means something once the company says the receipt is sealed.
+    if (kind && (kind !== 'NOT_FOUND' || r.status === 'anchored')) verdicts[r.eventId] = VERDICT[kind]
   }
   const ghosts = useGhostReceipts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
+  const ghostKeys = new Set(ghosts.map((g) => `${g.opening.txHash?.toLowerCase()}:${g.opening.logIndex}`))
 
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
   if (q.isError && toCitizenError(q.error).code === 'NO_SESSION') return <Onboarding />
@@ -282,6 +287,7 @@ function ReceiptList() {
       freshIds={freshIds}
       verdicts={verdicts}
       ghosts={ghosts}
+      hiddenExtra={q.data ? store.hidden.filter((key) => !ghostKeys.has(key)).length : 0}
       error={q.isError ? toCitizenError(q.error).message : null}
       retrying={q.isFetching}
       onCopy={() => void onCopy()}
@@ -305,6 +311,7 @@ export function ReceiptListView({
   freshIds,
   verdicts,
   ghosts,
+  hiddenExtra = 0,
   error,
   retrying,
   demoHint,
@@ -324,6 +331,8 @@ export function ReceiptListView({
   verdicts?: AutoVerdicts
   /** Receipts this phone saw before that the database no longer returns: grey + red DELETED ghost cards. */
   ghosts?: GhostReceipt[]
+  /** Sealed receipts found on chain for this profile that the company no longer shows and this phone has no copy of. */
+  hiddenExtra?: number
   error?: string | null
   retrying?: boolean
   demoHint?: boolean
@@ -339,15 +348,18 @@ export function ReceiptListView({
     const v = verdicts?.[r.eventId]
     return !!v && v !== 'verifying'
   }).length
+  const matched = receipts.filter((r) => verdicts?.[r.eventId] === 'match').length
   const tally = altered.length
     ? `${altered.length} altered · ${receipts.length} shown`
     : checking
       ? `checking ${checking} · ${receipts.length} shown`
-      : `${anchored} on chain · ${receipts.length} shown`
+      : matched
+        ? `${matched} match the chain · ${receipts.length} shown`
+        : `${anchored} on chain · ${receipts.length} shown`
 
   return (
     <div className="flex flex-col gap-5">
-      <TamperBanner altered={altered.length} deleted={lost.length} checked={checked} href={altered[0] ? `/citizen/receipt/${altered[0]}?check=1` : null} />
+      <TamperBanner altered={altered.length} deleted={lost.length + hiddenExtra} checked={checked} href={altered[0] ? `/citizen/receipt/${altered[0]}?check=1` : null} />
 
       {!online ? <OfflineBanner /> : null}
 
@@ -442,7 +454,9 @@ export function ReceiptListView({
         <h2 className="text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">What a receipt proves</h2>
         <p className="mt-2 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
           Each receipt is a fingerprint sealed on a public chain. If anyone edits the record later, your phone sees it
-          and this screen turns red. <Badge kind="RECORDED" size="sm" className="ml-0.5 align-middle" /> means sealed.
+          and this screen turns red. <Badge kind="RECORDED" size="sm" className="ml-0.5 align-middle" /> means the company
+          says it sealed it. Your phone then checks each one: <Badge kind="MATCH" size="sm" className="align-middle" /> unchanged,{' '}
+          <Badge kind="ALTERED" size="sm" className="align-middle" /> edited after sealing.
         </p>
         <p className="label mt-3 flex items-center gap-1.5 text-[11px] text-ink-2">
           <IconLock size={13} /> Only a fingerprint goes on chain · no names

@@ -75,8 +75,9 @@ export function Nav({ base = '' }: { base?: string }) {
   }, [open])
 
   const go = useCallback((e: MouseEvent<HTMLAnchorElement>, href: string) => {
-    const target = document.querySelector(href)
     setOpen(false)
+    if (!href.startsWith('#')) return
+    const target = document.querySelector(href)
     if (!target) return
     e.preventDefault()
     const smooth = !window.matchMedia(REDUCED_QUERY).matches
