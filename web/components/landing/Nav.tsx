@@ -10,7 +10,6 @@ import { LangToggle } from '@/components/ui/LangToggle'
 
 const LINKS = [
   ['#how', 'How it works'],
-  ['#breach', '72 hours'],
   ['#roles', 'Roles'],
   ['#verify', 'Verify'],
   ['#faq', 'FAQ'],
