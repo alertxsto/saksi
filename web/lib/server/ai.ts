@@ -14,14 +14,15 @@ import { hash } from './chain';
 import { missing } from './http';
 import { controller } from './registry';
 import { draftPrompt, explainPrompt } from './prompts';
-import { contradictsVerdict, EXPLAIN_TEMPLATE, withVerdict } from './explain-guard';
+import { contradictsVerdict, templateFor, withVerdict } from './explain-guard';
 import { AI_REASONING_EFFORT, AI_TIMEOUT_MS, draftResult, extractJson, splitDraft } from './ai-output';
 export { draftResult, extractJson } from './ai-output';
 
 const explainResult = z.strictObject({ text: z.string().trim().min(1).max(1500)
   .refine((text) => text.split(/\s+/u).length <= 120) });
 // verifyResult is accepted for older clients but ignored: the server recomputes the verdict itself.
-export const explainInput = z.strictObject({ eventId: z.uuid(), verifyResult: z.unknown().optional() });
+// lang: the citizen's screen language; the explanation (and its fixed verdict sentence) comes back in it.
+export const explainInput = z.strictObject({ eventId: z.uuid(), verifyResult: z.unknown().optional(), lang: z.enum(['en', 'id']).optional() });
 export const draftInput = z.strictObject({ controllerId: hash, narrative: z.string().trim().min(1).max(6000) });
 export const aiConfig = () => {
   const { AI_BASE_URL: baseURL, AI_API_KEY: apiKey, AI_MODEL: model } = process.env;
@@ -78,7 +79,7 @@ async function generate<T>(feature: 'explain' | 'draft', prompt: string, input: 
   return save(template, { provider: 'local', model: 'template', fallbackLevel: 'template' });
 }
 
-export async function explain({ eventId }: z.output<typeof explainInput>) {
+export async function explain({ eventId, lang = 'en' }: z.output<typeof explainInput>) {
   const id = await citizenId();
   const record = (await loadCitizenRows(id)).find(({ row }) => row.id === eventId);
   if (!record) throw missing();
@@ -89,11 +90,11 @@ export async function explain({ eventId }: z.output<typeof explainInput>) {
   // purposeText is controller-written free text, so it never reaches the model (prompt-injection channel).
   const allowed = { controllerName: opening.controllerName, eventType: EVENT_TYPES[opening.eventType],
     legalBasis: Object.hasOwn(LEGAL_BASES, basis) ? LEGAL_BASES[basis as keyof typeof LEGAL_BASES] : 'Unknown', status,
-    mismatches: mismatches.map(({ field }) => field) };
+    mismatches: mismatches.map(({ field }) => field), language: lang === 'id' ? 'Indonesian' : 'English' };
   // The refinement also re-checks cached outputs before they are replayed.
   const guarded = explainResult.refine(({ text }) => !contradictsVerdict(status, text));
-  const { value, ai } = await generate('explain', explainPrompt, allowed, guarded, { text: EXPLAIN_TEMPLATE[status] });
-  return { text: withVerdict(status, value.text), ai };
+  const { value, ai } = await generate('explain', explainPrompt, allowed, guarded, { text: templateFor(lang)[status] });
+  return { text: withVerdict(status, value.text, lang), ai };
 }
 
 const EMPTY_DRAFT = { dataAffected: '', whenAndHow: '', actionsTaken: '', contact: '' };

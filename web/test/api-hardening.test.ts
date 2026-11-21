@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { explainInput } from '../lib/server/ai';
 import { addresses, deployBlock, hash } from '../lib/server/chain';
 import { configProblems } from '../lib/server/config';
-import { contradictsVerdict, EXPLAIN_TEMPLATE, VERDICT, withVerdict } from '../lib/server/explain-guard';
+import { contradictsVerdict, EXPLAIN_TEMPLATE, EXPLAIN_TEMPLATE_ID, VERDICT, VERDICT_ID, withVerdict } from '../lib/server/explain-guard';
 import { clientIp, describeError, HttpError, secureCookies, validate } from '../lib/server/http';
 import { requireSubmitToken, submitToken } from '../lib/server/submit-token';
 import { isUnanchoredClaim } from '../lib/server/watch';
@@ -136,6 +136,9 @@ describe('AI receipt explanation', () => {
   test('does not require the browser verdict, which may contain a bigint', () => {
     expect(explainInput.parse({ eventId: id })).toEqual({ eventId: id });
     expect(explainInput.safeParse({ eventId: id, verifyResult: { status: 'MATCH', blockNumber: '123' } }).success).toBe(true);
+    expect(explainInput.parse({ eventId: id, lang: 'id' })).toEqual({ eventId: id, lang: 'id' });
+    expect(explainInput.safeParse({ eventId: id, lang: 'fr' }).success).toBe(false);
+    expect(withVerdict('MATCH', 'Tidak ada perbedaan.', 'id')).toBe(`${VERDICT_ID.MATCH} Tidak ada perbedaan.`);
   });
 
   test('rejects text that contradicts the deterministic verdict or makes legal claims', () => {
@@ -155,6 +158,12 @@ describe('AI receipt explanation', () => {
     expect(contradictsVerdict('MATCH', 'Saksi reports that this receipt matched its verification checks, with no mismatches listed. It shows the event type as READ and the legal basis as Public task; those labels do not establish that access occurred or whether it was lawful.')).toBe(false);
     expect(contradictsVerdict('MATCH', 'The legal basis is Public task, so the access was legal.')).toBe(true);
     for (const status of ['MATCH', 'MISMATCH', 'NOT_FOUND'] as const) expect(contradictsVerdict(status, EXPLAIN_TEMPLATE[status])).toBe(false);
+    for (const status of ['MATCH', 'MISMATCH', 'NOT_FOUND'] as const) expect(contradictsVerdict(status, EXPLAIN_TEMPLATE_ID[status])).toBe(false);
+    // Indonesian answers get the same guard.
+    expect(contradictsVerdict('MATCH', 'Isi bukti akses ini sudah diubah oleh instansi.')).toBe(true);
+    expect(contradictsVerdict('MATCH', 'Akses ini sah menurut hukum.')).toBe(true);
+    expect(contradictsVerdict('MISMATCH', 'Catatan ini masih asli dan utuh.')).toBe(true);
+    expect(contradictsVerdict('MATCH', 'Tidak ada perbedaan antara catatan dan blockchain. Ini tidak membuktikan aksesnya sah.')).toBe(false);
   });
 
   test('always shows the fixed verdict sentence first', () => {

@@ -4,6 +4,7 @@
 // Transactions (record access, anchor breach) run through useRecordAccess / useAnchorBreach in
 // lib/client/controller.ts; the wallet through useWalletState in lib/client/wagmi.ts.
 import { ApiClientError, getJson, postJson, requestJson } from './client/json'
+import { getLang } from './client/lang'
 import { CONTRACTS, explorerAddress, explorerTx } from './env'
 import { proofPath } from './format'
 import { controllerId as controllerIdOf } from './shared/commit'
@@ -262,13 +263,14 @@ export async function verifyTimed(opening: ReceiptOpening): Promise<VerifyResult
 }
 
 /** Request body for POST /api/ai/explain. The server recomputes the verdict itself; only the id is sent. */
-export function explainRequestBody(opening: Pick<ReceiptOpening, 'eventId'>) {
-  return { eventId: opening.eventId }
+export function explainRequestBody(opening: Pick<ReceiptOpening, 'eventId'>, lang: 'en' | 'id' = 'en') {
+  return lang === 'id' ? { eventId: opening.eventId, lang } : { eventId: opening.eventId }
 }
 
 /** POST /api/ai/explain. Needs the citizen's session cookie; the server only explains its own receipts. */
 export async function explain(opening: ReceiptOpening): Promise<ExplainResponse> {
-  const wire = await postJson<{ text: string; ai: AiMeta }>('/api/ai/explain', explainRequestBody(opening))
+  // The explanation comes back in the language the citizen is reading the app in.
+  const wire = await postJson<{ text: string; ai: AiMeta }>('/api/ai/explain', explainRequestBody(opening, getLang()))
   return { text: wire.text, meta: wire.ai }
 }
 

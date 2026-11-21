@@ -13,7 +13,8 @@ describe('draft prompt', () => {
     expect(draftPrompt).toMatch(/Do not invent facts/);
     expect(draftPrompt).toMatch(/untrusted data/);
   });
-  test('leaves the explain prompt in English', () => {
-    expect(explainPrompt).toMatch(/plain English/);
+  test('the explain prompt answers in the screen language and stays on the receipt', () => {
+    expect(explainPrompt).toMatch(/language named by the input field "language"/);
+    expect(explainPrompt).toMatch(/never give code/);
   });
 });
