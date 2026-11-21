@@ -1,12 +1,13 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import Link from 'next/link'
 import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
 import { Chip, LiveDot, TwoTone } from '@/components/ui/Chip'
 import { DotoValue } from '@/components/ui/DotoValue'
 import { EmptyState } from '@/components/ui/EmptyState'
-import { IconAlert, IconClock, IconCopy, IconEye, IconLock, IconReceipt, IconRefresh, IconShield, IconWifiOff } from '@/components/ui/icons'
+import { IconAlert, IconClock, IconCopy, IconEye, IconLock, IconQr, IconReceipt, IconRefresh, IconShield, IconWifiOff } from '@/components/ui/icons'
 import { ReceiptCard } from '@/components/ui/ReceiptCard'
 import { RegMarks } from '@/components/ui/RegMarks'
 import { ReceiptCardSkeleton } from '@/components/ui/Skeleton'
@@ -86,7 +87,8 @@ export function OnboardingView({
   const loading = status === 'loading'
   const limited = status === 'error' && error?.code === 'RATE_LIMITED'
   return (
-    <div className="flex flex-1 flex-col">
+    // No tab bar here: cancel the shell's tab-bar padding so the sticky button bar sits flush at the bottom.
+    <div className="-mb-[calc(5rem+env(safe-area-inset-bottom))] flex flex-1 flex-col">
       <div className="vault grain relative rounded-xl border border-vault-line bg-vault">
         <RegMarks className="bg-ice" />
         <div className="relative z-[1] mx-auto w-[78%] max-w-[300px] py-2">
@@ -122,7 +124,9 @@ export function OnboardingView({
         ))}
       </ol>
 
-      <div className="mt-auto pt-6">
+      <div aria-hidden="true" className="min-h-6 flex-1" />
+      {/* Sticky so a judge who just scanned the QR sees the one button without scrolling, even on short phones. */}
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-paper/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
         {status === 'error' && error ? (
           <div
             role="alert"
@@ -171,10 +175,17 @@ function ProfileCard({ code, onCopy }: { code: string; onCopy: () => void }) {
           <IconCopy size={14} /> Copy code
         </button>
       </div>
-      <div className="relative z-[1] w-[112px] shrink-0 border-l border-vault-line p-2" aria-hidden="true">
+      <Link
+        href="/citizen/profile"
+        aria-label="Show your code as a QR to a company"
+        className="group relative z-[1] w-[112px] shrink-0 rounded-r-xl border-l border-vault-line p-2"
+      >
         <VaultSeal grid={false} boost={1.5} />
-        <p className="label mt-1 text-center text-[11px] text-vault-ink-2">SHOW TO A COMPANY</p>
-      </div>
+        <span aria-hidden="true" className="label mt-1 block text-center text-[11px] text-vault-ink-2 group-hover:text-ice">
+          <IconQr size={11} className="mr-1 inline-block align-[-1px]" />
+          SHOW TO A COMPANY
+        </span>
+      </Link>
     </section>
   )
 }
