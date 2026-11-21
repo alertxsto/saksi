@@ -32,10 +32,15 @@ export async function input<T extends z.ZodType>(request: Request, schema: T): P
   catch { throw new HttpError(400, 'INVALID_INPUT', 'Request body is not valid JSON.'); }
   return validate(schema, body);
 }
-// Vercel sets x-vercel-forwarded-for; on the VM, Caddy overwrites x-forwarded-for for untrusted clients.
+// Rate-limit key. Only headers our own proxy sets are trusted: x-vercel-forwarded-for on Vercel (VERCEL=1), and on
+// the VM the X-Real-IP that Caddy sets from the TCP peer (deploy/Caddyfile.saksi; the container port is bound to
+// 127.0.0.1). The fallback is the rightmost X-Forwarded-For entry, the one appended by the nearest proxy; the
+// leftmost entries are whatever the client sent.
 export function clientIp(request: Request) {
-  const forwarded = request.headers.get('x-vercel-forwarded-for') ?? request.headers.get('x-forwarded-for') ?? request.headers.get('x-real-ip');
-  return forwarded?.split(',')[0]?.trim() || 'local';
+  const vercel = process.env.VERCEL === '1' ? request.headers.get('x-vercel-forwarded-for')?.split(',')[0]?.trim() : undefined;
+  const real = request.headers.get('x-real-ip')?.trim();
+  const forwarded = request.headers.get('x-forwarded-for')?.split(',').at(-1)?.trim();
+  return vercel || real || forwarded || 'local';
 }
 // Browsers drop Secure cookies set over plain http, so follow the scheme the browser used.
 // COOKIE_SECURE=true|false overrides the detection (e.g. when a proxy does not send x-forwarded-proto).
