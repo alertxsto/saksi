@@ -708,3 +708,78 @@ export const CONTROLLER_DRAFT_FIXTURE: { fields: Pasal46Fields; meta: AiMeta } =
   },
   meta: { provider: 'example-provider', model: 'example-large', fallbackLevel: 'primary', latencyMs: 1544 },
 }
+
+// ── REPORTS ──
+// Gallery fixtures for citizen reports and the controller register (/dev only). Synthetic names marked (fictional).
+import type { ControllerRegisterWire, RegulatorReportsWire, ReportReceipt, ReviewResult } from './data'
+
+const REPORT_NOW = Date.UTC(2026, 10, 22, 2, 30)
+const minutesAgo = (m: number) => new Date(REPORT_NOW - m * 60_000).toISOString()
+
+export function mockRegulatorReportsData(): RegulatorReportsWire {
+  const base = { controllerId: ctrlId('contoh-lending'), controllerName: CONTROLLERS[0].name, reviewedAt: null, reviewedBy: null }
+  return {
+    admin: '0x4b2e9c0d7a1f3e5b8c6d2a9f0e1b3c5d7a9e2f41',
+    counts: { open: 3, reviewed: 1 },
+    reports: [
+      { ...base, id: '8d1f0c2e-4a6b-4c8d-9e0f-1a2b3c4d5e01', reason: 'altered', note: 'My phone turned red on this one this morning.',
+        eventType: 'SHARE_THIRD_PARTY', citizenMasked: 'K7••••', serverVerdict: 'ALTERED', status: 'open', createdAt: minutesAgo(2),
+        sealedAt: Math.floor((REPORT_NOW - 40 * 60_000) / 1000), txHash: fakeHex('rep-tx-1'), logIndex: 3 },
+      { ...base, id: '8d1f0c2e-4a6b-4c8d-9e0f-1a2b3c4d5e02', reason: 'not_me', note: null, controllerId: ctrlId('sehat-clinic'),
+        controllerName: CONTROLLERS[1].name, eventType: 'EXPORT', citizenMasked: 'JV••••', serverVerdict: 'MATCH', status: 'open',
+        createdAt: minutesAgo(18), sealedAt: Math.floor((REPORT_NOW - 300 * 60_000) / 1000), txHash: fakeHex('rep-tx-2'), logIndex: 0 },
+      { ...base, id: '8d1f0c2e-4a6b-4c8d-9e0f-1a2b3c4d5e03', reason: 'object', note: 'I closed this account last year.',
+        eventType: 'READ', citizenMasked: 'Q4••••', serverVerdict: 'DELETED', status: 'open', createdAt: minutesAgo(64),
+        sealedAt: Math.floor((REPORT_NOW - 900 * 60_000) / 1000), txHash: fakeHex('rep-tx-3'), logIndex: 1 },
+      { ...base, id: '8d1f0c2e-4a6b-4c8d-9e0f-1a2b3c4d5e04', reason: 'not_me', note: null, eventType: 'READ', citizenMasked: 'M2••••',
+        serverVerdict: 'NOT_FOUND', status: 'reviewed', createdAt: minutesAgo(240), sealedAt: null, txHash: null, logIndex: null,
+        reviewedAt: minutesAgo(200), reviewedBy: '0x4b2e9c0d7a1f3e5b8c6d2a9f0e1b3c5d7a9e2f41' },
+    ],
+  }
+}
+
+export async function mockRegulatorReports(scenario: GalleryScenario = 'live'): Promise<RegulatorReportsWire> {
+  if (scenario === 'loading') return hang()
+  if (scenario === 'error') return fail('Could not reach the Saksi server. Check your connection.')
+  await sleep(250)
+  if (scenario === 'empty') return { reports: [], counts: { open: 0, reviewed: 0 }, admin: mockRegulatorReportsData().admin }
+  return mockRegulatorReportsData()
+}
+
+export async function mockReviewReport(id: string): Promise<ReviewResult> {
+  await sleep(500)
+  return { id, status: 'reviewed', reviewedAt: new Date().toISOString(), reviewedBy: mockRegulatorReportsData().admin }
+}
+
+export async function mockSendReport(reason: ReportReceipt['reason'], outcome: 'ok' | 'duplicate' | 'error' = 'ok'): Promise<ReportReceipt> {
+  await sleep(700)
+  if (outcome === 'duplicate') throw Object.assign(new Error('You already sent this report. The regulator has it.'), { code: 'ALREADY_REPORTED' })
+  if (outcome === 'error') throw new Error('Could not reach the Saksi server. Check your connection.')
+  return { id: '8d1f0c2e-4a6b-4c8d-9e0f-1a2b3c4d5e01', status: 'open', reason, serverVerdict: 'ALTERED', createdAt: new Date().toISOString() }
+}
+
+export async function mockControllerRegister(scenario: GalleryScenario = 'live'): Promise<ControllerRegisterWire> {
+  if (scenario === 'loading') return hang()
+  if (scenario === 'error') return fail('The chain node did not answer in time.')
+  await sleep(250)
+  const head = mockBlockNumber()
+  const row = (slug: string, name: string, over: Partial<ControllerRegisterWire['controllers'][number]>) => ({
+    id: ctrlId(slug), name, eoa: fakeHex(`eoa:${slug}`, 20), status: 'active' as const, registeredAt: Math.floor((REPORT_NOW - 2 * 86_400_000) / 1000),
+    registeredBlock: MOCK_BLOCK_BASE - 9_000, registrationTx: fakeHex(`reg:${slug}`), revocationTx: null, sealed: 0, altered: 0, deleted: 0,
+    breachesOnTime: 0, breachesLate: 0, openReports: 0, lastActivity: null, ...over,
+  })
+  return {
+    registry: MOCK_CONTRACTS.registry, blockNumber: head, checkedAt: new Date(REPORT_NOW).toISOString(),
+    watch: scenario === 'stale' ? null : { blockNumber: head, checkedAt: new Date(REPORT_NOW).toISOString() },
+    controllers: scenario === 'empty' ? [] : [
+      row('contoh-lending', CONTROLLERS[0].name, { sealed: 41, altered: scenario === 'stale' ? null : 1, deleted: scenario === 'stale' ? null : 0,
+        breachesOnTime: 1, breachesLate: 0, openReports: 2, lastActivity: minutesAgo(2) }),
+      row('sehat-clinic', CONTROLLERS[1].name, { sealed: 17, breachesLate: 1, openReports: 1, lastActivity: minutesAgo(95),
+        altered: scenario === 'stale' ? null : 0, deleted: scenario === 'stale' ? null : 0 }),
+      row('dinas-contoh', 'Dinas Layanan Kota Contoh (fictional)', { sealed: 6, lastActivity: minutesAgo(700), registeredBlock: MOCK_BLOCK_BASE - 400,
+        altered: scenario === 'stale' ? null : 0, deleted: scenario === 'stale' ? null : 0 }),
+      row('old-partner', 'Mitra Lama Contoh (fictional)', { status: 'revoked', revocationTx: fakeHex('rev:old-partner'), sealed: 3,
+        lastActivity: minutesAgo(2_400), altered: scenario === 'stale' ? null : 0, deleted: scenario === 'stale' ? null : 0 }),
+    ],
+  }
+}
