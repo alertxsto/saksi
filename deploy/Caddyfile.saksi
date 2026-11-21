@@ -1,0 +1,47 @@
+# Saksi site blocks. Imported from the main Caddyfile with:  import sites/*.caddy
+# Only site blocks live here (no global options, no named snippets), so importing it
+# cannot collide with the other sites served by this Caddy.
+#
+# deploy/caddy-install.sh renders the two {$SAKSI_...} values before installing:
+#   SAKSI_RPC_ORIGINS  origins of NEXT_PUBLIC_RPC_* from web/.env.production (browser RPC calls)
+#   SAKSI_CSP_HEADER   Content-Security-Policy, or Content-Security-Policy-Report-Only
+# The defaults after ':' keep this file valid if it is imported unrendered.
+
+saksiku.web.id {
+	encode zstd gzip
+
+	request_body {
+		max_size 1MB
+	}
+
+	header {
+		# Applied after the upstream response so these values win.
+		defer
+		Strict-Transport-Security "max-age=31536000; includeSubDomains"
+		X-Content-Type-Options "nosniff"
+		Referrer-Policy "strict-origin-when-cross-origin"
+		X-Frame-Options "DENY"
+		Cross-Origin-Opener-Policy "same-origin"
+		Permissions-Policy "camera=(), microphone=(), geolocation=(), payment=(), usb=()"
+		# Next.js App Router streams inline <script> chunks, so script-src needs 'unsafe-inline'
+		# (nonces would need middleware). MetaMask talks to the page through window.ethereum, so
+		# the only third-party fetches are the public Sepolia RPC origins.
+		{$SAKSI_CSP_HEADER:Content-Security-Policy} "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' {$SAKSI_RPC_ORIGINS:https://ethereum-sepolia-rpc.publicnode.com https://sepolia.drpc.org https://rpc.sepolia.org}; worker-src 'self' blob:; frame-src 'none'; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; upgrade-insecure-requests"
+		-Server
+		-X-Powered-By
+	}
+
+	reverse_proxy 127.0.0.1:3400 {
+		# Caddy overwrites X-Forwarded-For with the real client IP (no trusted proxies are
+		# configured; Cloudflare is DNS-only), which the API uses for rate limiting.
+		header_up X-Real-IP {remote_host}
+		# Ride out the ~2 s restart during a deploy instead of returning 502.
+		lb_try_duration 15s
+		lb_try_interval 250ms
+	}
+}
+
+www.saksiku.web.id {
+	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	redir https://saksiku.web.id{uri} permanent
+}

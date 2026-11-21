@@ -14,3 +14,5 @@ coverage/
 AGENTS.md
 /docs/
 PRD-*.md
+# Side build directories made by deploy/deploy.sh (.next-new, .next-prev, .next-failed)
+.next-*/
