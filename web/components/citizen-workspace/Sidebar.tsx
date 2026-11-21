@@ -5,7 +5,6 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Suspense, type ComponentType } from 'react'
 import { LiveDot } from '@/components/ui/Chip'
-import { DotoValue } from '@/components/ui/DotoValue'
 import { IconArrowUpRight, IconCopy, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
 import { LogoMark } from '@/components/ui/Logo'
 import { useToast } from '@/components/ui/Toast'
@@ -44,14 +43,14 @@ export function WorkspaceSidebarView({
   return (
     <aside
       aria-label="Citizen workspace"
-      className="no-print hidden w-[216px] shrink-0 @7xl:w-[240px] flex-col border-r border-line bg-paper-2/55 @5xl:sticky @5xl:top-0 @5xl:flex @5xl:h-dvh"
+      className="no-print hidden w-[220px] shrink-0 flex-col border-r border-line bg-paper-2/55 @5xl:sticky @5xl:top-0 @5xl:flex @5xl:h-dvh"
     >
       <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
         <Link href="/" aria-label="Saksi home" className="flex min-h-10 items-center gap-2.5 rounded-sm">
           <LogoMark />
           <span className="text-[19px] font-semibold tracking-[-0.04em] text-ink">saksi</span>
         </Link>
-        <span className="label border-l border-line pl-2.5 text-[11px] text-ink-2">Citizen</span>
+        <span className="border-l border-line pl-2.5 text-[13px] text-ink-2">Citizen</span>
       </div>
 
       <nav aria-label="Citizen" className="px-3 pt-4">
@@ -70,7 +69,7 @@ export function WorkspaceSidebarView({
                   <Icon size={18} strokeWidth={active ? 2 : 1.75} className={active ? 'text-blue' : ''} />
                   <span className="flex-1">{label}</span>
                   {label === 'Receipts' && count !== undefined && count > 0 ? (
-                    <span className="label tnum text-[11px] text-ink-2">{String(count).padStart(2, '0')}</span>
+                    <span className="tnum text-[13px] text-ink-3">{count}</span>
                   ) : null}
                   {away ? <IconArrowUpRight size={14} className="text-ink-3 group-hover:text-ink-2" /> : null}
                 </Link>
@@ -84,44 +83,44 @@ export function WorkspaceSidebarView({
 
       <div className="px-3 pb-4">
         {code ? (
-          <div className="vault grain relative overflow-hidden rounded-lg border border-vault-line bg-vault">
-            <div className="relative z-[1] px-3.5 pb-3 pt-3">
-              <p className="label text-[11px] text-vault-ink-2">Your code</p>
-              <div className="mt-1.5 flex items-center justify-between gap-2">
-                <p className="text-[28px] leading-none text-vault-ink" aria-label={`Code ${code.split('').join(' ')}`}>
-                  <DotoValue value={code} className="gap-[0.05em]" />
+          <div className="overflow-hidden rounded-lg border border-line bg-card">
+            <div className="flex items-center justify-between gap-2 py-2.5 pl-3.5 pr-2">
+              <div className="min-w-0">
+                <p className="text-[13px] text-ink-2">Your code</p>
+                <p className="mt-0.5 font-mono text-[16px] font-medium tracking-[0.08em] text-ink" aria-label={`Code ${code.split('').join(' ')}`}>
+                  {code}
                 </p>
-                <button
-                  type="button"
-                  onClick={onCopy}
-                  aria-label="Copy code"
-                  className="flex h-8 w-8 shrink-0 items-center justify-center rounded-sm text-vault-ink-2 transition-colors duration-150 hover:bg-vault-ink/10 hover:text-vault-ink"
-                >
-                  <IconCopy size={15} />
-                </button>
               </div>
+              <button
+                type="button"
+                onClick={onCopy}
+                aria-label="Copy code"
+                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-ink-2 transition-colors duration-150 hover:bg-paper-2 hover:text-ink"
+              >
+                <IconCopy size={15} />
+              </button>
             </div>
             <WatchLine watch={watch} />
           </div>
         ) : (
-          <div className="rounded-lg border border-line px-3.5 py-3">
+          <div className="rounded-lg border border-line bg-card px-3.5 py-3">
             <p className="text-[14px] font-medium text-ink">{watch === 'loading' ? 'Loading profile…' : 'No demo profile'}</p>
             <p className="mt-0.5 text-[13px] leading-snug text-ink-2">
               {watch === 'loading' ? 'Checking this browser.' : 'Create one to get a code.'}
             </p>
           </div>
         )}
-        <p className="label mt-3 px-1 text-[11px] text-ink-3">Synthetic demo</p>
+        <p className="mt-2.5 px-1 text-[12px] text-ink-3">Synthetic demo</p>
       </div>
     </aside>
   )
 }
 
 function WatchLine({ watch }: { watch: SidebarWatch }) {
-  const text = watch === 'watching' ? 'Watching · every 3 s' : watch === 'offline' ? 'Offline · paused' : 'Paused'
+  const text = watch === 'watching' ? 'Live · every 3 s' : watch === 'offline' ? 'Offline · paused' : 'Paused'
   return (
-    <p role="status" className="label relative z-[1] flex items-center gap-2 border-t border-vault-line px-3.5 py-2.5 text-[11px] text-vault-ink-2">
-      {watch === 'watching' ? <LiveDot tone="ice" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-dot" />}
+    <p role="status" className="flex items-center gap-2 border-t border-line px-3.5 py-2 text-[13px] text-ink-2">
+      {watch === 'watching' ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
       {text}
     </p>
   )

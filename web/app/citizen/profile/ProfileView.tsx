@@ -6,7 +6,7 @@ import { QRCodeSVG } from 'qrcode.react'
 import { useMemo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
 import { accessTotals, aggregateAccess, downloadReceiptsJson } from '@/components/citizen-workspace/access'
-import { AccessList, AccessTotalsStrip, ProfileSection, RightsList } from '@/components/citizen-workspace/ProfileSections'
+import { AccessList, AccessTotalsStrip, DataActions, ProfileGroup, RightsList } from '@/components/citizen-workspace/ProfileSections'
 import { Cta } from '@/components/landing/Cta'
 import { DotoValue } from '@/components/ui/DotoValue'
 import { RiseHeading } from '@/components/citizen/motion'
@@ -197,12 +197,20 @@ export function ProfileScreenView({
   const totals = accessTotals(rows)
 
   return (
-    <div className="flex flex-col gap-5 @5xl:mx-auto @5xl:grid @5xl:w-full @5xl:max-w-[1180px] @5xl:grid-cols-[minmax(272px,320px)_minmax(0,1fr)] @5xl:items-start @5xl:gap-x-12 @5xl:px-10 @5xl:py-9 @7xl:gap-x-16">
-      <div className="flex flex-col gap-5 @5xl:sticky @5xl:top-9">
-        <RiseHeading as="h1" lead="Your code." tail="Show it to a company." className="text-[34px] leading-[1.04] text-ink" />
+    <div className="flex flex-col gap-6 @5xl:mx-auto @5xl:grid @5xl:w-full @5xl:max-w-[1120px] @5xl:grid-cols-[minmax(280px,320px)_minmax(0,1fr)] @5xl:items-start @5xl:gap-x-12 @5xl:px-10 @5xl:py-9 @7xl:gap-x-16">
+      <div className="flex flex-col gap-6 @5xl:sticky @5xl:top-9">
+        <h1 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink">Profile</h1>
 
-        <section aria-label="Profile QR code" className="anim-rise flex flex-col items-center border-y border-line py-6">
-          <div className="w-full max-w-[236px] @5xl:max-w-[200px]">
+        {/* Identity: the code is the one place for Doto in the citizen app. */}
+        <section aria-label="Your code" className="flex flex-col items-center gap-4 rounded-lg border border-line bg-card px-4 pb-4 pt-6">
+          <div className="text-center">
+            <p className="text-[48px] leading-[0.9] text-ink" aria-label={`Code ${code.split('').join(' ')}`}>
+              <DotoValue value={code} className="gap-[0.06em]" />
+            </p>
+            <p className="mt-3 text-[15px] font-medium text-ink">{displayName}</p>
+            <p className="mt-0.5 text-[13px] text-ink-3">Synthetic demo profile · no name, ID number or wallet</p>
+          </div>
+          <div className="w-full max-w-[216px] rounded-md bg-paper p-3 @5xl:max-w-[184px]">
             {/* An absolute link, so any phone camera opens the console with this code filled in. */}
             <QRCodeSVG
               value={controllerLinkForCode(SITE_URL, code)}
@@ -214,81 +222,30 @@ export function ProfileScreenView({
               title={`QR code: opens the controller console with code ${code}`}
             />
           </div>
-          <p className="mt-6 text-center text-[52px] leading-[0.9] text-ink @5xl:text-[44px]">
-            <DotoValue value={code} className="gap-[0.06em]" />
-          </p>
-          <p className="label mt-2.5 text-center text-[11px] text-ink-2">{displayName}</p>
+          <p className="text-center text-[14px] text-ink-2">Show this to a company. Every access comes back to you.</p>
+          <Act full icon={<IconCopy size={16} />} onClick={onCopy}>
+            Copy code
+          </Act>
         </section>
-
-        <Act full icon={<IconCopy size={16} />} onClick={onCopy}>
-          Copy code
-        </Act>
-
-        <ul data-stagger="" className="grid grid-cols-3 border-y border-line">
-          {['No name', 'No ID number', 'No wallet'].map((t, i) => (
-            <li key={t} className={`label flex min-h-11 items-center justify-center text-center text-[11px] text-ink-2 ${i ? 'border-l border-line' : ''}`}>
-              {t}
-            </li>
-          ))}
-        </ul>
       </div>
 
-      <div className="@container/side mt-4 flex min-w-0 flex-col gap-10 @5xl:mt-0 @5xl:gap-12">
-        <ProfileSection
-          id="access-title"
-          title="Who has opened your data"
-          lead="Counted from your receipts. Your phone checks each one against the chain."
-        >
-          <div className="flex flex-col gap-5">
-            <AccessTotalsStrip totals={totals} />
-            <AccessList rows={rows} now={now} />
-          </div>
-        </ProfileSection>
+      <div className="flex min-w-0 flex-col gap-6 @5xl:gap-8">
+        <ProfileGroup id="access-title" title="Who has opened your data" lead="Counted from your receipts. Your phone checks each one against the chain.">
+          <AccessTotalsStrip totals={totals} />
+          <AccessList rows={rows} now={now} />
+        </ProfileGroup>
 
-        <ProfileSection
+        <ProfileGroup
           id="rights-title"
           title="Your rights under UU PDP"
           lead="Law 27/2022 on Personal Data Protection. Saksi does not file requests for you. Your receipts are the evidence when you do."
         >
           <RightsList />
-        </ProfileSection>
+        </ProfileGroup>
 
-        <ProfileSection id="data-title" title="Your data">
-          <div className="flex flex-col border-t border-line">
-            <div className="flex flex-col gap-3 border-b border-line py-4 @xl/side:flex-row @xl/side:items-center @xl/side:justify-between @xl/side:gap-8">
-              <div className="min-w-0">
-                <p className="text-[15px] font-medium leading-snug text-ink">Download all receipts</p>
-                <p className="mt-0.5 text-[14px] leading-relaxed text-ink-2">
-                  {receipts.length === 0
-                    ? 'Nothing to download yet.'
-                    : `One JSON file with ${receipts.length === 1 ? 'your receipt' : `all ${receipts.length} receipts`}. Each can be re-checked at /proof.`}
-                </p>
-              </div>
-              <Act
-                variant="light"
-                size="md"
-                className="w-full justify-center @xl/side:w-auto"
-                icon={<IconDownload size={15} />}
-                onClick={onDownloadAll ?? noop}
-                disabled={receipts.length === 0 || !onDownloadAll}
-              >
-                Download JSON
-              </Act>
-            </div>
-            <div className="flex flex-col gap-3 py-4 @xl/side:flex-row @xl/side:items-center @xl/side:justify-between @xl/side:gap-8">
-              <div className="min-w-0">
-                <p className="text-[15px] font-medium leading-snug text-ink">Delete demo profile</p>
-                <p className="mt-0.5 text-[14px] leading-relaxed text-ink-2">
-                  Removes your synthetic profile and receipts from our database. Fingerprints already sealed on chain
-                  stay there. They reveal nothing about you.
-                </p>
-              </div>
-              <Act variant="light" size="md" className="w-full justify-center @xl/side:w-auto" icon={<IconTrash size={15} />} onClick={onAskDelete}>
-                Delete profile
-              </Act>
-            </div>
-          </div>
-        </ProfileSection>
+        <ProfileGroup id="data-title" title="Data">
+          <DataActions count={receipts.length} onDownloadAll={onDownloadAll} onAskDelete={onAskDelete} />
+        </ProfileGroup>
       </div>
 
       <ConfirmDelete
@@ -305,7 +262,6 @@ export function ProfileScreenView({
   )
 }
 
-const noop = () => {}
 
 function Quiet({ glyph, title, body, action }: { glyph: 'clock' | 'eye'; title: string; body: string; action?: ReactNode }) {
   return (

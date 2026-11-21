@@ -24,9 +24,9 @@ export function ReceiptsSplit({
 }) {
   const open = focus === 'pane'
   return (
-    <div className="flex flex-1 flex-col @5xl:grid @5xl:grid-cols-[minmax(360px,1fr)_minmax(440px,1.12fr)] @5xl:items-start">
+    <div className="flex flex-1 flex-col @5xl:grid @5xl:grid-cols-[380px_minmax(0,1fr)] @7xl:grid-cols-[420px_minmax(0,1fr)] @5xl:items-start">
       <div
-        className={`${open ? 'hidden @5xl:flex' : 'flex'} min-w-0 flex-col @5xl:min-h-dvh @5xl:px-8 @5xl:pb-16 @5xl:pt-8 @7xl:px-10`}
+        className={`${open ? 'hidden @5xl:flex' : 'flex'} min-w-0 flex-col @5xl:min-h-dvh @5xl:px-6 @5xl:pb-16 @5xl:pt-7`}
       >
         {list}
       </div>
@@ -36,7 +36,7 @@ export function ReceiptsSplit({
       >
         {open ? (
           <div className="sticky top-0 z-10 hidden items-center justify-between border-b border-line bg-card/90 px-6 py-2 backdrop-blur-md @5xl:flex">
-            <span className="label text-[11px] text-ink-2">Receipt</span>
+            <span className="text-[13px] font-medium text-ink-2">Receipt</span>
             <Link
               href={closeHref}
               aria-label="Close receipt"

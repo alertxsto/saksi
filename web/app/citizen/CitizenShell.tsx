@@ -22,7 +22,7 @@ export function CitizenShell({ children, frame, sidebar }: { children: ReactNode
         >
           <header className="no-print flex items-center justify-between border-b border-line px-4 py-1.5 @5xl:hidden">
             <Logo href="/" sub="Citizen" />
-            <span className="label text-[11px] text-ink-2">SYNTHETIC DEMO</span>
+            <span className="text-[13px] text-ink-3">Synthetic demo</span>
           </header>
           <main
             id={frame ? undefined : 'main'}
