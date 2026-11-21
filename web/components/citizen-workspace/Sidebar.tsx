@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { Suspense, type ComponentType } from 'react'
+import { receiptsQuery } from '@/app/citizen/CitizenHome'
 import { CitizenSidebarIdentity } from '@/components/citizen/CitizenIdentity'
 import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
 import { passShortTitle, passStatus } from '@/components/citizen/passStatus'
@@ -140,7 +141,8 @@ function PathSidebar() {
 function LiveSidebar({ path }: { path: string }) {
   const { toast } = useToast()
   const online = useOnline()
-  const q = useQuery<ReceiptsResponse>({ queryKey: ['receipts'], enabled: false })
+  // Same options as the list and the profile (one shared query and poll); a queryFn-less observer could win a refetch.
+  const q = useQuery(receiptsQuery)
   const code = q.data?.profile.code ?? ''
   const noSession = q.isError && toCitizenError(q.error).code === 'NO_SESSION'
   const watch: SidebarWatch = noSession

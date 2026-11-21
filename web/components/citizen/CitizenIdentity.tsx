@@ -1,18 +1,26 @@
 'use client'
 
-import { useQuery } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
+import { useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { initials } from '@/components/citizen/ReceiptRows'
 import type { ReceiptsResponse } from '@/lib/data'
 
 /**
  * Who you are in the citizen app (riset-ui/37 §3): "Citizen · <name> (synthetic)" + Switch role.
- * Reads the shared ['receipts'] cache passively (enabled: false), so it never fetches or changes polling.
+ * Reads the shared ['receipts'] cache passively (no observer), so it never fetches or changes polling.
  * `name` overrides the cache (dev gallery).
  */
 export function useCitizenName(name?: string): string | undefined {
-  const q = useQuery<ReceiptsResponse>({ queryKey: ['receipts'], enabled: false })
-  return name ?? q.data?.profile.displayName
+  // Subscribe to the cache directly instead of adding a query observer: an observer without the list's queryFn
+  // could become the options a refetch uses ("No queryFn"), and one with it would change polling.
+  const qc = useQueryClient()
+  const cached = useSyncExternalStore(
+    (onChange) => qc.getQueryCache().subscribe(onChange),
+    () => qc.getQueryData<ReceiptsResponse>(['receipts'])?.profile.displayName,
+    () => undefined,
+  )
+  return name ?? cached
 }
 
 /** The 4 px role accent: citizen is ink (agency blue, regulator green). */
