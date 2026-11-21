@@ -1,7 +1,7 @@
 -- 003: two clearly fictional public-sector controllers registered on Sepolia on 22 Nov 2026.
 -- The app also syncs any controller it meets from the ControllerRegistered log (lib/server/registry.ts),
 -- so this file only pins the slug and name for rows that already exist or were synced before it ran.
--- Idempotent: safe to run more than once. Not picked up by docker-entrypoint-initdb.d (subfolder); apply by hand:
+-- Idempotent: safe to run more than once. Not picked up by docker-entrypoint-initdb.d (subfolder); apply by hand from ~/saksi/deploy:
 --   docker compose exec -T db psql -U saksi -d saksi -v ON_ERROR_STOP=1 < db/migrations/003_public_sector_controllers.sql
 -- controllerId = keccak256("ctrl:" + slug). Registry 0x3d9dE4717a7398d24239b8370b23DCAd7a07f737.
 BEGIN;

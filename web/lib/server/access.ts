@@ -130,6 +130,7 @@ export async function loadCitizenRows(id: string) {
     .where(and(eq(logs.subjectId, id), ne(logs.status, 'pending'))).orderBy(desc(logs.createdAt));
 }
 export async function unlinkCitizen(id: string) {
-  await db().execute(sql`with unlinked as (update access_events set subject_id = null where subject_id = ${id})
+  await db().execute(sql`with unlinked as (update access_events set subject_id = null where subject_id = ${id}),
+    unreported as (update citizen_reports set subject_id = null where subject_id = ${id})
     update subjects set pseudonym_salt_enc = null, pseudonym_salt_iv = null where id = ${id}`);
 }

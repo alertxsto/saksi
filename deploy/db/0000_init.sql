@@ -109,7 +109,7 @@ CREATE UNIQUE INDEX "access_event_log" ON "access_events" USING btree ("tx_hash"
 CREATE INDEX "ai_cache_lookup" ON "ai_runs" USING btree ("feature","input_hash","created_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "breach_event_log" ON "breach_reports" USING btree ("tx_hash","log_index");--> statement-breakpoint
 CREATE INDEX "tamper_by_target" ON "tamper_log" USING btree ("target_id","at");--> statement-breakpoint
--- 002_citizen_reports (same DDL as deploy/db/migrations/002_citizen_reports.sql, for fresh volumes)
+-- 002_citizen_reports (same DDL as deploy/db/migrations/002_citizen_reports.sql plus 004_report_unlink.sql, for fresh volumes)
 DO $$ BEGIN
   CREATE TYPE "public"."report_reason" AS ENUM('not_me', 'object', 'altered');
 EXCEPTION WHEN duplicate_object THEN NULL; END $$;
@@ -121,7 +121,7 @@ EXCEPTION WHEN duplicate_object THEN NULL; END $$;
 CREATE TABLE IF NOT EXISTS "citizen_reports" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"event_id" uuid NOT NULL,
-	"subject_id" uuid NOT NULL,
+	"subject_id" uuid,
 	"controller_id" text NOT NULL,
 	"event_type" smallint NOT NULL,
 	"tx_hash" text,

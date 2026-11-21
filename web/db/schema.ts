@@ -53,7 +53,7 @@ export const citizenRateLimits = pgTable('citizen_rate_limits', {
 export const reportReason = pgEnum('report_reason', ['not_me', 'object', 'altered']);
 export const reportStatus = pgEnum('report_status', ['open', 'reviewed']);
 export const citizenReports = pgTable('citizen_reports', {
-  id: uuid().primaryKey().defaultRandom(), eventId: uuid('event_id').notNull(), subjectId: uuid('subject_id').notNull().references(() => subjects.id),
+  id: uuid().primaryKey().defaultRandom(), eventId: uuid('event_id').notNull(), subjectId: uuid('subject_id').references(() => subjects.id),
   controllerId: text('controller_id').notNull().references(() => controllers.id), eventType: smallint('event_type').notNull(),
   txHash: text('tx_hash'), logIndex: integer('log_index'), sealedAt: epoch('sealed_at'),
   reason: reportReason().notNull(), note: text(), serverVerdict: text('server_verdict').notNull(),

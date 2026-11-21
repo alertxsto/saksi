@@ -1,6 +1,6 @@
 -- 002: citizen reports to the regulator (POST /api/citizen/report, GET /api/regulator/reports).
--- Idempotent: safe to run more than once. Apply with
---   docker compose exec -T db psql -U saksi -d saksi -v ON_ERROR_STOP=1 < deploy/db/migrations/002_citizen_reports.sql
+-- Idempotent: safe to run more than once. Apply from ~/saksi/deploy with
+--   docker compose exec -T db psql -U saksi -d saksi -v ON_ERROR_STOP=1 < db/migrations/002_citizen_reports.sql
 -- event_id deliberately has no foreign key: the presenter console deletes and re-inserts access_events rows by id
 -- (web/lib/server/tamper.ts), and a report must outlive that. The access row's controller, event type, chain
 -- position and sealed time are copied into the report when it is filed.
