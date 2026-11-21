@@ -1,6 +1,6 @@
 'use client'
 
-import { skipToken, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { initials } from '@/components/citizen/ReceiptRows'
 import type { ReceiptsResponse } from '@/lib/data'
@@ -11,7 +11,7 @@ import type { ReceiptsResponse } from '@/lib/data'
  * `name` overrides the cache (dev gallery).
  */
 export function useCitizenName(name?: string): string | undefined {
-  const q = useQuery<ReceiptsResponse>({ queryKey: ['receipts'], queryFn: skipToken })
+  const q = useQuery<ReceiptsResponse>({ queryKey: ['receipts'], enabled: false })
   return name ?? q.data?.profile.displayName
 }
 
