@@ -6,7 +6,6 @@ import { usePathname } from 'next/navigation'
 import type { ComponentType } from 'react'
 import { RoleChip } from '@/components/entry/RoleChip'
 import { IconArrow, IconClock, IconEye, IconShield, IconUser } from '@/components/ui/icons'
-import { LogoMark } from '@/components/ui/Logo'
 import { getRegulatorReports, type RegulatorReportsWire } from '@/lib/data'
 
 type IconProps = { size?: number; strokeWidth?: number; className?: string }
@@ -54,7 +53,7 @@ export function useOpenReports(load?: () => Promise<RegulatorReportsWire>): numb
 }
 
 /**
- * Desktop sidebar (from 1024): logo, the regulator's role chip, five destinations, and a footer with who
+ * Desktop sidebar (from 1024, under the shared AppHeader): five destinations, and a footer with who
  * you are and Switch role. 232 px, the workspace grammar of riset-ui/37 §4.
  */
 export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; loadReports?: () => Promise<RegulatorReportsWire> }) {
@@ -65,17 +64,9 @@ export function RegulatorSidebar({ active, loadReports }: { active?: RegNavKey; 
   return (
     <aside
       aria-label="Regulator workspace"
-      className="no-print sticky top-0 hidden h-dvh w-[232px] shrink-0 flex-col border-r border-line bg-paper-2/55 lg:flex"
+      className="no-print sticky top-(--hdr) hidden h-[calc(100dvh-var(--hdr))] w-[232px] shrink-0 flex-col overflow-y-auto border-r border-t border-line bg-paper-2/55 lg:flex"
     >
-      <div className="flex items-center gap-2.5 px-5 pb-2 pt-5">
-        <Link href="/" aria-label="Saksi home" className="flex min-h-10 items-center gap-2.5 rounded-sm">
-          <LogoMark />
-          <span className="text-[19px] font-semibold tracking-[-0.04em] text-ink">saksi</span>
-        </Link>
-        <span className="border-l border-line pl-2.5 text-[13px] text-ink-2">Regulator</span>
-      </div>
-
-      <nav aria-label="Regulator" className="px-3 pt-5">
+      <nav aria-label="Regulator" className="px-3 pt-4">
         <ul className="flex flex-col gap-0.5">
           {REG_NAV.map(({ key, href, label, Icon }) => {
             const on = current === key

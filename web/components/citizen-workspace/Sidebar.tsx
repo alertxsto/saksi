@@ -8,7 +8,6 @@ import { CitizenSidebarIdentity } from '@/components/citizen/CitizenIdentity'
 import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
 import { passShortTitle, passStatus } from '@/components/citizen/passStatus'
 import { IconArrowUpRight, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
-import { LogoMark } from '@/components/ui/Logo'
 import { useToast } from '@/components/ui/Toast'
 import { copyText, toCitizenError, type AutoVerdicts, type ReceiptsResponse } from '@/lib/data'
 import { checkOf, useReceiptChecks } from '@/lib/client/receipt-checks'
@@ -59,19 +58,8 @@ export function WorkspaceSidebarView({
   return (
     <aside
       aria-label="Citizen workspace"
-      className="no-print hidden w-[232px] shrink-0 flex-col border-r border-line bg-paper-2/55 @5xl:sticky @5xl:top-0 @5xl:flex @5xl:h-dvh"
+      className="no-print hidden w-[232px] shrink-0 flex-col overflow-y-auto border-r border-t border-line bg-paper-2/55 @5xl:sticky @5xl:top-(--hdr) @5xl:flex @5xl:h-[calc(100dvh-var(--hdr))]"
     >
-      <div className="flex items-center gap-2.5 px-5 pb-3 pt-5">
-        <Link href="/" aria-label="Saksi home" className="flex min-h-10 items-center gap-2.5 rounded-sm">
-          <LogoMark />
-          <span className="text-[19px] font-semibold tracking-[-0.04em] text-ink">saksi</span>
-        </Link>
-        <span className="flex items-center gap-1.5 border-l border-line pl-2.5 text-[13px] text-ink-2">
-          <span aria-hidden="true" className="h-3.5 w-1 rounded-full bg-ink" />
-          Citizen
-        </span>
-      </div>
-
       <nav aria-label="Citizen" className="px-3 pt-4">
         <ul className="flex flex-col gap-0.5">
           {NAV.map(({ href, label, Icon, match, away }) => {

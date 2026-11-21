@@ -1,27 +1,49 @@
+'use client'
+
 import Link from 'next/link'
-import { LogoMark } from '@/components/ui/Logo'
+import type { CSSProperties } from 'react'
 import { IconArrow } from '@/components/ui/icons'
 import { OdoText } from '@/components/landing/OdoText'
+import { Cta } from '@/components/landing/Cta'
+import { NAV_LINK, SHEET_LINK, SheetRow, SiteHeader } from '@/components/ui/SiteHeader'
 
-/** /enter top bar: logo → home on the left, "Back to home" on the right; same box and edges as the app header. */
+const LINKS = [
+  ['/', 'Home'],
+  ['/why', 'Real cases'],
+  ['/integrate', 'Integrate'],
+] as const
+
+/** /enter top bar: the landing nav shell (SiteHeader). No role yet, so no chip; "Back to home" on desktop, the menu everywhere. */
 export function EnterHeader() {
   return (
-    <header className="pt-2 md:pt-3">
-      <div className="ws ws-bar">
-        <div className="flex h-14 items-center justify-between gap-3 pl-2 pr-1.5 md:pl-4">
-          <Link href="/" className="flex min-h-11 items-center gap-2.5 rounded-sm" aria-label="Saksi home">
-            <LogoMark />
-            <span className="text-[19px] font-semibold tracking-[-0.04em] text-ink">saksi</span>
-          </Link>
-          <Link
-            href="/"
-            className="nav-link group flex min-h-11 items-center gap-2 rounded-sm px-3 text-[14px] font-medium tracking-[0.01em] transition-colors duration-150"
-          >
-            <IconArrow size={15} className="rotate-180 transition-transform duration-150 group-hover:-translate-x-0.5" />
-            <OdoText>Back to home</OdoText>
-          </Link>
-        </div>
-      </div>
-    </header>
+    <SiteHeader
+      menuId="enter-menu"
+      aside={
+        <Link href="/" className={`${NAV_LINK} group gap-2`}>
+          <IconArrow size={15} className="rotate-180 transition-transform duration-150 group-hover:-translate-x-0.5" />
+          <OdoText>Back to home</OdoText>
+        </Link>
+      }
+      sheet={(close) => (
+        <>
+          <nav aria-label="Saksi">
+            <ul>
+              {LINKS.map(([href, label], i) => (
+                <li key={href} className="nav-sheet-row" style={{ '--i': i } as CSSProperties}>
+                  <Link href={href} onClick={close} className={SHEET_LINK}>
+                    {label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+          <SheetRow i={LINKS.length} className="mt-2">
+            <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-12! w-full justify-center px-3!">
+              Verify a receipt
+            </Cta>
+          </SheetRow>
+        </>
+      )}
+    />
   )
 }

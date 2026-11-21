@@ -28,7 +28,7 @@ export const ROLE_META: Record<
     blurb: 'Supervise agencies and citizen reports',
   },
   verifier: { label: 'Verifier', initial: 'V', accent: '#6b645b', defaultIdentity: 'Anyone, no sign-in', home: '/proof', blurb: 'Check any receipt' },
-  operator: { label: 'Operator', initial: 'O', accent: '#a85a00', defaultIdentity: 'Presenter', home: '/operator', blurb: 'Presenter console' },
+  operator: { label: 'Presenter', initial: 'P', accent: '#a85a00', defaultIdentity: 'Presenter', home: '/operator', blurb: 'Presenter console' },
 }
 
 export const ACTORS = Object.keys(ROLE_META) as Actor[]
@@ -48,6 +48,7 @@ export function RoleChip({
   actor,
   identity,
   size = 'md',
+  bare = false,
   className = '',
 }: {
   actor: Actor
@@ -55,10 +56,12 @@ export function RoleChip({
   identity?: string | null
   /** md: header / sidebar. sm: compact phone top bar (role name only). */
   size?: 'sm' | 'md'
+  /** Role name only (the app header): no identity, no default identity. */
+  bare?: boolean
   className?: string
 }) {
   const meta = ROLE_META[actor]
-  const who = identity ?? meta.defaultIdentity
+  const who = bare ? undefined : (identity ?? meta.defaultIdentity)
   return (
     <span
       className={`en-chip ${size === 'sm' ? 'en-chip-sm' : ''} ${className}`}

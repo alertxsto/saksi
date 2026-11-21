@@ -64,13 +64,13 @@ const NAV_REG = [
 function HeaderState({ s }: { s: string }) {
   const header =
     s === 'header-regulator' ? (
-      <AppHeader actor="regulator" nav={NAV_REG} right={<Chip icon={<IconShield size={12} />} tone="ink">Read-only</Chip>} />
+      <AppHeader frame actor="regulator" nav={NAV_REG} right={<Chip icon={<IconShield size={12} />} tone="ink">Read-only</Chip>} />
     ) : s === 'header-verifier' ? (
-      <AppHeader role="Public verifier" area="proof" />
+      <AppHeader frame role="Public verifier" area="proof" />
     ) : s === 'header-agency-anon' ? (
-      <AppHeader role="Controller console" area="controller" nav={NAV_AGENCY} />
+      <AppHeader frame role="Controller console" area="controller" nav={NAV_AGENCY} />
     ) : (
-      <AppHeader actor="agency" identity="Disdukcapil Kota Contoh (fiktif)" nav={NAV_AGENCY} right={<Chip tone="ok">Sepolia · registered</Chip>} />
+      <AppHeader frame actor="agency" identity="Disdukcapil Kota Contoh (fiktif)" nav={NAV_AGENCY} right={<Chip tone="ok">Sepolia · registered</Chip>} />
     )
   return (
     <>

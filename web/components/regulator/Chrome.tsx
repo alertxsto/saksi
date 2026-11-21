@@ -14,8 +14,8 @@ const NAV = [
 ]
 
 /**
- * Regulator shell. From 1024 px: the 232 px workspace sidebar beside the content. Below: the shared
- * AppHeader (top bar + sheet menu with the same five destinations). Shared by app/regulator/layout.tsx
+ * Regulator shell. The shared AppHeader on top at every width (sheet menu with the same five destinations);
+ * from 1024 px the 232 px workspace sidebar sits under it, beside the content. Shared by app/regulator/layout.tsx
  * and the /dev frame views, which pass `active` and a mock `loadReports` for the open-count badge.
  */
 export function RegulatorChrome({
@@ -28,26 +28,23 @@ export function RegulatorChrome({
   loadReports?: () => Promise<RegulatorReportsWire>
 }) {
   return (
-    <div className="lg:flex lg:min-h-dvh">
+    <div className="min-h-dvh">
+      <AppHeader
+        actor="regulator"
+        role="Regulator"
+        area="regulator"
+        nav={NAV}
+        right={<span className="text-[13px] text-ink-3">Read-only · signed review only</span>}
+      />
+      <div className="lg:flex">
       {/* usePathname inside: dynamic routes (breach/[id]) need a Suspense boundary under cacheComponents. */}
       <Suspense fallback={<div aria-hidden="true" className="hidden shrink-0 lg:block lg:w-[232px]" />}>
         <RegulatorSidebar active={active} loadReports={loadReports} />
       </Suspense>
-      <div className="contents print:hidden lg:hidden">
-        <Suspense fallback={null}>
-          <AppHeader
-            actor="regulator"
-            identity="PDP authority (simulated)"
-            role="Regulator"
-            area="regulator"
-            nav={NAV}
-            right={<span className="text-[13px] text-ink-3">Read-only · signed review only</span>}
-          />
-        </Suspense>
-      </div>
       <main id="main" className="min-w-0 flex-1 px-4 pb-24 pt-6 sm:px-6 lg:px-10 lg:pb-16 lg:pt-9">
         <div className="mx-auto w-full max-w-[1180px]">{children}</div>
       </main>
+      </div>
     </div>
   )
 }
@@ -62,10 +59,10 @@ export function ProofChrome({ children }: { children: ReactNode }) {
         nav={[]}
         right={<span className="label text-[11px] text-ink-2">Runs in your browser · no login</span>}
       />
-      <main id="main" className="pb-[calc(5rem+env(safe-area-inset-bottom))] pt-8 md:pb-20 md:pt-12">
+      <main id="main" className="pb-[calc(6rem+env(safe-area-inset-bottom))] pt-8 md:pt-12 lg:pb-20">
         <div className="ws">{children}</div>
       </main>
-      <div className="md:hidden">
+      <div className="lg:hidden">
         <TabBar />
       </div>
     </>
