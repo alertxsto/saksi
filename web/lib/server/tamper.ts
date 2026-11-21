@@ -25,9 +25,12 @@ export async function tamper({ action, eventId }: z.output<typeof tamperInput>) 
     if (!before) throw missing();
     after = null;
   } else {
+    // Undo the latest edit or delete that produced the row's current state. Matching on after_hash (rather than
+    // taking the latest entry) also unwinds edit → delete → restore, whose last delete ends in "no row".
     const [entry] = await db().execute<{ snapshot: string; after_hash: string }>(sql`
       select before_snapshot_enc as snapshot, after_hash from tamper_log
       where target_table = ${table} and target_id = ${eventId}::uuid and action in ('edit', 'delete')
+        and after_hash = ${evidenceHash(before)}
       order by at desc, id desc limit 1
     `);
     if (!entry || entry.after_hash !== evidenceHash(before)) throw conflict();
