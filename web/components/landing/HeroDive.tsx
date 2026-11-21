@@ -156,7 +156,7 @@ export function HeroDive() {
               Every time a company touches your data, Saksi seals a fingerprint of that record on a public chain. Your
               phone can check it, so nobody, not even an insider, can quietly rewrite the story.
             </p>
-            <div className="m-in mt-8 flex flex-nowrap gap-2.5 sm:gap-3" style={d(380)}>
+            <div className="m-in mt-8 flex flex-wrap gap-2.5 sm:gap-3" style={d(380)}>
               <Cta href="/enter" className="max-sm:pl-4 max-sm:text-[15px]">
                 Open the app
               </Cta>

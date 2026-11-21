@@ -1,29 +1,23 @@
 import type { ReactNode } from 'react'
-import { AppHeader } from '@/components/ui/AppHeader'
+import { CitizenShell } from '@/app/citizen/CitizenShell'
+import { WorkspaceSidebar } from '@/components/citizen-workspace/Sidebar'
 import { TabBar } from '@/components/ui/TabBar'
 
-const CITIZEN_NAV = [
-  { href: '/citizen', label: 'Receipts' },
-  { href: '/proof', label: 'Verify' },
-  { href: '/citizen/profile', label: 'Profile' },
-]
-
 /**
- * Verify is the citizen's third tab (Receipts / Verify / Profile), so the header shows the Citizen role. It
- * needs no login: anyone with a receipt link can check it. The shared AppHeader sits over a centred, document-width
- * column (max 960). Below 1024 the citizen tab bar stays (Verify is one of its three tabs); the page's
- * sticky action (.pf-sticky) rides just above it.
+ * Verify is the citizen's third tab (Receipts / Verify / Profile), so /proof sits in the citizen shell: the
+ * Citizen header, and on laptop the same sidebar as Receipts and Profile, so the sidebar never disappears when
+ * you open Verify. It needs no login: anyone with a receipt link can check it. Content is a document-width
+ * column (max 960). Below 1024 the citizen tab bar stays; the page's sticky action (.pf-sticky) rides above it.
  */
 export function ProofFrame({ children }: { children: ReactNode }) {
   return (
-    <>
-      <AppHeader actor="citizen" nav={CITIZEN_NAV} />
-      <main id="main" className="px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] pt-6 sm:px-6 md:pt-10 lg:pb-20">
+    <CitizenShell sidebar={<WorkspaceSidebar />}>
+      <div className="w-full @5xl:px-10 @5xl:pb-20 @5xl:pt-10">
         <div className="mx-auto w-full max-w-[960px]">{children}</div>
-      </main>
+      </div>
       <div className="lg:hidden">
         <TabBar />
       </div>
-    </>
+    </CitizenShell>
   )
 }

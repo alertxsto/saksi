@@ -111,7 +111,7 @@ export function Nav({ base = '' }: { base?: string }) {
             ),
           )}
         </nav>
-        <LangToggle className="ml-auto mr-1 hidden lg:flex" />
+        <LangToggle size="lg" className="ml-auto mr-2 hidden lg:grid" />
         <Cta href="/enter" size="md" className="nav-cta max-lg:ml-auto max-lg:h-11 max-[379px]:hidden">
           Open the app
         </Cta>
@@ -154,7 +154,7 @@ export function Nav({ base = '' }: { base?: string }) {
             <Cta href="/proof" variant="light" size="md" className="nav-sheet-ghost h-11! min-w-0 flex-1 justify-center px-3!">
               Verify a receipt
             </Cta>
-            <LangToggle className="h-11! [&>button]:h-10 [&>button]:min-w-11" />
+            <LangToggle size="lg" />
           </div>
         </div>
       </div>

@@ -89,7 +89,6 @@ export function SiteHeader({
           </Link>
           {center ? <div className="absolute inset-y-0 left-1/2 flex -translate-x-1/2 items-center">{center}</div> : null}
           {aside ? <div className="relative z-[1] ml-auto mr-1 hidden lg:flex">{aside}</div> : null}
-          <LangToggle className={aside ? 'ml-auto lg:ml-1' : 'ml-auto'} />
           <button
             ref={btnRef}
             type="button"
@@ -97,7 +96,7 @@ export function SiteHeader({
             aria-controls={menuId}
             aria-label={open ? 'Close menu' : 'Open menu'}
             onClick={() => setOpen((v) => !v)}
-            className="nav-burger relative z-[1] ml-1 flex size-11 shrink-0 items-center justify-center rounded-md transition-colors duration-150"
+            className={`nav-burger relative z-[1] flex size-11 shrink-0 items-center justify-center rounded-md transition-colors duration-150 ${aside ? 'ml-auto lg:ml-1' : 'ml-auto'}`}
           >
             <span aria-hidden="true" className="nav-burger-bar" />
             <span aria-hidden="true" className="nav-burger-bar" />
@@ -106,7 +105,12 @@ export function SiteHeader({
 
         <div id={menuId} className="nav-menu mx-auto max-w-[1344px]" hidden={!open}>
           {open ? (
-            <div className="nav-sheet mt-2 rounded-lg border p-2 lg:ml-auto lg:max-w-[360px]">{sheet(() => setOpen(false))}</div>
+            <div className="nav-sheet mt-2 rounded-lg border p-2 lg:ml-auto lg:max-w-[360px]">{sheet(() => setOpen(false))}
+              <div className="nav-sheet-row mt-2 flex min-h-12 items-center justify-between gap-3 border-t border-line px-3 pt-2">
+                <span className="text-[15px] text-ink-2">Language</span>
+                <LangToggle size="lg" />
+              </div>
+            </div>
           ) : null}
         </div>
       </header>
