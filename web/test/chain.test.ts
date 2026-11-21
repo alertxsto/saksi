@@ -3,6 +3,7 @@ import { createServer, type Server } from 'node:http';
 import { afterEach, expect, test, vi } from 'vitest';
 import { encodeAbiParameters, encodeEventTopics, parseAbiItem, type Address, type Hex } from 'viem';
 import { createReceiptVerifier, type ReceiptOpening } from '../lib/shared/chain';
+import { evidenceHash, purposeHash } from '../lib/shared/commit';
 
 const hash = (n: number): Hex => `0x${n.toString(16).padStart(64, '0')}`;
 const journal: Address = '0x0000000000000000000000000000000000000001';
@@ -62,6 +63,27 @@ test('a null receipt at the first RPC does not hide the proven event from the se
   await expect(verify({ ...opening, eventType: 3 })).resolves.toMatchObject({
     status: 'MISMATCH', mismatches: [{ field: 'eventType', db: 'SHARE_THIRD_PARTY', chain: 'READ' }],
   });
+});
+
+test('recomputes real commitments and detects Share with third party edited to Read', async () => {
+  const syntheticPurpose = '0x25c362b1cf9caaae96629d2d20e9876c947a733904386ef688397c58dc68f94f';
+  const syntheticEvidence = '0x67e530b14f1b82dddec04e72a67b1ab1d0e813bee4df960b70a9554afad45fca';
+  const log = receipt.logs[0];
+  const found = await rpc({ ...receipt, logs: [{
+    ...log,
+    topics: encodeEventTopics({ abi: [event], eventName: 'AccessLogged',
+      args: { controllerId: opening.controllerId, subjectPseudonym: opening.subjectPseudonym, evidenceHash: syntheticEvidence } }),
+    data: encodeAbiParameters([{ type: 'bytes32' }, { type: 'bytes32' }, { type: 'uint8' }, { type: 'uint64' }],
+      [syntheticPurpose, opening.legalBasisKey, 3, 291n]),
+  }] });
+  const verify = createReceiptVerifier({ purposeHash, evidenceHash }, { urls: [found], journal });
+  const original = { ...opening, eventType: 3 } as const;
+  await expect(verify(original)).resolves.toMatchObject({ status: 'MATCH' });
+  await expect(verify({ ...original, eventType: 0 })).resolves.toMatchObject({
+    status: 'MISMATCH', mismatches: [{ field: 'eventType', db: 'READ', chain: 'SHARE_THIRD_PARTY' }],
+  });
+  await expect(verify({ ...original, purposeText: 'Different purpose', evidence: { note: 'changed' } }))
+    .resolves.toMatchObject({ status: 'MISMATCH', mismatches: [{ field: 'purpose' }, { field: 'evidence' }] });
 });
 
 test('event from a different contract or proof at a different index cannot match', async () => {

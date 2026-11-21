@@ -3,6 +3,7 @@
 /contracts/broadcast/
 node_modules/
 .next/
+/web/next-env.d.ts
 coverage/
 *.tsbuildinfo
 .env*
