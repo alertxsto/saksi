@@ -216,8 +216,8 @@ export function EvidencePanel({
     { action: 'delete', label: 'Delete', sub: 'Remove the row from the database', icon: <IconTrash size={20} />, enabled: row.state !== 'deleted', danger: true },
     { action: 'restore', label: 'Restore', sub: 'Put it back exactly as sealed', icon: <IconUndo size={20} />, enabled: row.restorable },
   ]
-  // A tampered row offers Restore first; an intact one offers the first action that applies.
-  const firstEnabled = row.state !== 'intact' && row.restorable ? 'restore' : (choices.find((c) => c.enabled)?.action ?? 'edit')
+  // A tampered row offers Restore first; an intact one offers the first safe action that applies (never Delete).
+  const firstEnabled = row.state !== 'intact' && row.restorable ? 'restore' : (choices.find((c) => c.enabled && !c.danger)?.action ?? 'edit')
   const [pick, setPick] = useState<TamperAction>(firstEnabled)
   // A new record or a state change (edit → deleted…) re-picks the first action that still applies.
   const sig = `${row.id}:${row.state}:${row.editable}:${row.restorable}`
@@ -227,6 +227,12 @@ export function EvidencePanel({
     last.current = sig
     setPick(firstEnabled)
   }, [sig, firstEnabled])
+  // Once a run settles, disarm: a stray second click must not delete the next row.
+  const wasBusy = useRef(busy)
+  useEffect(() => {
+    if (wasBusy.current && !busy) setPick(firstEnabled)
+    wasBusy.current = busy
+  }, [busy, firstEnabled])
   const current = choices.find((c) => c.action === pick) ?? choices[0]
   const mine = report && report.eventId === row.id ? report : null
 
