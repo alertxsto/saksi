@@ -180,7 +180,7 @@ export function ProfileScreenView({
         <Quiet
           glyph="eye"
           title="No profile yet"
-          body="Create a synthetic profile to get a code companies can log against."
+          body="Create a synthetic profile to get a code agencies can log against."
           action={<Cta href="/citizen">Create profile</Cta>}
         />
         <TabBar />
@@ -211,7 +211,7 @@ export function ProfileScreenView({
       </div>
 
       <div className="flex min-w-0 flex-col gap-6 @5xl:gap-8">
-        <ProfileGroup id="access-title" title="Who has opened your data" lead="Counted from your receipts. Your phone checks each one against the chain.">
+        <ProfileGroup id="access-title" title="Who has opened your data" lead="Counted from your receipts. Your phone checks each one against the sealed record.">
           <AccessTotalsStrip totals={totals} />
           <AccessList rows={rows} now={now} />
         </ProfileGroup>
@@ -252,12 +252,12 @@ function passStatus(receipts: ReceiptOpening[], verdicts: AutoVerdicts | undefin
   const matched = receipts.filter((r) => v[r.eventId] === 'match').length
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
   if (altered) return { verdict: 'tamper', title: `${n(altered, 'record was', 'records were')} changed after sealing`, subtitle: 'Your phone caught it, not Saksi’s server.' }
-  if (checking) return { verdict: 'checking', title: `Checking ${n(checking, 'receipt', 'receipts')} against the chain`, subtitle: 'Your phone is checking, not our server.' }
-  if (!receipts.length) return { verdict: 'empty', title: 'No receipts yet', subtitle: 'Show your code to a company to try it.' }
+  if (checking) return { verdict: 'checking', title: `Checking ${n(checking, 'receipt', 'receipts')} against the public ledger`, subtitle: 'Your phone is checking, not our server.' }
+  if (!receipts.length) return { verdict: 'empty', title: 'No receipts yet', subtitle: 'Show your code to an agency to try it.' }
   if (matched)
     return {
       verdict: 'ok',
-      title: matched === receipts.length ? (matched === 1 ? 'Your receipt matches the chain' : `All ${matched} receipts match the chain`) : `${matched} of ${receipts.length} receipts match the chain`,
+      title: matched === receipts.length ? (matched === 1 ? 'Your receipt matches the sealed record' : `All ${matched} receipts match the sealed record`) : `${matched} of ${receipts.length} receipts match the sealed record`,
       subtitle: 'Checked by your phone, not by Saksi’s server.',
     }
   return { verdict: 'empty', title: n(receipts.length, 'receipt on record', 'receipts on record'), subtitle: 'Your phone checks each one once it is sealed.' }
@@ -308,7 +308,7 @@ function ConfirmDelete({
       </h2>
       <p className="mt-2 text-[14px] leading-relaxed text-ink-2">
         Your code <span className="font-mono text-ink">{code}</span> stops working and its receipts leave our database.
-        The sealed fingerprints stay on chain. This cannot be undone.
+        The sealed fingerprints stay on the public ledger. This cannot be undone.
       </p>
       {state === 'error' ? (
         <p role="alert" className="mt-3 flex items-start gap-2 border-y border-line-strong py-2.5 text-[14px] text-ink-2">

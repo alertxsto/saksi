@@ -20,15 +20,15 @@ import { shortHex } from '@/lib/format'
 type Phase = 'idle' | 'open' | 'sending' | 'sent' | 'already' | 'error'
 
 const REASON_HINT: Record<ReportReason, string> = {
-  not_me: 'You never dealt with this company, or not at this time.',
+  not_me: 'You never dealt with this agency, or not at this time.',
   object: 'The access happened, but you do not agree with why.',
   altered: 'Your phone showed this receipt as changed or missing.',
 }
 const VERDICT_WORDS: Record<ReportVerdict, string> = {
-  MATCH: 'The company’s record still matches the chain.',
-  ALTERED: 'The company’s record no longer matches the chain.',
-  DELETED: 'The record is gone from the company’s side but still on the chain.',
-  NOT_FOUND: 'The chain has not confirmed this receipt yet.',
+  MATCH: 'The agency’s record still matches the sealed record.',
+  ALTERED: 'The agency’s record no longer matches the sealed record.',
+  DELETED: 'The record is gone from the agency’s side but still on the public ledger.',
+  NOT_FOUND: 'The public ledger has not confirmed this receipt yet.',
 }
 
 /**
@@ -126,7 +126,7 @@ export function ReportAccess({
             <span className="text-[16px] font-medium text-ink">{phase === 'sent' ? 'Sent to the regulator' : 'Already sent'}</span>
             <span className="text-[14px] leading-relaxed text-ink-2">
               {phase === 'sent'
-                ? 'The regulator sees the company, the action and your masked code. Not the purpose text.'
+                ? 'The regulator sees the agency, the action and your masked code. Not the purpose text.'
                 : 'You reported this access for the same reason before. The regulator already has it.'}
             </span>
           </span>
@@ -169,7 +169,7 @@ export function ReportAccess({
           Report to the regulator
         </h3>
         <p className="text-[14px] leading-relaxed text-ink-2">
-          Saksi attaches its own check of this receipt against the chain, so you don’t need to prove anything.
+          Saksi attaches its own check of this receipt against the public ledger, so you don’t need to prove anything.
         </p>
       </div>
 

@@ -30,11 +30,11 @@ export function ProfileGroup({ id, title, lead, children }: { id: string; title:
 
 const card = 'overflow-hidden rounded-lg border border-line bg-card'
 
-/** Receipts · Companies · Verified as one inset card. */
+/** Receipts · Agencies · Verified as one inset card. */
 export function AccessTotalsStrip({ totals }: { totals: AccessTotals }) {
   const cells: Array<[string, number, ReactNode]> = [
     ['Receipts', totals.receipts, 'in this profile'],
-    ['Companies', totals.controllers, 'with access'],
+    ['Agencies', totals.controllers, 'with access'],
     ['Verified', totals.verified, totals.altered ? <span className="text-bad">{totals.altered} altered</span> : 'by your phone'],
   ]
   return (
@@ -56,7 +56,7 @@ export function AccessList({ rows, now }: { rows: ControllerAccess[]; now: numbe
     return (
       <div className={`flex items-center gap-3.5 p-4 ${card}`}>
         <DotIcon name="eye" size={28} className="shrink-0 text-ink-3" />
-        <p className="text-[15px] leading-snug text-ink-2">No company has opened your data yet. Each access shows up here, counted from your receipts.</p>
+        <p className="text-[15px] leading-snug text-ink-2">No agency has opened your data yet. Each access shows up here, counted from your receipts.</p>
       </div>
     )
   }
@@ -101,7 +101,7 @@ export function AccessList({ rows, now }: { rows: ControllerAccess[]; now: numbe
 const RIGHTS: Array<[number, string, string]> = [
   [5, 'Know how your data is used', 'Each receipt says who opened it, what they did and why.'],
   [6, 'Correct or update your data', 'Point to the exact access and record you want fixed.'],
-  [7, 'See and get a copy of your data', 'Your receipts show which company holds what to ask for.'],
+  [7, 'See and get a copy of your data', 'Your receipts show which agency holds what to ask for.'],
   [8, 'End processing and have it deleted', 'A receipt dated after your request shows they kept going.'],
   [9, 'Withdraw your consent', 'Receipts after the day you withdrew are your evidence.'],
   [10, 'Object to decisions made only by machines', 'The stated purpose shows when your data fed an automated check.'],
@@ -166,7 +166,7 @@ export function DataActions({
         </span>
         <span className="min-w-0 flex-1">
           <span className="block text-[16px] font-medium leading-snug text-bad">Delete profile</span>
-          <span className="mt-0.5 block text-[14px] leading-snug text-ink-2">Receipts leave our database. Sealed fingerprints stay on chain.</span>
+          <span className="mt-0.5 block text-[14px] leading-snug text-ink-2">Receipts leave our database. Sealed fingerprints stay on the public ledger.</span>
         </span>
       </button>
     </div>
