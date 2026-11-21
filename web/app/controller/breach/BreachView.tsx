@@ -1,16 +1,12 @@
 'use client'
 
 import { useId, type CSSProperties, type ReactNode } from 'react'
-import { ConsoleHead, MetaLine } from '@/components/controller/ConsoleHead'
-import { SealChamber } from '@/components/controller/SealChamber'
-import { ChamberHeadline, WorkPanel } from '@/components/controller/TxChamber'
+import { AgencyPageHead, BREACH_STEPS, SealStamp, SealStepper } from '@/components/controller/AgencyKit'
 import { AiChip } from '@/components/ui/AiPanel'
-import { Badge } from '@/components/ui/Badge'
 import { Button } from '@/components/ui/Button'
-import { Countdown72 } from '@/components/ui/Countdown72'
 import { IconCheck, IconRefresh, IconShield, IconSpark } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
-import { DEFAULT_TX_COPY, TxFlow, txHeadline, type TxStepCopy, type TxView } from '@/components/ui/TxStepper'
+import type { TxView } from '@/components/ui/TxStepper'
 import { formatWIB } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import type { AiMeta, Pasal46Fields } from '@/lib/shared/types'
@@ -38,21 +34,12 @@ export function fieldsComplete(f: Pasal46Fields | null): f is Pasal46Fields {
   return Boolean(f && PASAL46_FIELDS.every(({ k }) => f[k].trim().length > 0))
 }
 
-function breachCopy(mode: 'on_time' | 'late'): TxStepCopy {
-  return {
-    preparing: { title: 'Prepare notice', detail: 'Report fingerprint + affected-count fingerprint' },
-    signing: { title: 'Sign in MetaMask', detail: mode === 'late' ? 'Your wallet signs a late notice' : 'Your wallet signs an on-time notice' },
-    broadcast: DEFAULT_TX_COPY.broadcast,
-    confirmed: { title: 'Confirmed', detail: 'The regulator sees this notice now' },
-  }
-}
-
 /** Small tick list on the vault: what the contract check still needs. */
 function Needs({ items }: { items: [string, boolean][] }) {
   return (
     <ul className="flex flex-col gap-2" aria-label="Before the check">
       {items.map(([t, ok]) => (
-        <li key={t} className={`flex items-center gap-2.5 text-[14px] ${ok ? 'text-ink' : 'text-ink-2'}`}>
+        <li key={t} className={`flex items-center gap-2.5 text-[15px] ${ok ? 'text-ink' : 'text-ink-2'}`}>
           <span aria-hidden="true" className={`flex size-4 shrink-0 items-center justify-center rounded-full transition-colors duration-300 ${ok ? 'bg-ok text-white' : 'border border-line-strong'}`}>
             {ok ? <IconCheck size={10} strokeWidth={3.2} /> : null}
           </span>
@@ -129,57 +116,74 @@ export function BreachView({
   const sealed = tx.phase === 'confirmed'
   const started = tx.phase !== 'idle'
 
-  // ---- seal panel: a quiet paper panel while working; the vault slab only for the sealed verdict ----
+
+  // ---- seal panel: an inset group like the agency system's seal steps; the stamp marks the sealed verdict ----
   let head: ReactNode
   let body: ReactNode
+  const late = mode === 'late'
 
   if (sealed) {
-    head = null
-    body = null
-  } else if (started) {
-    const h = txHeadline(tx)
-    head = <ChamberHeadline title={h.title} tone={h.tone} sub={mode === 'late' ? 'Sealing the notice as late. Keep this tab open.' : 'Sealing the notice on time. Keep this tab open.'} />
-    body = <TxFlow tx={tx} copy={breachCopy(mode ?? (check.status === 'late' ? 'late' : 'on_time'))} onRetry={onRetry} onReconfirm={onReconfirm} />
-  } else if (check.status === 'on_time') {
     head = (
-      <ChamberHeadline
-        title="The contract accepts an on-time notice"
-        tone="done"
-        sub={check.deadlineSec ? `Deadline ${formatWIB(check.deadlineSec * 1000)}. Seal before then and the chain records it as on time.` : undefined}
-      />
-    )
-    body = (
-      <Button variant="dark" size="lg" arrow full onClick={onAnchor} icon={<IconShield size={17} />}>
-        Seal notice on chain
-      </Button>
-    )
-  } else if (check.status === 'late') {
-    head = (
-      <div className="ctl-in flex flex-col gap-2">
-        {/* contract reason ClaimedWindowExpired: human copy on screen, the code only in the tooltip */}
-        <p className="flex items-center gap-2 text-[13px] text-pending" title="Contract: ClaimedWindowExpired">
-          <span aria-hidden="true" className="size-1.5 shrink-0 rounded-full bg-pending" />
-          The 72-hour window has passed
-        </p>
-        <p className="text-[22px] font-medium leading-tight tracking-[-0.015em] text-ink">
-          Record as LATE
-          {lateBy ? <span className="whitespace-nowrap text-pending"> · by {lateBy} H</span> : null}
-        </p>
+      <div className="flex items-start justify-between gap-4">
+        <div className="ag-rise flex min-w-0 flex-col items-start gap-3">
+          <span
+            className={`inline-flex h-8 items-center gap-1.5 whitespace-nowrap rounded-pill px-3 text-[14px] font-medium tnum ${late ? 'bg-pending-bg text-pending' : 'bg-ok-bg text-ok'}`}
+          >
+            {late ? null : <IconCheck size={14} strokeWidth={2.6} />}
+            {late ? `Sealed as late${lateBy ? ` · by ${lateBy} h` : ''}` : `Sealed on time${usedH ? ` · ${usedH.toFixed(1)} h of 72 h` : ''}`}
+          </span>
+          <p className="text-[19px] font-semibold leading-tight tracking-[-0.015em] text-ink">
+            {late ? 'Sealed as late. That fact is now permanent.' : 'Sealed on time. Saksi witnessed it.'}
+          </p>
+          <p className="text-[14px] leading-relaxed text-ink-2">The regulator sees this notice on their desk now.</p>
+        </div>
+        <SealStamp size={92} tone={late ? 'pending' : 'blue'} text={late ? 'SEALED LATE · WITNESSED BY SAKSI ·' : 'SEALED · WITNESSED BY SAKSI · SEALED ·'} />
       </div>
     )
     body = (
       <div className="flex flex-col gap-5">
-        <p className="border-l-2 border-pending pl-3 text-[14px] leading-relaxed text-ink-2">
-          The 72-hour window from your detection time has passed, so the contract refuses an on-time notice. You must still notify.
-          It will be sealed as late, permanently. <span className="text-ink">No signature was requested yet.</span>
+        <SealStepper tx={tx} steps={BREACH_STEPS} />
+        <Button variant="light" size="sm" onClick={onReset} className="self-start">
+          Start a new notice
+        </Button>
+      </div>
+    )
+  } else if (started) {
+    head = <PanelHead title={late ? 'Sealing the notice as late' : 'Sealing the notice on time'} sub="Keep this tab open until the last step ticks." />
+    body = <SealStepper tx={tx} steps={BREACH_STEPS} onRetry={onRetry} onReconfirm={onReconfirm} />
+  } else if (check.status === 'on_time') {
+    head = (
+      <PanelHead
+        tone="ok"
+        title="The contract accepts an on-time notice"
+        sub={check.deadlineSec ? `Due ${formatWIB(check.deadlineSec * 1000)}. Seal before then and the ledger records it as on time.` : undefined}
+      />
+    )
+    body = (
+      <Button variant="dark" size="lg" arrow full onClick={onAnchor} icon={<IconShield size={17} />}>
+        Sign and seal the notice
+      </Button>
+    )
+  } else if (check.status === 'late') {
+    head = (
+      // contract reason ClaimedWindowExpired: human copy on screen, the code only in the tooltip
+      <div title="Contract: ClaimedWindowExpired">
+        <PanelHead tone="late" title="The 3×24 h window has passed" sub={lateBy ? `Overdue by ${lateBy} h.` : undefined} />
+      </div>
+    )
+    body = (
+      <div className="flex flex-col gap-5">
+        <p className="rounded-[12px] bg-pending-bg/60 p-4 text-[14px] leading-relaxed text-ink-2">
+          The contract refuses an on-time notice for this detection time. You must still notify: the notice is sealed as late, permanently.{' '}
+          <span className="text-ink">No signature was requested yet.</span>
         </p>
         <Button variant="dark" size="lg" arrow full onClick={onRecordLate}>
-          Record as LATE on chain
+          Sign and seal as late
         </Button>
       </div>
     )
   } else {
-    head = <ChamberHeadline title="Ask the contract first" tone="idle" sub="Before you sign, Saksi asks the contract whether the notice is on time. Nothing is sent." />
+    head = <PanelHead title="Ask the contract first" sub="Before you sign, Saksi asks the contract whether the notice is on time. Nothing is sent." />
     body = (
       <div className="flex flex-col gap-5">
         <Needs
@@ -190,7 +194,7 @@ export function BreachView({
           ]}
         />
         {check.status === 'error' ? (
-          <p className="ctl-in flex items-start gap-2 text-[14px] leading-relaxed text-pending" role="alert">
+          <p className="ag-rise flex items-start gap-2 text-[14px] leading-relaxed text-pending" role="alert">
             <span aria-hidden="true" className="mt-[8px] size-1.5 shrink-0 rounded-full bg-pending" />
             {check.error ?? 'Could not reach the contract.'}
           </p>
@@ -205,117 +209,79 @@ export function BreachView({
           disabled={!ready || check.status === 'checking'}
           icon={check.status === 'error' ? <IconRefresh size={16} /> : undefined}
         >
-          {check.status === 'checking' ? 'Asking the contract…' : check.status === 'error' ? 'Try the check again' : 'Check with contract'}
+          {check.status === 'checking' ? 'Asking the contract…' : check.status === 'error' ? 'Try the check again' : 'Check with the contract'}
         </Button>
       </div>
     )
   }
 
-  const late = mode === 'late'
-  const panel = sealed ? (
-    <SealChamber
-      label="Seal the notice"
-      shape={late ? { shape: 'padlock' } : { shape: 'check', param: 1 }}
-      title={late ? 'Sealed as late' : 'Sealed on time'}
-      status={
-        <div className="ctl-in flex flex-col items-start gap-3">
-          <Badge onVault kind={late ? 'LATE' : 'ON_TIME'} suffix={late ? (lateBy ? `BY ${lateBy} H` : undefined) : usedH ? `${usedH.toFixed(1)} H OF 72 H` : undefined} />
-          <p className="text-[19px] font-medium leading-tight tracking-[-0.015em] text-vault-ink md:text-[22px]">
-            {late ? 'Sealed as late. That fact is now permanent.' : 'Sealed on time. The chain clock agrees.'}
-          </p>
-          <p className="text-[14px] leading-relaxed text-vault-ink-2">The regulator sees this notice on their dashboard now.</p>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-5 border-t border-vault-line p-5 md:p-6">
-        {gate(
-          <>
-            <TxFlow onVault tx={tx} copy={breachCopy(mode ?? 'on_time')} />
-            <Button variant="vault" size="sm" onClick={onReset} className="self-start">
-              Start a new notice
-            </Button>
-          </>,
-        )}
-      </div>
-    </SealChamber>
-  ) : (
-    <WorkPanel label="Seal the notice" head={head}>
-      {gate(body)}
-    </WorkPanel>
+  const panel = (
+    <section className="ag-group p-5 lg:p-6" aria-label="Seal the notice">
+      {head}
+      <div className="mt-5 border-t border-line pt-5">{gate(body)}</div>
+    </section>
   )
 
   return (
-    <div className="flex flex-col gap-10 lg:gap-12">
-      <ConsoleHead
-        lead="Notify within 72 hours."
-        tail="The contract keeps the clock."
-        aside={<MetaLine items={['UU PDP Art. 46', 'Notice text stays off chain']} />}
-      >
-        Tell us what happened in your own words. AI drafts the four required parts, you edit them, and the contract decides
-        whether the notice is on time.
-      </ConsoleHead>
+    <div>
+      <AgencyPageHead
+        title="Breach notice"
+        description="Notify the regulator within 3×24 hours of finding a breach (UU PDP Pasal 46). AI drafts the four required parts, you edit them, and the contract decides whether the notice is on time."
+      />
 
-      {/* the clock band: the detection time and the count drive the clock next to them */}
-      <section className="grid gap-10 border-b border-line pb-10 lg:grid-cols-12 lg:gap-12" aria-label="72-hour window">
-        <div className="min-w-0 lg:col-span-8">
-          {detectedAtSec || !now ? (
-            // before the first clock tick Countdown72 shows its own --:--:-- state
-            <Countdown72 detectedAtSec={detectedAtSec} />
-          ) : (
-            <div className="flex min-h-[230px] flex-col justify-center gap-2 rounded-xl border border-dashed border-line-strong px-6 py-8">
-              <p className="text-[19px] font-medium leading-tight tracking-[-0.015em] text-ink">The clock starts at your detection time.</p>
-              <p className="text-[14px] leading-relaxed text-ink-2">Set when your team first knew, and the 72-hour window appears here.</p>
+      <div className="grid gap-6 lg:grid-cols-12 lg:gap-8">
+        <div className="flex min-w-0 flex-col gap-6 lg:col-span-7">
+          {/* deadline + the two values that drive it */}
+          <section className="ag-group" aria-label="Notification deadline">
+            <div className="p-5 lg:p-6">
+              <Deadline detectedAtSec={detectedAtSec} deadlineSec={deadlineSec} nowSec={nowSec} late={check.status === 'late' || lateBy > 0} lateBy={lateBy} />
             </div>
-          )}
-        </div>
-        <div className="flex flex-col lg:col-span-4">
-          <div className="flex flex-col gap-2 pb-5">
-            <label htmlFor={ids.when} className="label text-[11px] text-ink">
-              Detected at
-            </label>
-            <input
-              id={ids.when}
-              type="datetime-local"
-              value={detectedAtSec ? toLocalInput(detectedAtSec) : ''}
-              onChange={(e) => {
-                const t = new Date(e.target.value).getTime()
-                if (!Number.isNaN(t)) onDetectedAtChange(Math.floor(t / 1000))
-              }}
-              aria-describedby={`${ids.when}-h`}
-              className="h-12 w-full rounded-md border border-line-strong bg-card px-3 font-mono text-[15px] text-ink outline-none transition-colors hover:border-ink focus:border-blue"
-            />
-            <p id={`${ids.when}-h`} className="text-[13px] text-ink-2">
-              When your team first knew. The 72 hours start here.
-            </p>
-          </div>
-          <div className="flex flex-col gap-2 border-t border-line pt-5">
-            <label htmlFor={ids.count} className="label text-[11px] text-ink">
-              People affected
-            </label>
-            <input
-              id={ids.count}
-              inputMode="numeric"
-              value={affected}
-              placeholder="e.g. 1240"
-              onChange={(e) => onAffectedChange(e.target.value.replace(/\D/g, '').slice(0, 9))}
-              aria-describedby={`${ids.count}-h`}
-              className="tnum h-12 w-full rounded-md border border-line-strong bg-card px-3 font-mono text-[18px] text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue"
-            />
-            <p id={`${ids.count}-h`} className="text-[13px] text-ink-2">
-              Only a salted fingerprint of this number goes on chain.
-            </p>
-          </div>
-        </div>
-      </section>
+            <div className="grid gap-5 border-t border-line p-5 sm:grid-cols-2 lg:p-6">
+              <div className="flex min-w-0 flex-col gap-2">
+                <label htmlFor={ids.when} className="text-[14px] font-medium text-ink">
+                  Detected at
+                </label>
+                <input
+                  id={ids.when}
+                  type="datetime-local"
+                  value={detectedAtSec ? toLocalInput(detectedAtSec) : ''}
+                  onChange={(e) => {
+                    const t = new Date(e.target.value).getTime()
+                    if (!Number.isNaN(t)) onDetectedAtChange(Math.floor(t / 1000))
+                  }}
+                  aria-describedby={`${ids.when}-h`}
+                  className="ag-input tnum"
+                />
+                <p id={`${ids.when}-h`} className="text-[13px] text-ink-3">
+                  When your team first knew. The 3×24 h start here.
+                </p>
+              </div>
+              <div className="flex min-w-0 flex-col gap-2">
+                <label htmlFor={ids.count} className="text-[14px] font-medium text-ink">
+                  People affected
+                </label>
+                <input
+                  id={ids.count}
+                  inputMode="numeric"
+                  value={affected}
+                  placeholder="e.g. 1240"
+                  onChange={(e) => onAffectedChange(e.target.value.replace(/\D/g, '').slice(0, 9))}
+                  aria-describedby={`${ids.count}-h`}
+                  className="ag-input tnum"
+                />
+                <p id={`${ids.count}-h`} className="text-[13px] text-ink-3">
+                  Only a salted fingerprint of this number is sealed.
+                </p>
+              </div>
+            </div>
+          </section>
 
-      <div className="grid gap-12 lg:grid-cols-12">
-        <div className="flex min-w-0 flex-col gap-10 lg:col-span-7">
-          <section className="flex flex-col gap-4" aria-labelledby={`${ids.narr}-l`}>
-            <div className="flex flex-wrap items-baseline justify-between gap-2">
-              <label id={`${ids.narr}-l`} htmlFor={ids.narr} className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
+          <section className="ag-group flex flex-col gap-4 p-5 lg:p-6" aria-labelledby={`${ids.narr}-l`}>
+            <div>
+              <label id={`${ids.narr}-l`} htmlFor={ids.narr} className="text-[15px] font-semibold text-ink">
                 Your words
               </label>
-              <span className="text-[14px] text-ink-2">Plainly. AI turns it into the four required parts.</span>
+              <p className="mt-0.5 text-[14px] text-ink-2">Say what happened, plainly. AI turns it into the four required parts.</p>
             </div>
             <textarea
               id={ids.narr}
@@ -323,7 +289,7 @@ export function BreachView({
               onChange={(e) => onNarrativeChange(e.target.value)}
               rows={5}
               placeholder="e.g. Yesterday our engineer found a customer export file in a public storage bucket…"
-              className="w-full resize-y rounded-lg border border-line-strong bg-card p-4 text-[16px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-3 hover:border-ink focus:border-blue"
+              className="w-full resize-y rounded-[12px] border border-line-strong bg-paper p-4 text-[16px] leading-relaxed text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 hover:border-ink-2 focus:border-blue focus:bg-card"
             />
             <div className="flex flex-wrap items-center gap-3">
               <Button
@@ -339,17 +305,17 @@ export function BreachView({
               {narrative.trim().length < 10 && !drafting ? <span className="text-[13px] text-ink-3">At least a sentence first.</span> : null}
             </div>
             {draft.status === 'error' ? (
-              <p className="ctl-in flex items-start gap-2.5 text-[14px] leading-relaxed text-pending" role="alert">
+              <p className="ag-rise flex items-start gap-2.5 text-[14px] leading-relaxed text-pending" role="alert">
                 <span aria-hidden="true" className="mt-[7px] size-1.5 shrink-0 rounded-full bg-pending" />
                 <span>{draft.error ?? 'The AI could not draft this.'} You can try again or write the four parts yourself.</span>
               </p>
             ) : null}
           </section>
 
-          <section aria-label="Notice fields (a) to (d)" aria-busy={drafting}>
-            <div className="flex items-baseline justify-between gap-3 border-b border-line pb-4">
-              <h2 className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">The notice</h2>
-              <span className="label text-[11px] text-ink-2">UU PDP Art. 46(2) · (a)–(d)</span>
+          <section className="ag-group" aria-label="Notice fields (a) to (d)" aria-busy={drafting}>
+            <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1 px-5 pb-3 pt-5 lg:px-6">
+              <h2 className="text-[15px] font-semibold text-ink">The notice</h2>
+              <span className="text-[13px] text-ink-3">UU PDP Pasal 46(2) · parts (a)–(d)</span>
             </div>
             <ol key={`fields-${draft.status}`}>
               {PASAL46_FIELDS.map((f, i) => {
@@ -358,24 +324,24 @@ export function BreachView({
                 return (
                   <li
                     key={f.k}
-                    className={`grid gap-x-6 gap-y-2 border-b border-line py-5 sm:grid-cols-[44px_1fr] ${draft.status === 'done' ? 'ctl-draft-in' : ''}`}
+                    className={`grid gap-x-4 gap-y-2 border-t border-line px-5 py-4 sm:grid-cols-[32px_1fr] lg:px-6 ${draft.status === 'done' ? 'ctl-draft-in' : ''}`}
                     style={{ '--i': i } as CSSProperties}
                   >
-                    <span aria-hidden="true" className={`font-mono text-[15px] sm:pt-0.5 ${isDraft ? 'text-ai' : 'text-blue'}`}>
+                    <span aria-hidden="true" className={`hidden text-[15px] font-medium sm:block sm:pt-0.5 ${isDraft ? 'text-ai' : 'text-ink-3'}`}>
                       ({f.letter})
                     </span>
                     <div className="min-w-0">
                       <div className="flex items-center justify-between gap-3">
                         <label htmlFor={id} className="text-[15px] font-medium text-ink">
-                          <span className="sr-only">({f.letter}) </span>
+                          <span className="sm:sr-only">({f.letter}) </span>
                           {f.label}
                         </label>
                         {drafting ? null : isDraft ? (
-                          <span className="label inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-pill border border-ai/40 bg-ai-bg px-2 text-[11px] text-ai">
+                          <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap rounded-pill bg-ai-bg px-2 text-[12px] font-medium text-ai">
                             <IconSpark size={11} strokeWidth={2.2} /> AI draft · edit me
                           </span>
                         ) : edited[f.k] && fields?.[f.k]?.trim() ? (
-                          <span className="label inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap text-[11px] text-ok">
+                          <span className="inline-flex h-6 shrink-0 items-center gap-1 whitespace-nowrap text-[12px] font-medium text-ok">
                             <IconCheck size={12} strokeWidth={2.6} /> Edited by you
                           </span>
                         ) : null}
@@ -392,8 +358,8 @@ export function BreachView({
                           value={fields?.[f.k] ?? ''}
                           placeholder="Draft with AI, or write it yourself"
                           onChange={(e) => onFieldChange(f.k, e.target.value)}
-                          className={`mt-2 w-full resize-y rounded-md border p-3 text-[15px] leading-relaxed text-ink outline-none transition-colors placeholder:text-ink-3 focus:border-blue focus:bg-card ${
-                            isDraft ? 'border-ai/30 bg-ai-bg/25 hover:border-ai/60' : 'border-line bg-card/60 hover:border-ink'
+                          className={`mt-2 w-full resize-y rounded-[12px] border p-3 text-[15px] leading-relaxed text-ink outline-none transition-colors duration-150 placeholder:text-ink-3 focus:border-blue focus:bg-card ${
+                            isDraft ? 'border-ai/30 bg-ai-bg/25 hover:border-ai/60' : 'border-line-strong bg-paper hover:border-ink-2'
                           }`}
                         />
                       )}
@@ -405,13 +371,71 @@ export function BreachView({
           </section>
         </div>
 
-        <aside className="flex min-w-0 flex-col gap-4 lg:sticky lg:top-24 lg:col-span-5 lg:self-start">
+        <aside className="flex min-w-0 flex-col gap-3 lg:sticky lg:top-6 lg:col-span-5 lg:self-start">
           <div aria-live="polite">{panel}</div>
-          <p className="label flex items-start gap-2 px-1 text-[11px] leading-relaxed text-ai">
-            <IconSpark size={13} className="mt-0.5 shrink-0" />
-            AI drafts the wording only · the 72-hour check is computed by the contract
+          <p className="flex items-start gap-2 px-1 text-[13px] leading-relaxed text-ink-3">
+            <IconSpark size={13} className="mt-0.5 shrink-0 text-ai" />
+            AI drafts the wording only. The contract decides whether the notice is on time.
           </p>
         </aside>
+      </div>
+    </div>
+  )
+}
+
+function PanelHead({ title, sub, tone }: { title: string; sub?: string; tone?: 'ok' | 'late' }) {
+  return (
+    <div key={title} className="ag-rise">
+      <p className="flex items-center gap-2 text-[17px] font-semibold leading-snug tracking-[-0.015em] text-ink">
+        {tone ? <span aria-hidden="true" className={`size-2 shrink-0 rounded-full ${tone === 'ok' ? 'bg-ok' : 'bg-pending'}`} /> : null}
+        {title}
+      </p>
+      {sub ? <p className="mt-1 text-[14px] leading-relaxed text-ink-2">{sub}</p> : null}
+    </div>
+  )
+}
+
+/**
+ * The 3×24 h deadline in plain words (riset-ui/37 §2): Geist tabular figures, a quiet meter, amber when late,
+ * never red. Before the first clock tick it shows a dash; with no detection time it says where the clock starts.
+ */
+function Deadline({ detectedAtSec, deadlineSec, nowSec, late, lateBy }: { detectedAtSec: number; deadlineSec: number; nowSec: number; late: boolean; lateBy: number }) {
+  if (!detectedAtSec) {
+    return (
+      <div className="flex flex-col gap-1">
+        <p className="text-[13px] text-ink-3">Notification deadline</p>
+        <p className="text-[22px] font-semibold leading-tight tracking-[-0.02em] text-ink">Set the detection time to start the clock</p>
+        <p className="text-[14px] text-ink-2">UU PDP Pasal 46 · 3×24 h from when your team first knew</p>
+      </div>
+    )
+  }
+  const left = deadlineSec - nowSec
+  const headline = !nowSec
+    ? 'Due in — h'
+    : late
+      ? `Overdue${lateBy ? ` by ${lateBy} h` : ''}`
+      : left >= H
+        ? `Due in ${Math.floor(left / H)} h`
+        : `Due in ${Math.max(1, Math.ceil(left / 60))} min`
+  const span = Math.max(1, deadlineSec - detectedAtSec)
+  const used = nowSec ? Math.min(1, Math.max(0, (nowSec - detectedAtSec) / span)) : 0
+  return (
+    <div className="flex flex-col gap-4" role="timer" aria-live="off" aria-label={`${headline}. UU PDP Pasal 46, 3 times 24 hours.`}>
+      <div>
+        <p className="text-[13px] text-ink-3">Notification deadline</p>
+        <p className="mt-1.5 flex flex-wrap items-baseline gap-x-2 gap-y-1">
+          <span className={`text-[28px] font-semibold leading-none tracking-[-0.02em] tnum ${late ? 'text-pending' : 'text-ink'}`}>{headline}</span>
+          <span className="text-[15px] text-ink-2">
+            <span aria-hidden="true" className="hidden sm:inline">· </span>UU PDP Pasal 46 · 3×24 h
+          </span>
+        </p>
+      </div>
+      <div className="ag-meter" aria-hidden="true">
+        <span className={late ? 'bg-pending' : 'bg-ink'} style={{ transform: `scaleX(${late ? 1 : used})` }} />
+      </div>
+      <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-[13px] text-ink-2 tnum">
+        <span>Detected {formatWIB(detectedAtSec * 1000)}</span>
+        <span className={late ? 'text-pending' : undefined}>Due {formatWIB(deadlineSec * 1000)}</span>
       </div>
     </div>
   )
