@@ -97,7 +97,7 @@ export function BreachList({
       </div>
 
       <section aria-label="Breach notices at a glance" className="grid grid-cols-3 gap-2.5 print:hidden sm:gap-3 lg:gap-4">
-        <Kpi label="Notices" value={stats ? stats.total : null} hint="Sealed on the public ledger" hintOnPhone={false} unknown={q.isError} />
+        <Kpi label="Total" value={stats ? stats.total : null} hint="Sealed on the public ledger" hintOnPhone={false} unknown={q.isError} />
         <Kpi label="On time" value={stats ? stats.onTime : null} hint="Within 3×24 h" hintOnPhone={false} unknown={q.isError} />
         <Kpi label="Late" value={stats ? stats.late : null} tone={stats?.late ? 'pending' : 'ink'} hint="Recorded by the contract" hintOnPhone={false} unknown={q.isError} />
       </section>

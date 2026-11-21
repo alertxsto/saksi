@@ -42,7 +42,7 @@ export function Timeline72({
     >
       <div className="relative h-[136px]" aria-hidden="true">
         {/* 72 H limit: drops in first */}
-        <span className="rg-tl-drop absolute bottom-3 top-6 w-[2px] -translate-x-1/2 rounded-full bg-ink" style={{ left: x(72) }} />
+        <span className="rg-tl-drop absolute top-6 h-[52px] w-[2px] -translate-x-1/2 rounded-full bg-ink" style={{ left: x(72) }} />
         <span className="label rg-tl-fade absolute top-0 -translate-x-full whitespace-nowrap pr-2 text-[11px] text-ink" style={{ left: x(72) }}>
           72 H limit
         </span>

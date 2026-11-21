@@ -33,6 +33,7 @@ const PATTERNS: [RegExp, string][] = [
   [/^(.+) filed a breach notice late$/, '$1 mengirim pemberitahuan kebocoran terlambat'],
   [/^(.+) filed a breach notice on time$/, '$1 mengirim pemberitahuan kebocoran tepat waktu'],
   [/^(\d+) h past the 3×24 h limit(.*)$/, '$1 jam melewati batas 3×24 jam$2'],
+  [/^Notified · late by (\d+) H$/, 'Diberi tahu · terlambat $1 jam'],
   [/^Late · (\d+) h$/, 'Terlambat · $1 jam'],
   [/^On time · (\d+) h$/, 'Tepat waktu · $1 jam'],
   [/^Late by (\d+) h$/, 'Terlambat $1 jam'],

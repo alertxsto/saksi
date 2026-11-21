@@ -1730,7 +1730,7 @@
  "h late": "j terlambat",
  "h of 72": "j dari 72",
  "h of 72 h": "j dari 72 j",
- "h past the 3×24 h limit · UU PDP Pasal 46": "j melewati batas 3×24 jam · UU PDP Pasal 46",
+ "h past the 3×24 h limit · UU PDP Pasal 46": "jam melewati batas 3×24 jam · UU PDP Pasal 46",
  "has no record for this fingerprint. It may be slow, or the transaction may still be mining.": "tidak memiliki catatan untuk sidik digital ini. Mungkin sedang lambat, atau transaksinya masih diproses.",
  "in progress": "sedang berjalan",
  "in this profile": "di profil ini",
@@ -1815,7 +1815,7 @@
  "unknown source:": "sumber tidak dikenal:",
  "updated your data": "memperbarui data Anda",
  "uploads an immutable hash, or digital receipt, of a land transaction to the Bitcoin blockchain": "mengunggah hash permanen, atau bukti digital, dari transaksi tanah ke blockchain Bitcoin",
- "used of 3×24 h": "terpakai dari 3×24 j",
+ "used of 3×24 h": "terpakai dari 3×24 jam",
  "used your data": "menggunakan data Anda",
  "was altered: it no longer matches the sealed record.": "diubah: tidak lagi cocok dengan catatan tersegel.",
  "was changed in the database after sealing.": "diubah di database setelah disegel.",
@@ -1993,6 +1993,7 @@
  "Regulator (simulated)": "Regulator (simulasi)",
  "PDP authority": "Lembaga PDP",
  "Every registered agency": "Semua instansi terdaftar",
- "Read-only · signs reviews": "Hanya baca · tanda tangan tinjauan",
- "signs reviews": "tanda tangan tinjauan"
+ "Read-only · signs reviews": "Hanya baca, bisa meninjau",
+ "signs reviews": "tanda tangan tinjauan",
+ "Total": "Total"
 }
