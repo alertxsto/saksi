@@ -79,7 +79,7 @@ export function callMatchesDraft(tx: Pick<SubmittedTx, 'to' | 'input'>, target: 
 // so a citizen code alone cannot plant a "submitted" receipt with a made-up hash.
 export async function verifySubmission(txHash: Hex, target: Hex, abi: Abi, functionNames: readonly string[], expected: readonly [Hex, ...unknown[]]) {
   const tx = await visibleTransaction(txHash);
-  if (!tx) throw new HttpError(409, 'TX_NOT_VISIBLE', 'Sepolia does not show this transaction yet. Wait a few seconds, then press Reconfirm.');
+  if (!tx) throw new HttpError(409, 'TX_NOT_VISIBLE', 'Sepolia does not show this transaction yet. Saksi retries automatically.');
   if (!callMatchesDraft(tx, target, abi, functionNames, expected)) throw new HttpError(400, 'TX_MISMATCH', 'The transaction does not match this draft.');
   // The contracts enforce authorization too; this only rejects early. An RPC failure here is not the sender's fault.
   const authorized = await rpc().readContract({ address: addresses().registry, abi: registryAbi, functionName: 'isAuthorized', args: [expected[0], tx.from] })

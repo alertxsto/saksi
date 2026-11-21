@@ -152,7 +152,7 @@ describe('stale submitted rows', () => {
 
 describe('client submit retries while the transaction propagates', () => {
   const reply = (status: number, body: unknown) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
-  const notVisible = () => reply(409, { error: { code: 'TX_NOT_VISIBLE', message: 'Sepolia does not show this transaction yet. Wait a few seconds, then press Reconfirm.' } });
+  const notVisible = () => reply(409, { error: { code: 'TX_NOT_VISIBLE', message: 'Sepolia does not show this transaction yet. Saksi retries automatically.' } });
   test('retries TX_NOT_VISIBLE and then succeeds', async () => {
     const fetch = vi.fn().mockResolvedValueOnce(notVisible()).mockResolvedValueOnce(notVisible()).mockResolvedValueOnce(reply(200, { status: 'submitted' }));
     vi.stubGlobal('fetch', fetch);
@@ -162,9 +162,20 @@ describe('client submit retries while the transaction propagates', () => {
     expect(wait).toHaveBeenCalledTimes(2);
   });
 
+  test('keeps retrying on its own until the deadline, with backoff', async () => {
+    let clock = 0
+    const waits: number[] = []
+    vi.stubGlobal('fetch', vi.fn(async () => notVisible()));
+    await expect(submission('access', { id }, { now: () => clock, wait: async (ms) => { waits.push(ms); clock += ms }, timeoutMs: 30_000 }))
+      .rejects.toMatchObject({ apiCode: 'TX_NOT_VISIBLE' });
+    expect(waits[0]).toBe(2_000);
+    expect(Math.max(...waits)).toBe(5_000);
+    expect(waits.reduce((a, b) => a + b, 0)).toBeLessThanOrEqual(30_000);
+  });
+
   test('stops after the attempts, and never retries other errors', async () => {
     vi.stubGlobal('fetch', vi.fn(async () => notVisible()));
-    await expect(submission('access', { id }, { wait: async () => {}, attempts: 3 })).rejects.toMatchObject({ apiCode: 'TX_NOT_VISIBLE', message: expect.stringContaining('Reconfirm') });
+    await expect(submission('access', { id }, { wait: async () => {}, attempts: 3 })).rejects.toMatchObject({ apiCode: 'TX_NOT_VISIBLE', message: expect.stringContaining('checks it again') });
     expect(fetch).toHaveBeenCalledTimes(3);
     const mismatch = vi.fn(async () => reply(400, { error: { code: 'TX_MISMATCH', message: 'The transaction does not match this draft.' } }));
     vi.stubGlobal('fetch', mismatch);

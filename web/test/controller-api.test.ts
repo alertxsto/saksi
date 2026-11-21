@@ -29,7 +29,7 @@ describe('controller API errors', () => {
 
   it('falls back to the generic message for non-JSON bodies and network failures', async () => {
     serve(reply(502, '<html>Bad gateway</html>'), new TypeError('Failed to fetch'));
-    await expect(post('breach', 'submit', {})).rejects.toMatchObject({ code: 'api', apiCode: undefined,
+    await expect(post('breach', 'submit', {})).rejects.toMatchObject({ code: 'api', apiCode: 'NETWORK',
       message: 'The controller service could not submit the transaction.' });
     await expect(post('breach', 'prepare', {})).rejects.toMatchObject({ code: 'api',
       message: 'The controller service could not prepare the transaction.' });
@@ -57,7 +57,7 @@ describe('confirm while the server RPC lags', () => {
     expect(wait).toHaveBeenCalledWith(2_000);
   });
 
-  it('gives up with a Reconfirm hint, and Reconfirm later anchors the same transaction', async () => {
+  it('only gives up after the retry budget, and a later check anchors the same transaction', async () => {
     serve(...Array.from({ length: 3 }, () => reply(200, { status: 'submitted' })), reply(200, { status: 'anchored' }));
     const sends: Hash[] = [];
     const flow = createTransactionFlow<string, { id: string }>(() => {});
@@ -69,7 +69,7 @@ describe('confirm while the server RPC lags', () => {
       confirm: (id) => confirmation('access', id, { attempts: 3, wait: async () => {} }),
     };
     await expect(flow.start('form', io)).resolves.toMatchObject({ step: 'failed', txHash, canReconfirm: true,
-      error: { code: 'unconfirmed', message: expect.stringContaining('Reconfirm') } });
+      error: { code: 'unconfirmed', message: expect.stringContaining('confirms on its own') } });
     await expect(flow.reconfirm()).resolves.toEqual({ step: 'anchored', id: 'draft-1', txHash });
     expect(sends).toEqual([txHash]);
   });

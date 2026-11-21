@@ -93,7 +93,7 @@ function transactions(resource: Resource) {
       for (;;) {
         const { receipt } = await getReceiptRobust(hash).catch(() => ({ receipt: null }));
         if (receipt) return receipt.status;
-        if (Date.now() > deadline) throw new TransactionFlowError('timeout', 'The transaction was not seen on Sepolia within 90 seconds. Use Re-confirm once it is mined.');
+        if (Date.now() > deadline) throw new TransactionFlowError('timeout', 'Sepolia has not mined this transaction yet. Saksi keeps checking on its own.');
         await new Promise((resolve) => setTimeout(resolve, 2_000));
       }
     },

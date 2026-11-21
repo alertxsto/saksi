@@ -21,7 +21,7 @@ const TX = fakeHex('gallery:tx')
 const ERR: Record<'rejected' | 'revert' | 'timeout', TxErrorInfo> = {
   rejected: { code: 'USER_REJECTED', message: 'You rejected the request in your wallet. Nothing was sent.' },
   revert: { code: 'TX_REVERTED', message: 'The contract refused this transaction.', errorName: 'ControllerNotActive' },
-  timeout: { code: 'NOT_MINED', message: 'The transaction is not on chain yet. Try Re-confirm in a moment.' },
+  timeout: { code: 'NOT_MINED', message: 'Sepolia has not mined this transaction yet. Saksi keeps checking on its own.' },
 }
 
 function Frame({ title, note, children, className = '' }: { title: string; note?: string; children: ReactNode; className?: string }) {
