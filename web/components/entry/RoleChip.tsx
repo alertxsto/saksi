@@ -33,6 +33,13 @@ export const ROLE_META: Record<
 
 export const ACTORS = Object.keys(ROLE_META) as Actor[]
 
+/** The three doors on /enter. */
+export type DoorKey = Extract<Actor, 'citizen' | 'agency' | 'regulator'>
+
+export function toDoor(v: unknown): DoorKey | undefined {
+  return v === 'citizen' || v === 'agency' || v === 'regulator' ? v : undefined
+}
+
 export function isActor(v: unknown): v is Actor {
   return typeof v === 'string' && v in ROLE_META
 }

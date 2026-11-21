@@ -1,17 +1,20 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Suspense, useState, type ReactNode } from 'react'
+import { Suspense, useEffect, useRef, useState, type MouseEvent, type ReactNode } from 'react'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { RiseHeading } from '@/components/regulator/Rise'
 import { ControllerWalletProvider, useControllerWallet } from '@/app/controller/wallet'
 import { createProfile, getReceipts, toCitizenError } from '@/lib/data'
 import { AnyoneRow, CitizenPanel, ControllerPanel, RegulatorPanel, type CitizenSession } from './RolePanels'
+import { RealLifeStrip } from './RealLifeStrip'
+import type { DoorKey } from './RoleChip'
+import './entry.css'
 
-/** /enter: the three points of view side by side. Containers here; the panels are pure views. */
-export function EnterView() {
+/** /enter: the role gate. Containers here; the doors are pure views. `as` pre-selects a door (?as=agency). */
+export function EnterView({ as }: { as?: DoorKey }) {
   return (
     <EnterLayout
+      as={as}
       citizen={<CitizenEntry />}
       controller={
         <Suspense fallback={<ControllerPanel wallet={{ state: 'disconnected', isChecking: true }} onConnect={noop} onSwitchNetwork={noop} onRefresh={noop} onCopy={noop} />}>
@@ -26,26 +29,54 @@ export function EnterView() {
 
 const noop = () => {}
 
-/** Page frame shared with the dev gallery: two-tone heading + paragraph, the three panels, the "anyone" row. */
-export function EnterLayout({ citizen, controller }: { citizen: ReactNode; controller: ReactNode }) {
+/**
+ * Page frame shared with the dev gallery: title, the real-life strip, the three doors, the "anyone" row.
+ * Selection feedback: the door whose action you press is marked [data-picked] and the other two step back.
+ * A pre-selected door (?as=) is marked [data-suggested] and scrolled into view on phones.
+ */
+export function EnterLayout({ citizen, controller, as }: { citizen: ReactNode; controller: ReactNode; as?: DoorKey }) {
+  const [picked, setPicked] = useState<DoorKey | null>(null)
+  const doorsRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!as || window.matchMedia('(min-width: 1024px)').matches) return
+    const el = doorsRef.current?.querySelector(`[data-slot="${as}"]`)
+    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    const t = window.setTimeout(() => el?.scrollIntoView({ behavior: reduce ? 'auto' : 'smooth', block: 'start' }), 360)
+    return () => window.clearTimeout(t)
+  }, [as])
+
+  const pick = (key: DoorKey) => (e: MouseEvent) => {
+    if ((e.target as Element).closest('a[href]:not([target]), button:not(:disabled)')) setPicked(key)
+  }
+
+  const slot = (key: DoorKey, node: ReactNode) => (
+    <div
+      data-slot={key}
+      data-picked={picked === key ? '' : undefined}
+      data-suggested={!picked && as === key ? '' : undefined}
+      onClickCapture={pick(key)}
+      className="en-slot min-w-0"
+    >
+      {node}
+    </div>
+  )
+
   return (
-    <div className="flex flex-col gap-8 md:gap-10">
-      <header className="grid gap-6 lg:grid-cols-12 lg:items-end">
-        <RiseHeading
-          as="h1"
-          lead="Sign in to Saksi."
-          tail="Pick the side you are on."
-          className="text-[34px] leading-[1.04] md:text-[56px] lg:col-span-7"
-        />
-        <p className="max-w-[46ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[17px] lg:col-span-4 lg:col-start-9">
-          Saksi stands between the people who hold personal data and the people it is about. Each side sees the same chain
-          from its own seat.
+    <div className="flex flex-col gap-7 md:gap-8">
+      <header className="en-head flex flex-col gap-3">
+        <h1 className="text-[34px] font-semibold leading-[1.05] tracking-[-0.03em] text-ink md:text-[44px]">Who are you today?</h1>
+        <p className="max-w-[60ch] text-[16px] leading-[1.55] text-ink-2 md:text-[17px]">
+          Saksi is the witness between the agencies that hold your data and you. Pick a seat: all three see the same sealed record.
         </p>
       </header>
-      <div className="grid gap-4 md:gap-5 lg:grid-cols-3">
-        {citizen}
-        {controller}
-        <RegulatorPanel />
+
+      <RealLifeStrip />
+
+      <div ref={doorsRef} data-picking={picked ? '' : undefined} className="en-doors grid gap-4 md:gap-5 lg:grid-cols-3">
+        {slot('citizen', citizen)}
+        {slot('agency', controller)}
+        {slot('regulator', <RegulatorPanel />)}
       </div>
       <AnyoneRow />
     </div>
@@ -62,7 +93,7 @@ function CitizenEntry() {
   const session: CitizenSession = receipts.isPending
     ? { status: 'checking' }
     : receipts.data
-      ? { status: 'active', code: receipts.data.profile.code }
+      ? { status: 'active', code: receipts.data.profile.code, name: receipts.data.profile.displayName }
       : toCitizenError(receipts.error).code === 'NO_SESSION'
         ? { status: 'none' }
         : { status: 'unknown' }
@@ -81,8 +112,8 @@ function CitizenEntry() {
       const e = toCitizenError(err)
       setError(
         e.code === 'RATE_LIMITED'
-          ? 'Too many new profiles from this network. Wait a minute and try again.'
-          : 'Could not create a profile right now. Check your connection and try again.',
+          ? 'Too many new citizens from this network. Wait a minute and try again.'
+          : 'Could not create a citizen right now. Check your connection and try again.',
       )
       setCreating(false)
     }
