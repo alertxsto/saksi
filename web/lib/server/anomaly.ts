@@ -98,7 +98,7 @@ export async function auditPriority(lang: Lang): Promise<AuditPriority> {
   if (!pending) {
     pending = (async () => {
       const template = templateAudit(lang, flagged, scored.length);
-      const allowed = new Set(['3', '24', '72', '10', '15', '20', '00', '20:00', '06', '6', '06:00', '1', '2',
+      const allowed = new Set(['3', '24', '72', '10', '15', '20', '00', '20:00', '06', '6', '06:00', '20.00', '06.00', '1', '2',
         String(scored.length), String(flagged.length), ...flagged.flatMap((s) => s.signals.flatMap((g) => [String(g.value), String(g.total ?? '')]))]);
       const refs = input.agencies.map((a) => a.ref);
       const answer = flagged.length

@@ -58,6 +58,8 @@ describe('audit priority scoring', () => {
     expect(legalConclusion('The agency acted unlawfully.')).toBe(true);
     expect(legalConclusion('Instansi ini melanggar UU PDP.')).toBe(true);
     expect(legalConclusion('Minta dasar hukum ekspor itu.')).toBe(false);
+    expect(legalConclusion('Satu pemberitahuan pelanggaran data disegel setelah batas 3×24 jam.')).toBe(false);
+    expect(legalConclusion('Ini pelanggaran berat.')).toBe(true);
   });
 
   it('the prompt keeps the model to wording: no legal conclusions, input numbers only, no code', () => {
