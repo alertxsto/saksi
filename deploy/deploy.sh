@@ -1,62 +1,63 @@
 #!/usr/bin/env bash
-# Build and (re)start Saksi on the VM, with automatic rollback.
+# Build and (re)start Saksi on the VM as a Docker container, with automatic rollback.
 #
 #   deploy/deploy.sh [--force] [REF]   deploy REF: branch, tag or commit (default: main)
-#   deploy/deploy.sh --rollback        switch back to the previous build and commit
+#   deploy/deploy.sh --rollback        switch back to the previous image and commit
 #
-# Flow: git fetch + checkout REF in $SAKSI_ROOT -> pnpm install --frozen-lockfile ->
-# build into web/.next-new (nice -n 19, capped heap) while the live server keeps serving
-# web/.next -> stop, swap .next -> .next-prev and .next-new -> .next, start -> poll
-# /api/status with x-demo-token. A failed build restores the previous source and leaves
-# the live site alone; a failed health check swaps .next-prev back and restarts.
+# Flow: git fetch + checkout REF in $SAKSI_ROOT -> docker build web/ as saksi-web:<tag> while
+# the live container keeps serving -> docker compose up -d (deploy/compose.yaml) with the new
+# tag -> poll /api/status with x-demo-token and the container health. A failed build restores
+# the previous source and leaves the live container alone; a failed health check starts the
+# previous tag again and restores the previous source.
 #
-# Re-running with the same REF and the same NEXT_PUBLIC_* values only ensures the service
-# is running and healthy. NEXT_PUBLIC_* values are baked in at build time, so changing them
-# in .env.production triggers a rebuild on the next run. --force always rebuilds.
+# The tag is <commit>-<fingerprint of the NEXT_PUBLIC_* build args>, so an existing image is
+# reused and changing a NEXT_PUBLIC_* value in the env file triggers a rebuild. Re-running the
+# same REF only ensures the container is up and healthy. --force always builds, under a new tag
+# (<tag>-<time>), so the image it replaces stays available for rollback.
 #
 # Settings (environment variables, all optional):
 #   SAKSI_ROOT=$HOME/saksi  SAKSI_REPO_URL=https://github.com/alertxsto/saksi.git
-#   SAKSI_ENV_FILE=$SAKSI_ROOT/web/.env.production  SAKSI_SERVICE=saksi-web.service
-#   SAKSI_PORT=3400  SAKSI_HEALTH_URL=http://127.0.0.1:$SAKSI_PORT/api/status
+#   SAKSI_ENV_FILE=$SAKSI_ROOT/web/.env.production  SAKSI_PORT=3400
+#   SAKSI_HEALTH_URL=http://127.0.0.1:$SAKSI_PORT/api/status  SAKSI_KEEP_IMAGES=3
 #   HEALTH_RETRIES=30  HEALTH_DELAY=2  HEALTH_STRICT=0 (1: rpc, db and contracts must pass)
-#   BUILD_MEMORY_MB=1536 (V8 heap cap for next build)
 # shellcheck disable=SC2329  # on_exit and its helpers run from the EXIT trap
 set -euo pipefail
 
 SAKSI_ROOT=${SAKSI_ROOT:-$HOME/saksi}
 SAKSI_REPO_URL=${SAKSI_REPO_URL:-https://github.com/alertxsto/saksi.git}
-SERVICE=${SAKSI_SERVICE:-saksi-web.service}
 PORT=${SAKSI_PORT:-3400}
 HEALTH_URL=${SAKSI_HEALTH_URL:-http://127.0.0.1:$PORT/api/status}
 HEALTH_RETRIES=${HEALTH_RETRIES:-30}
 HEALTH_DELAY=${HEALTH_DELAY:-2}
 HEALTH_STRICT=${HEALTH_STRICT:-0}
-BUILD_MEMORY_MB=${BUILD_MEMORY_MB:-1536}
+KEEP_IMAGES=${SAKSI_KEEP_IMAGES:-3}
 STATE_DIR=${SAKSI_STATE_DIR:-${XDG_STATE_HOME:-$HOME/.local/state}/saksi-deploy}
-UNIT_DIR=${SAKSI_UNIT_DIR:-${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user}
 APP_DIR=$SAKSI_ROOT/web
+COMPOSE_DIR=$SAKSI_ROOT/deploy
 ENV_FILE=${SAKSI_ENV_FILE:-$APP_DIR/.env.production}
 KIT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
+IMAGE=saksi-web
 
-export PATH="$HOME/.local/bin:$PATH"
-export XDG_RUNTIME_DIR=${XDG_RUNTIME_DIR:-/run/user/$(id -u)}
-export NEXT_TELEMETRY_DISABLED=1
-export COREPACK_ENABLE_DOWNLOAD_PROMPT=0
-
-PHASE=init        # init -> checked_out | stopped -> swapped -> finished; drives the EXIT trap
+PHASE=init        # init -> checked_out -> switched -> finished; drives the EXIT trap
 PREV_SHA=''       # commit checked out before this run (rollback target for the source)
+ROLLBACK_TAG=''   # image tag to start again if the new one fails ('' = nothing to go back to)
 TMP=''
 LOCK_DIR=''
 DEMO_TOKEN=''
-PNPM=()
+REPORT_JS=''
+FAILED_TAG=''     # tag that was being started when the run failed
+BUILD_ARGS=()
+PUBLIC_KEY=''
 
 if [[ -t 1 ]]; then GREEN=$'\e[32m'; RED=$'\e[31m'; YELLOW=$'\e[33m'; RESET=$'\e[0m'; else GREEN=''; RED=''; YELLOW=''; RESET=''; fi
 log() { printf '[deploy] %s\n' "$*"; }
 warn() { printf '[deploy] %sWARN%s %s\n' "$YELLOW" "$RESET" "$*" >&2; }
 die() { printf '[deploy] %sERROR%s %s\n' "$RED" "$RESET" "$*" >&2; exit 1; }
-usage() { sed -n '2,22p' "$KIT_DIR/deploy.sh" | sed 's/^# \{0,1\}//'; }
-sctl() { systemctl --user "$@"; }
+usage() { sed -n '2,23p' "$KIT_DIR/deploy.sh" | sed 's/^# \{0,1\}//'; }
 git_root() { git -C "$SAKSI_ROOT" "$@"; }
+# SAKSI_TAG on the command line wins over deploy/.env.
+compose() { SAKSI_TAG=$1 SAKSI_ENV_FILE=$ENV_FILE docker compose --project-directory "$COMPOSE_DIR" -f "$COMPOSE_DIR/compose.yaml" "${@:2}"; }
+image_exists() { docker image inspect "$IMAGE:$1" >/dev/null 2>&1; }
 
 history_note() {
   mkdir -p "$STATE_DIR"
@@ -75,20 +76,11 @@ env_value() {
   printf '%s' "$line"
 }
 
-# Fingerprint of the NEXT_PUBLIC_* lines; they are inlined into the client bundle at build.
-public_env_key() {
-  local lines='' sum=''
-  lines=$(grep -E '^[[:space:]]*(export[[:space:]]+)?NEXT_PUBLIC_[A-Za-z0-9_]*=' "$ENV_FILE") || true
-  lines=$(printf '%s\n' "$lines" | tr -d '\r' | LC_ALL=C sort)
-  sum=$(printf '%s' "$lines" | sha256sum)
-  printf '%s' "${sum:0:16}"
-}
-
-read_state() { # name -> "sha key" or empty
+read_state() { # name -> "tag sha key" or empty
   if [[ -r $STATE_DIR/$1 ]]; then cat "$STATE_DIR/$1"; fi
 }
-write_state() { # name sha key
-  printf '%s %s\n' "$2" "$3" > "$STATE_DIR/$1.tmp"
+write_state() { # name tag sha key
+  printf '%s %s %s\n' "$2" "$3" "$4" > "$STATE_DIR/$1.tmp"
   mv -f "$STATE_DIR/$1.tmp" "$STATE_DIR/$1"
 }
 
@@ -120,19 +112,12 @@ check_env() {
 
 check_tools() {
   local tool
-  for tool in git node curl sha256sum systemctl; do
+  for tool in git docker curl sha256sum; do
     command -v "$tool" >/dev/null 2>&1 || die "required command not found: $tool"
   done
-  if command -v pnpm >/dev/null 2>&1; then PNPM=(pnpm)
-  elif command -v corepack >/dev/null 2>&1; then PNPM=(corepack pnpm)
-  else die "pnpm not found (run: corepack enable)"; fi
-}
-
-check_linger() {
-  command -v loginctl >/dev/null 2>&1 || return 0
-  local linger=''
-  linger=$(loginctl show-user "$(id -un)" --property=Linger --value 2>/dev/null) || true
-  [[ $linger == yes ]] || warn "lingering is off, so the service stops at logout; run: sudo loginctl enable-linger $(id -un)"
+  docker info >/dev/null 2>&1 || die "cannot reach the Docker daemon (is $(id -un) in the docker group?)"
+  docker compose version >/dev/null 2>&1 || die "docker compose v2 plugin not found"
+  docker buildx version >/dev/null 2>&1 || die "docker buildx plugin not found (web/Dockerfile needs BuildKit)"
 }
 
 ensure_repo() {
@@ -157,35 +142,43 @@ resolve_ref() {
   die "ref not found after fetch: $ref"
 }
 
-# Returns a status instead of dying: the EXIT trap also calls it.
-install_deps() {
-  log "pnpm install --frozen-lockfile"
-  (cd "$APP_DIR" && "${PNPM[@]}" install --frozen-lockfile --prefer-offline)
+# Fills BUILD_ARGS from the env file for every `ARG NEXT_PUBLIC_*` in the checked-out Dockerfile
+# and sets PUBLIC_KEY to a fingerprint of those values; they are inlined into the bundle at build.
+public_build_args() {
+  local name value lines='' sum=''
+  BUILD_ARGS=()
+  while read -r name; do
+    value=$(env_value "$name")
+    BUILD_ARGS+=(--build-arg "$name=$value")
+    lines+="$name=$value"$'\n'
+  done < <(sed -nE 's/^ARG[[:space:]]+(NEXT_PUBLIC_[A-Za-z0-9_]+).*/\1/p' "$APP_DIR/Dockerfile" | LC_ALL=C sort -u)
+  sum=$(printf '%s' "$lines" | sha256sum)
+  PUBLIC_KEY=${sum:0:8}
 }
 
-build_side_dir() {
-  local prefix=(nice -n 19)
-  if command -v ionice >/dev/null 2>&1; then prefix=(ionice -c 3 "${prefix[@]}"); fi
-  rm -rf "$APP_DIR/.next-new"
-  log "building into web/.next-new (heap cap ${BUILD_MEMORY_MB} MB, nice 19)"
-  (cd "$APP_DIR" && SAKSI_DIST_DIR=.next-new NODE_OPTIONS="--max-old-space-size=$BUILD_MEMORY_MB" \
-    "${prefix[@]}" "${PNPM[@]}" run build) || die "next build failed (output above)"
-  # next build adds .next-new/types to tsconfig.json; keep the checkout clean for the next fetch.
-  if ! git_root diff --quiet -- web/tsconfig.json; then git_root checkout -- web/tsconfig.json; fi
-  [[ -f $APP_DIR/.next-new/BUILD_ID ]] || die "build finished without web/.next-new/BUILD_ID"
+build_image() {
+  local tag=$1 sha=$2 key=$3
+  log "building $IMAGE:$tag (the live container keeps serving)"
+  docker build "${BUILD_ARGS[@]}" \
+    --label saksi.component=web \
+    --label "org.opencontainers.image.revision=$sha" \
+    --label "saksi.public-env=$key" \
+    -t "$IMAGE:$tag" "$APP_DIR" || die "docker build failed (output above)"
 }
 
-install_unit() {
-  local src=$SAKSI_ROOT/deploy/saksi-web.service enabled=''
-  [[ -f $src ]] || src=$TMP/saksi-web.service
-  mkdir -p "$UNIT_DIR"
-  if ! cmp -s "$src" "$UNIT_DIR/$SERVICE"; then
-    install -m 0644 "$src" "$UNIT_DIR/$SERVICE"
-    sctl daemon-reload
-    log "installed $UNIT_DIR/$SERVICE"
-  fi
-  enabled=$(sctl is-enabled "$SERVICE" 2>/dev/null) || true
-  if [[ $enabled != enabled ]]; then sctl enable --quiet "$SERVICE"; fi
+# Starts TAG and records it in deploy/.env, so manual `docker compose` commands there match.
+compose_up() {
+  local tag=$1
+  compose "$tag" up -d --no-build --remove-orphans web
+  printf '# Written by deploy/deploy.sh: the running tag, for plain docker compose commands here.\nSAKSI_TAG=%s\nSAKSI_ENV_FILE=%s\n' \
+    "$tag" "$ENV_FILE" > "$COMPOSE_DIR/.env"
+}
+
+container_state() {
+  local id=''
+  id=$(compose "$1" ps -q web 2>/dev/null) || true
+  if [[ -z $id ]]; then printf 'missing'; return 0; fi
+  docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}{{.State.Status}}{{end}}' "$id" 2>/dev/null || printf 'missing'
 }
 
 print_report() {
@@ -206,25 +199,35 @@ health_gate() {
   return 0
 }
 
+# status-report.mjs runs inside the image, so the host needs no Node.js.
+status_report() { # tag body-file
+  docker run --rm -i --pull never --network none --read-only --entrypoint node "$IMAGE:$1" \
+    --input-type=module -e "$REPORT_JS" < "$2"
+}
+
 health_check() {
-  local attempt code='' report='' last=''
+  local tag=$1 attempt code='' report='' last='' state=''
   local body=$TMP/status.json headers=$TMP/headers
   ( umask 077; printf 'x-demo-token: %s\n' "$DEMO_TOKEN" > "$headers" )
   for ((attempt = 1; attempt <= HEALTH_RETRIES; attempt++)); do
     rm -f "$body"
+    state=$(container_state "$tag")
     code=$(curl -sS -o "$body" -w '%{http_code}' --max-time 15 -H @"$headers" "$HEALTH_URL" 2>/dev/null) || code=000
-    if [[ $code == 200 ]] && report=$(node "$TMP/status-report.mjs" "$body"); then
-      if health_gate "$report"; then
-        log "health check passed (attempt $attempt): $HEALTH_URL"
+    if [[ $code == 200 ]] && report=$(status_report "$tag" "$body"); then
+      if [[ $state != healthy ]]; then
+        log "health attempt $attempt/$HEALTH_RETRIES: HTTP 200, container $state"
+      elif health_gate "$report"; then
+        log "health check passed (attempt $attempt): $HEALTH_URL, container healthy"
         print_report "$report"
         return 0
+      else
+        last=$report
+        log "health attempt $attempt/$HEALTH_RETRIES: HTTP 200 but strict checks failed"
       fi
-      last=$report
-      log "health attempt $attempt/$HEALTH_RETRIES: HTTP 200 but strict checks failed"
     elif [[ $code == 200 ]]; then
       log "health attempt $attempt/$HEALTH_RETRIES: HTTP 200 but the body is not a status report"
     else
-      log "health attempt $attempt/$HEALTH_RETRIES: HTTP $code"
+      log "health attempt $attempt/$HEALTH_RETRIES: HTTP $code, container $state"
     fi
     sleep "$HEALTH_DELAY"
   done
@@ -232,56 +235,28 @@ health_check() {
   return 1
 }
 
-# The older .next-prev is parked as .next-prev-old until the new build is healthy, so an
-# automatic rollback restores both the live build and the one-step manual rollback.
-swap_in_new_build() {
-  sctl stop "$SERVICE" || true
-  rm -rf "$APP_DIR/.next-prev-old"
-  if [[ -d $APP_DIR/.next-prev ]]; then mv "$APP_DIR/.next-prev" "$APP_DIR/.next-prev-old"; fi
-  if [[ -d $APP_DIR/.next ]]; then mv "$APP_DIR/.next" "$APP_DIR/.next-prev"; fi
-  # From here on a failure must put .next-prev back: that is what the 'swapped' handler does.
-  PHASE=swapped
-  mv "$APP_DIR/.next-new" "$APP_DIR/.next"
-  sctl start "$SERVICE"
-}
-
 restore_source() {
-  log "restoring source to ${PREV_SHA:0:12}; the live build was not touched"
-  git_root checkout --force --detach "$PREV_SHA" && install_deps
-  rm -rf "$APP_DIR/.next-new"
-  if [[ -d $APP_DIR/.next-prev-old && ! -d $APP_DIR/.next-prev ]]; then mv "$APP_DIR/.next-prev-old" "$APP_DIR/.next-prev"; fi
-  # The build ran next to the live server; make sure it is still (or again) running.
-  if [[ -d $APP_DIR/.next ]]; then sctl start "$SERVICE" 2>/dev/null; fi
-}
-
-# Used if a manual rollback dies between stopping the service and finishing the swap.
-repair_live_dir() {
-  if [[ ! -d $APP_DIR/.next && -d $APP_DIR/.next-swap ]]; then mv "$APP_DIR/.next-swap" "$APP_DIR/.next"; fi
-  if [[ ! -d $APP_DIR/.next && -d $APP_DIR/.next-prev ]]; then mv "$APP_DIR/.next-prev" "$APP_DIR/.next"; fi
-  sctl start "$SERVICE"
+  if [[ -z $PREV_SHA ]]; then return 0; fi
+  log "restoring source to ${PREV_SHA:0:12}"
+  git_root checkout --force --detach "$PREV_SHA"
 }
 
 rollback_after_failure() {
-  if [[ ! -d $APP_DIR/.next-prev ]]; then
-    warn "no previous build to roll back to; the new build stays in place (journalctl --user -u $SERVICE)"
+  log "last log lines of the failed container:"
+  compose "$1" logs --no-color --tail 40 web >&2 || true
+  restore_source
+  if [[ -z $ROLLBACK_TAG ]] || ! image_exists "$ROLLBACK_TAG"; then
+    warn "no other image to roll back to; $IMAGE:$1 stays in place (cd $COMPOSE_DIR && docker compose logs web)"
     return 0
   fi
-  log "rolling back to the previous build (${PREV_SHA:0:12})"
-  sctl stop "$SERVICE"
-  rm -rf "$APP_DIR/.next-failed"
-  if [[ -d $APP_DIR/.next ]]; then mv "$APP_DIR/.next" "$APP_DIR/.next-failed"; fi
-  rm -rf "$APP_DIR/.next-new"
-  mv "$APP_DIR/.next-prev" "$APP_DIR/.next"
-  if [[ -d $APP_DIR/.next-prev-old ]]; then mv "$APP_DIR/.next-prev-old" "$APP_DIR/.next-prev"; fi
-  git_root checkout --force --detach "$PREV_SHA"
-  install_deps || warn "pnpm install failed during rollback"
-  sctl start "$SERVICE"
-  if health_check; then
-    log "rollback healthy; failed build kept in web/.next-failed for inspection"
-    history_note "auto-rollback to $PREV_SHA ok"
+  log "rolling back to $IMAGE:$ROLLBACK_TAG"
+  compose_up "$ROLLBACK_TAG"
+  if health_check "$ROLLBACK_TAG"; then
+    log "rollback healthy; failed image kept as $IMAGE:$1 for inspection"
+    history_note "auto-rollback to $ROLLBACK_TAG ok"
   else
-    warn "rollback finished but the health check still fails (journalctl --user -u $SERVICE -n 100)"
-    history_note "auto-rollback to $PREV_SHA unhealthy"
+    warn "rollback finished but the health check still fails (cd $COMPOSE_DIR && docker compose logs --tail 100 web)"
+    history_note "auto-rollback to $ROLLBACK_TAG unhealthy"
   fi
 }
 
@@ -290,9 +265,8 @@ on_exit() {
   set +e
   if [[ $rc -ne 0 ]]; then
     case $PHASE in
-      checked_out) restore_source ;;
-      stopped) repair_live_dir ;;
-      swapped) rollback_after_failure ;;
+      checked_out) restore_source ;;   # the live container was not touched
+      switched) rollback_after_failure "$FAILED_TAG" ;;
     esac
   fi
   if [[ -n $TMP ]]; then rm -rf "$TMP"; fi
@@ -300,90 +274,110 @@ on_exit() {
   exit "$rc"
 }
 
+# Keeps the KEEP_IMAGES most recently deployed images (by the history file, then by creation)
+# plus whatever is current or previous; drops dangling ones. Only tags made by this script count.
+prune_images() {
+  local keep=$1 n=0 tag current previous pattern='^[0-9a-f]{12}-[0-9a-f]{8}(-[0-9]{14})?$'
+  current=$(read_state current); current=${current%% *}
+  previous=$(read_state previous); previous=${previous%% *}
+  while read -r tag; do
+    if [[ ! $tag =~ $pattern ]] || ! image_exists "$tag"; then continue; fi
+    n=$((n + 1))
+    if (( n <= keep )) || [[ $tag == "$current" || $tag == "$previous" ]]; then continue; fi
+    if docker image rm "$IMAGE:$tag" >/dev/null 2>&1; then log "removed old image $IMAGE:$tag"; fi
+  done < <({
+    if [[ -r $STATE_DIR/history ]]; then tac "$STATE_DIR/history" | grep -owE '[0-9a-f]{12}-[0-9a-f]{8}(-[0-9]{14})?' || true; fi
+    docker image ls "$IMAGE" --format '{{.CreatedAt}}'$'\t''{{.Tag}}' | LC_ALL=C sort -r | cut -f 2
+  } | awk '!seen[$0]++')
+  docker image prune -f --filter label=saksi.component=web >/dev/null 2>&1 || true
+}
+
 prepare() {
   check_tools
   check_env
   acquire_lock
   TMP=$(mktemp -d)
-  # Private copies: the checkout below may replace or remove the kit's own files.
-  cp "$KIT_DIR/status-report.mjs" "$KIT_DIR/saksi-web.service" "$TMP/"
-  check_linger
+  # Read now: the checkout below may replace or remove the kit's own files.
+  REPORT_JS=$(cat "$KIT_DIR/status-report.mjs")
   ensure_repo
   log "fetching origin"
   git_root fetch --prune --tags --force origin
 }
 
 deploy() {
-  local ref=$1 force=$2 target current cur_sha='' cur_key='' new_key dirty=''
+  local ref=$1 force=$2 target current cur_tag='' cur_sha='' cur_key='' key tag dirty=''
   prepare
   target=$(resolve_ref "$ref")
   PREV_SHA=$(git_root rev-parse --verify --quiet 'HEAD^{commit}') || PREV_SHA=''
   current=$(read_state current)
-  if [[ -n $current ]]; then read -r cur_sha cur_key <<< "$current"; fi
-  new_key=$(public_env_key)
-  log "target $ref = ${target:0:12}; deployed ${cur_sha:0:12}"
-
-  if [[ $force -eq 0 && $target == "$cur_sha" && $new_key == "$cur_key" && $PREV_SHA == "$target" \
-      && -f $APP_DIR/.next/BUILD_ID ]]; then
-    log "already deployed with the same NEXT_PUBLIC_* values; ensuring the service is up"
-    install_unit
-    sctl start "$SERVICE"
-    health_check || die "service is unhealthy (no changes were made; journalctl --user -u $SERVICE -n 100)"
-    return 0
-  fi
+  if [[ -n $current ]]; then read -r cur_tag cur_sha cur_key <<< "$current"; fi
+  log "target $ref = ${target:0:12}; deployed ${cur_tag:-nothing}"
 
   dirty=$(git_root status --porcelain --untracked-files=no) || true
   if [[ -n $dirty ]]; then warn "discarding local edits to tracked files:"$'\n'"$dirty"; fi
-
-  if [[ -n $PREV_SHA ]]; then PHASE=checked_out; fi
+  PHASE=checked_out
   git_root checkout --force --detach "$target"
-  install_deps || die "pnpm install failed"
-  build_side_dir
-  install_unit
+  [[ -f $APP_DIR/Dockerfile && -f $COMPOSE_DIR/compose.yaml ]] \
+    || die "${target:0:12} has no web/Dockerfile or deploy/compose.yaml (it predates the Docker kit)"
+  public_build_args
+  key=$PUBLIC_KEY
 
-  swap_in_new_build
-  health_check || die "new build ${target:0:12} failed the health check"
+  if [[ $force -eq 0 && $target == "$cur_sha" && $key == "$cur_key" ]] && image_exists "$cur_tag"; then
+    tag=$cur_tag
+    log "already deployed with the same NEXT_PUBLIC_* values; ensuring $IMAGE:$tag is up"
+  else
+    tag=${target:0:12}-$key
+    if [[ $force -eq 1 ]]; then tag+=-$(date -u +%Y%m%d%H%M%S); fi
+    if image_exists "$tag"; then log "reusing existing image $IMAGE:$tag"; else build_image "$tag" "$target" "$key"; fi
+  fi
+  # Rolling back to the tag that is being (re)started would not change anything.
+  if [[ $tag != "$cur_tag" ]]; then ROLLBACK_TAG=$cur_tag; fi
+
+  FAILED_TAG=$tag
+  PHASE=switched
+  compose_up "$tag"
+  health_check "$tag" || die "$IMAGE:$tag failed the health check"
   PHASE=finished
 
-  if [[ -n $PREV_SHA ]]; then write_state previous "$PREV_SHA" "${cur_key:-unknown}"; fi
-  write_state current "$target" "$new_key"
-  rm -rf "$APP_DIR/.next-failed" "$APP_DIR/.next-prev-old"
-  history_note "deploy $ref $target ok"
-  log "${GREEN}deployed ${target:0:12}${RESET} ($ref); previous build kept in web/.next-prev"
+  if [[ $tag != "$cur_tag" ]]; then
+    if [[ -n $cur_tag ]]; then write_state previous "$cur_tag" "$cur_sha" "$cur_key"; fi
+    write_state current "$tag" "$target" "$key"
+  fi
+  history_note "deploy $ref $target $tag ok"
+  prune_images "$KEEP_IMAGES"
+  current=$(read_state previous); current=${current%% *}
+  log "${GREEN}deployed $IMAGE:$tag${RESET} ($ref); previous: ${current:-none}"
 }
 
 rollback() {
-  local previous prev_target='' prev_key='' current cur_sha='' cur_key=''
+  local previous prev_tag='' prev_sha='' prev_key='' current cur_tag='' cur_sha='' cur_key=''
   prepare
   previous=$(read_state previous)
   [[ -n $previous ]] || die "no previous deployment recorded in $STATE_DIR/previous"
-  read -r prev_target prev_key <<< "$previous"
-  [[ -d $APP_DIR/.next-prev ]] || die "web/.next-prev is missing; redeploy the old commit instead: deploy.sh $prev_target"
+  read -r prev_tag prev_sha prev_key <<< "$previous"
+  image_exists "$prev_tag" || die "image $IMAGE:$prev_tag is gone; redeploy the old commit instead: deploy.sh $prev_sha"
   current=$(read_state current)
-  if [[ -n $current ]]; then read -r cur_sha cur_key <<< "$current"; fi
-  if [[ $prev_key != "$(public_env_key)" ]]; then
-    warn "NEXT_PUBLIC_* values changed since ${prev_target:0:12} was built; its bundle keeps the old values"
-  fi
-  PREV_SHA=$(git_root rev-parse 'HEAD^{commit}')
+  if [[ -n $current ]]; then read -r cur_tag cur_sha cur_key <<< "$current"; fi
+  PREV_SHA=$(git_root rev-parse --verify --quiet 'HEAD^{commit}') || PREV_SHA=''
+  ROLLBACK_TAG=$cur_tag
 
-  log "rolling back to ${prev_target:0:12}"
-  PHASE=stopped
-  sctl stop "$SERVICE" || true
-  mv "$APP_DIR/.next" "$APP_DIR/.next-swap"
-  mv "$APP_DIR/.next-prev" "$APP_DIR/.next"
-  mv "$APP_DIR/.next-swap" "$APP_DIR/.next-prev"
-  # .next-prev now holds the build we left, PREV_SHA its source: the 'swapped' handler undoes this.
-  PHASE=swapped
-  git_root checkout --force --detach "$prev_target"
-  install_deps || die "pnpm install failed"
-  sctl start "$SERVICE"
-  health_check || die "rolled-back build ${prev_target:0:12} failed the health check"
+  log "rolling back to $IMAGE:$prev_tag (${prev_sha:0:12})"
+  PHASE=checked_out
+  git_root checkout --force --detach "$prev_sha"
+  public_build_args
+  if [[ $prev_key != "$PUBLIC_KEY" ]]; then
+    warn "NEXT_PUBLIC_* values changed since $prev_tag was built; its bundle keeps the old values"
+  fi
+  FAILED_TAG=$prev_tag
+  PHASE=switched
+  compose_up "$prev_tag"
+  health_check "$prev_tag" || die "$IMAGE:$prev_tag failed the health check"
   PHASE=finished
 
-  write_state current "$prev_target" "$prev_key"
-  if [[ -n $cur_sha ]]; then write_state previous "$cur_sha" "$cur_key"; fi
-  history_note "rollback $prev_target ok"
-  log "${GREEN}rolled back to ${prev_target:0:12}${RESET}; run it again to roll forward"
+  write_state current "$prev_tag" "$prev_sha" "$prev_key"
+  if [[ -n $cur_tag ]]; then write_state previous "$cur_tag" "$cur_sha" "$cur_key"; fi
+  history_note "rollback $prev_tag ok"
+  log "${GREEN}rolled back to $IMAGE:$prev_tag${RESET}; run it again to roll forward"
 }
 
 main() {

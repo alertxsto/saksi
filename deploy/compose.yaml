@@ -1,0 +1,42 @@
+# Saksi web container. Started by deploy/deploy.sh, which builds saksi-web:<tag> from web/Dockerfile
+# and writes deploy/.env (SAKSI_TAG, SAKSI_ENV_FILE) so plain commands work from this directory:
+#   docker compose ps | logs -f web | restart web
+# Host Caddy proxies saksiku.web.id to 127.0.0.1:3400 (deploy/Caddyfile.saksi).
+name: saksi
+
+services:
+  web:
+    image: saksi-web:${SAKSI_TAG:?SAKSI_TAG is not set; run deploy/deploy.sh or set it in deploy/.env}
+    pull_policy: never
+    env_file:
+      - path: ${SAKSI_ENV_FILE:-../web/.env.production}
+        required: true
+    # These win over the env file, so it cannot move the server off the published port.
+    environment:
+      NODE_ENV: production
+      PORT: "3000"
+      HOSTNAME: 0.0.0.0
+      # Keep the V8 heap below mem_limit so Node collects garbage before the OOM killer acts.
+      NODE_OPTIONS: --max-old-space-size=640
+    ports:
+      - "127.0.0.1:3400:3000"
+    restart: unless-stopped
+    init: true
+    stop_grace_period: 20s
+    mem_limit: 1g
+    memswap_limit: 1g
+    pids_limit: 256
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m,mode=1777
+      # Next.js cache directory; the image itself is owned by root and not writable (uid 1000 = node).
+      - /app/.next/cache:size=64m,uid=1000,gid=1000,mode=0700
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    logging:
+      driver: json-file
+      options:
+        max-size: 10m
+        max-file: "3"

@@ -1,39 +1,37 @@
-# Deploy Saksi ke VM Oracle (ARM64, Ubuntu)
+# Deploy Saksi ke VM Oracle (ARM64, Ubuntu) dengan Docker
 
-Kit ini menjalankan Saksi di `https://saksiku.web.id` tanpa mengganggu situs lain yang sudah dilayani Caddy di VM yang sama.
+Kit ini menjalankan Saksi di `https://saksiku.web.id` sebagai container Docker, tanpa mengganggu situs atau stack Docker lain di VM yang sama.
 
 ```
-Browser ──HTTPS──> Caddy :443 (sudah ada, multi-site)
-                     └─ sites/saksi.caddy ──> 127.0.0.1:3400  next start  (systemd --user: saksi-web)
+Browser ──HTTPS──> Caddy :443 (di host, multi-site)
+                     └─ sites/saksi.caddy ──> 127.0.0.1:3400 ──> container saksi-web-1 :3000 (node server.js)
 Cloudflare: DNS only (awan abu-abu), A record ke IP VM. Sertifikat TLS diurus Caddy.
+Database: Neon (eksternal). Tidak ada container database.
 ```
 
 | File | Fungsi |
 |---|---|
-| `saksi-web.service` | Unit systemd `--user`: `next start -H 127.0.0.1 -p 3400`, `MemoryMax=1G`, `Nice=5`, restart otomatis kalau crash. |
+| `../web/Dockerfile` | Image multi-stage: `pnpm install --frozen-lockfile` → `next build` (output `standalone`) → runtime `node:22-alpine`, user non-root `node`, `HEALTHCHECK` bawaan. |
+| `compose.yaml` | Project `saksi`, service `web`, image `saksi-web:${SAKSI_TAG}`, port `127.0.0.1:3400:3000`, `env_file`, `mem_limit: 1g`, rootfs read-only, `no-new-privileges`, `cap_drop: ALL`, rotasi log. |
+| `deploy.sh` | Fetch + checkout ref, `docker build` sementara container lama tetap melayani, `docker compose up -d`, health check, rollback otomatis, `--rollback` manual, prune image lama. |
 | `Caddyfile.saksi` | Site block `saksiku.web.id` + `www` (redirect ke apex). Header keamanan, CSP, zstd/gzip, batas body 1 MB. Tanpa global options/snippet, jadi aman di-`import`. |
-| `deploy.sh` | Fetch + checkout ref, `pnpm install --frozen-lockfile`, build ke `.next-new` sementara situs lama tetap jalan, swap, restart, health check `/api/status`, rollback otomatis. |
 | `caddy-install.sh` | Pasang `sites/saksi.caddy`, tambah `import sites/*.caddy` kalau belum ada (dengan backup), `caddy validate`, baru `systemctl reload caddy`. |
-| `preflight.sh` | Checklist hijau/merah untuk hari demo: DNS, sertifikat, redirect, header, `/api/status` (rpc, db, ai, contracts), service. |
-| `status-report.mjs` | Helper yang dipakai `deploy.sh` dan `preflight.sh` untuk membaca JSON `/api/status`. |
+| `preflight.sh` | Checklist hijau/merah: DNS, sertifikat, redirect, header, `/api/status` (rpc, db, ai, contracts), dan di VM: Docker, env file, port 3400, container, Caddy, disk. Read-only. |
+| `status-report.mjs` | Membaca JSON `/api/status`. `deploy.sh` menjalankannya di dalam image (host tidak perlu Node), `preflight.sh` memakai Node di host. |
 | `env.production.example` | Template `.env.production` (nilai kosong). |
 
-Semua perintah di bawah dijalankan sebagai user `ubuntu` di VM. Node 22 ada di `~/.local/bin/node`.
+Semua perintah di bawah dijalankan sebagai user `ubuntu` di VM. User itu harus bisa memakai Docker tanpa sudo (anggota grup `docker`). Host butuh `git`, `curl`, Docker 29 dengan plugin `compose` dan `buildx`. Node di host hanya dipakai oleh bagian `/api/status` di `preflight.sh`.
 
-## 1. Persiapan sekali saja
+## Alur deploy pertama
+
+### 1. Ambil kode dan jalankan preflight
 
 ```sh
-# a. Service user tetap hidup setelah logout SSH
-sudo loginctl enable-linger ubuntu
-
-# b. pnpm lewat corepack (versi diambil dari packageManager di web/package.json)
-corepack enable            # shim ditulis ke ~/.local/bin, tanpa sudo
-pnpm --version             # harus jalan; unduhan pertama otomatis
-
-# c. Pastikan controller memory didelegasikan ke user manager, supaya MemoryMax=1G berlaku
-cat /sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.controllers
-#    Harus ada kata "memory". Kalau tidak ada, service tetap jalan tetapi tanpa batas memori.
+git clone https://github.com/alertxsto/saksi.git ~/saksi
+SAKSI_VM_IP=<ip-publik-vm> PREFLIGHT_SKIP="tls status" ~/saksi/deploy/preflight.sh
 ```
+
+Sebelum deploy pertama, TLS dan `/api/status` pasti merah, jadi lewati dulu. Yang harus hijau: DNS, `docker`, `docker compose`, `docker buildx`, `port 3400` (free), disk. Baris `env file` merah sampai langkah 2 selesai, dan `saksi container` kuning ("not deployed yet").
 
 **DNS di Cloudflare** (proxy dimatikan, awan abu-abu "DNS only"):
 
@@ -42,43 +40,44 @@ cat /sys/fs/cgroup/user.slice/user-$(id -u).slice/user@$(id -u).service/cgroup.c
 | A | `saksiku.web.id` | IP publik VM |
 | CNAME | `www` | `saksiku.web.id` |
 
-Jangan tambahkan AAAA kecuali VM memang melayani IPv6. Port 80 dan 443 sudah terbuka karena Caddy sudah melayani situs lain. Caddy butuh port itu untuk menerbitkan sertifikat.
+Jangan tambahkan AAAA kecuali VM memang melayani IPv6. Port 80 dan 443 sudah terbuka karena Caddy sudah melayani situs lain.
 
 **Repo privat?** Buat deploy key read-only: `ssh-keygen -t ed25519 -f ~/.ssh/saksi_deploy -N ''`, tambahkan public key di GitHub (Settings → Deploy keys), set `Host github.com` + `IdentityFile ~/.ssh/saksi_deploy` di `~/.ssh/config`, lalu pakai `SAKSI_REPO_URL=git@github.com:alertxsto/saksi.git`.
 
-## 2. Deploy pertama
+### 2. Isi env produksi
 
 ```sh
-# 1) Ambil kode
-git clone https://github.com/alertxsto/saksi.git ~/saksi
-
-# 2) Isi env produksi (lihat bagian Env). Jangan pernah commit file ini.
 cp ~/saksi/deploy/env.production.example ~/saksi/web/.env.production
 chmod 600 ~/saksi/web/.env.production
-nano ~/saksi/web/.env.production
-
-# 3) Build + jalankan service (memasang unit ke ~/.config/systemd/user/ secara otomatis)
-~/saksi/deploy/deploy.sh main
-
-# 4) Pasang site Caddy. Coba dulu tanpa mengubah apa pun:
-~/saksi/deploy/caddy-install.sh --dry-run
-#    Periksa diff yang dicetak, lalu pasang:
-~/saksi/deploy/caddy-install.sh
-
-# 5) Cek semuanya
-SAKSI_VM_IP=<ip-publik-vm> ~/saksi/deploy/preflight.sh
+nano ~/saksi/web/.env.production      # lihat bagian Env. Jangan pernah commit file ini.
 ```
 
-`caddy-install.sh` hanya menambah file `/etc/caddy/sites/saksi.caddy` dan, kalau belum ada, satu baris `import sites/*.caddy` di akhir `/etc/caddy/Caddyfile`. Blok situs lain tidak diubah. Urutannya:
+### 3. Build dan jalankan
 
-1. Render template. Origin dari `NEXT_PUBLIC_RPC_*` dimasukkan ke CSP `connect-src`.
-2. Salin seluruh `/etc/caddy` ke direktori staging, terapkan perubahan di sana, lalu `caddy validate` (dijalankan sebagai user `caddy`).
-3. Cetak diff, simpan backup bertanggal di `/etc/caddy/backups/`, pasang, lalu `caddy validate` lagi pada file asli.
-4. Baru setelah itu `systemctl reload caddy`. Kalau validate atau reload gagal, backup dikembalikan dan Caddy tetap memakai config lama.
+```sh
+~/saksi/deploy/deploy.sh main
+```
 
-Kalau CSP ternyata memblokir sesuatu di UI, pasang ulang dengan `--csp-report-only`. Pelanggaran hanya dilaporkan di console browser, tidak diblokir. Setelah diperbaiki, jalankan lagi tanpa flag itu.
+Build pertama di VM ARM 2 vCPU butuh beberapa menit (install dependency + `next build`). Build berikutnya memakai cache layer Docker dan cache store pnpm, jadi lebih cepat kalau `pnpm-lock.yaml` tidak berubah.
 
-## 3. Redeploy
+### 4. Pasang site Caddy
+
+```sh
+~/saksi/deploy/caddy-install.sh --dry-run    # periksa diff yang dicetak
+~/saksi/deploy/caddy-install.sh
+```
+
+`caddy-install.sh` hanya menambah `/etc/caddy/sites/saksi.caddy` dan, kalau belum ada, satu baris `import sites/*.caddy` di akhir `/etc/caddy/Caddyfile`. Blok situs lain tidak diubah. Config divalidasi di direktori staging dulu, lalu dipasang dengan backup bertanggal di `/etc/caddy/backups/`, divalidasi lagi, baru `systemctl reload caddy`. Kalau validate atau reload gagal, backup dikembalikan dan Caddy tetap memakai config lama.
+
+Kalau CSP ternyata memblokir sesuatu di UI, pasang ulang dengan `--csp-report-only`. Setelah diperbaiki, jalankan lagi tanpa flag itu.
+
+### 5. Cek semuanya
+
+```sh
+SAKSI_VM_IP=<ip-publik-vm> ~/saksi/deploy/preflight.sh     # harus READY
+```
+
+## Redeploy
 
 ```sh
 ~/saksi/deploy/deploy.sh main              # branch
@@ -89,39 +88,58 @@ Kalau CSP ternyata memblokir sesuatu di UI, pasang ulang dengan `--csp-report-on
 
 Yang terjadi:
 
-1. `git fetch` lalu `git checkout --force --detach <ref>` di `~/saksi`. File yang di-ignore (`.env.production`, `node_modules`, `.next*`) tidak tersentuh. Edit lokal pada file yang di-track akan dibuang, dan script memberi peringatan.
-2. `pnpm install --frozen-lockfile`.
-3. `next build` ke `web/.next-new` dengan `nice -n 19` (dan `ionice -c 3` kalau ada) serta `NODE_OPTIONS=--max-old-space-size=1536`. Situs lama tetap melayani dari `web/.next` selama build. Ubah batasnya dengan `BUILD_MEMORY_MB=2048`.
-4. Stop service, `web/.next` jadi `web/.next-prev`, `web/.next-new` jadi `web/.next`, start. Downtime sekitar 1–2 detik, dan Caddy menahan request selama itu (`lb_try_duration 15s`), jadi pengunjung tidak melihat 502.
-5. Health check `GET /api/status` dengan header `x-demo-token` (token dibaca dari `.env.production`), 30 kali dengan jeda 2 detik. Lulus kalau HTTP 200 dan bentuk JSON-nya benar. Dengan `HEALTH_STRICT=1`, rpc, db, dan contracts juga harus hijau.
+1. `git fetch` lalu `git checkout --force --detach <ref>` di `~/saksi`. File yang di-ignore (`.env.production`, `deploy/.env`) tidak tersentuh. Edit lokal pada file yang di-track dibuang, dan script memberi peringatan.
+2. Tag image = `<12 karakter commit>-<sidik jari nilai NEXT_PUBLIC_*>`, misalnya `saksi-web:4f6ce422a4dd-cb6b376f`. Nilai `NEXT_PUBLIC_*` yang dikirim sebagai build arg adalah setiap `ARG NEXT_PUBLIC_*` di `web/Dockerfile`, diambil dari `.env.production`. Kalau tag itu sudah ada, build dilewati.
+3. `docker build` berjalan sementara container lama tetap melayani. Build gagal = source dikembalikan ke commit sebelumnya, container live tidak disentuh.
+4. `docker compose up -d` dengan tag baru. Compose mengganti container (stop lama, start baru). Downtime sekitar 1–2 detik, dan Caddy menahan request selama itu (`lb_try_duration 15s`), jadi pengunjung tidak melihat 502.
+5. Health check sampai 30 kali dengan jeda 2 detik: `GET /api/status` dengan header `x-demo-token` (token dari `.env.production`) harus HTTP 200 dengan JSON yang benar, dan status container harus `healthy`. Dengan `HEALTH_STRICT=1`, rpc, db, dan contracts juga harus hijau.
+6. Tag aktif dan tag sebelumnya dicatat di `~/.local/state/saksi-deploy/{current,previous}`, riwayat di `~/.local/state/saksi-deploy/history`. Image `saksi-web` yang lebih lama dihapus, tiga yang paling baru di-deploy disimpan (ubah dengan `SAKSI_KEEP_IMAGES`). Image yang sedang dipakai dan image sebelumnya tidak pernah dihapus.
 
-Script ini idempoten. Menjalankan ulang ref yang sama dengan nilai `NEXT_PUBLIC_*` yang sama tidak memicu build. Script hanya memastikan service hidup dan sehat. Kalau nilai `NEXT_PUBLIC_*` di `.env.production` berubah, run berikutnya otomatis build ulang, karena nilai itu ditanam ke bundle browser saat build. Kalau hanya env server (misalnya `AI_MODEL`) yang berubah, cukup `systemctl --user restart saksi-web`.
+Script ini idempoten. Menjalankan ulang ref yang sama dengan nilai `NEXT_PUBLIC_*` yang sama tidak memicu build, hanya memastikan container hidup dan sehat. Kalau nilai `NEXT_PUBLIC_*` berubah, run berikutnya otomatis build ulang. `--force` selalu build, dengan tag baru `<tag>-<waktu UTC>`, supaya image lama tetap ada untuk rollback.
 
-Dua deploy tidak bisa jalan bersamaan (ada lock di `~/.local/state/saksi-deploy/`). Riwayat deploy tercatat di `~/.local/state/saksi-deploy/history`.
+Kalau hanya env server (misalnya `AI_MODEL`) yang berubah, cukup buat ulang container:
 
-## 4. Rollback
+```sh
+cd ~/saksi/deploy && docker compose up -d --force-recreate web
+```
+
+Dua deploy tidak bisa jalan bersamaan (lock di `~/.local/state/saksi-deploy/`).
+
+## Rollback
 
 **Otomatis:**
 
-- **Build gagal:** source dikembalikan ke commit sebelumnya dan `node_modules` disesuaikan lagi. Situs live tidak pernah berhenti.
-- **Health check gagal setelah swap:** build baru dipindah ke `web/.next-failed` (untuk diperiksa), `web/.next-prev` dikembalikan, commit sebelumnya di-checkout, service di-restart, lalu health check diulang. Exit code tetap 1.
+- **Build gagal:** source dikembalikan ke commit sebelumnya. Situs live tidak pernah berhenti.
+- **Health check gagal setelah ganti container:** 40 baris log terakhir container baru dicetak, source dikembalikan, tag sebelumnya dinyalakan lagi, lalu health check diulang. Image yang gagal disimpan untuk diperiksa. Exit code tetap 1.
 
-**Manual** (satu langkah ke belakang, tanpa build, sekitar 10 detik):
+**Manual** (satu langkah ke belakang, tanpa build, beberapa detik):
 
 ```sh
-~/saksi/deploy/deploy.sh --rollback     # kembali ke build + commit sebelumnya
+~/saksi/deploy/deploy.sh --rollback     # kembali ke image + commit sebelumnya
 ~/saksi/deploy/deploy.sh --rollback     # jalankan lagi = maju ke versi semula
 ```
 
-Rollback manual memakai `web/.next-prev`. Kalau direktori itu tidak ada, deploy ulang commit lama secara eksplisit: `deploy.sh <sha>`. Script mencetak SHA-nya.
+Kalau image sebelumnya sudah terhapus, deploy ulang commit lama secara eksplisit: `deploy.sh <sha>` (script mencetak SHA-nya).
 
-## 5. Env (`~/saksi/web/.env.production`)
+## Log dan perintah harian
 
-Formatnya `KEY=value` polos, tanpa `export` dan tanpa tanda kutip, karena file ini dibaca oleh systemd (`EnvironmentFile`) dan juga oleh `next build`. Mode file `600`.
+`deploy.sh` menulis `~/saksi/deploy/.env` (tag yang sedang jalan dan path env file), jadi perintah compose biasa langsung jalan dari direktori itu:
+
+```sh
+cd ~/saksi/deploy
+docker compose ps                       # status + (healthy)
+docker compose logs -f --tail 100 web   # log aplikasi (json-file, dirotasi 3 x 10 MB)
+docker compose restart web              # restart tanpa membaca ulang env file
+docker compose up -d --force-recreate web   # restart dan baca ulang env file
+docker stats saksi-web-1                # pemakaian memori (batas 1 GB)
+```
+
+## Env (`~/saksi/web/.env.production`)
+
+Formatnya `KEY=value` polos, tanpa `export`. File ini dibaca oleh `docker compose` (`env_file`) saat container dibuat, dan oleh `deploy.sh` untuk build arg `NEXT_PUBLIC_*`. Compose mengekspansi `$VAR` di dalam nilai, jadi bungkus nilai yang mengandung `$` dengan tanda kutip tunggal (`KEY='va$lue'`); preflight memberi peringatan kalau ada. Mode file `600`.
 
 | Variabel | Wajib | Isi |
 |---|---|---|
-| `NEXT_PUBLIC_SITE_URL` | disarankan | `https://saksiku.web.id`. URL kanonik untuk UI. Kode di branch ini belum membacanya, jadi aman diisi lebih dulu. |
 | `NEXT_PUBLIC_RPC_PRIMARY` | ya | URL RPC Sepolia publik (terlihat di browser, tanpa API key rahasia). Origin-nya masuk CSP. |
 | `NEXT_PUBLIC_RPC_SECONDARY` | opsional | RPC cadangan. |
 | `NEXT_PUBLIC_RPC_TERTIARY` | opsional | RPC cadangan kedua. |
@@ -129,20 +147,22 @@ Formatnya `KEY=value` polos, tanpa `export` dan tanpa tanda kutip, karena file i
 | `NEXT_PUBLIC_JOURNAL_ADDRESS` | ya | Alamat kontrak journal. |
 | `NEXT_PUBLIC_BREACH_ADDRESS` | ya | Alamat kontrak breach. |
 | `NEXT_PUBLIC_DEPLOY_BLOCK` | ya | Nomor blok deployment kontrak (awal pemindaian log). |
-| `DATABASE_URL` | ya | Connection string **Neon**. App memakai driver Neon HTTP, jadi Postgres lokal di VM tidak bisa dipakai. |
+| `NEXT_PUBLIC_SITE_URL` | tidak | Belum dibaca kode dan bukan build arg, jadi belum berpengaruh. |
+| `DATABASE_URL` | ya | Connection string **Neon**. App memakai driver Neon HTTP, jadi Postgres biasa tidak bisa dipakai. |
 | `SUBJECT_KEY` | ya | 64 karakter hex (`openssl rand -hex 32`). Kunci HMAC pseudonim subjek. Jangan diganti setelah ada data. |
 | `DATA_KEY` | ya | 64 karakter hex. Kunci AES-256-GCM data terenkripsi. Jangan diganti setelah ada data. |
 | `SESSION_SECRET` | ya | Minimal 32 byte (`openssl rand -hex 32`). |
 | `DEMO_ADMIN_TOKEN` | ya | Token untuk `/api/status` dan `/api/demo/tamper`. Dibaca juga oleh `deploy.sh` dan `preflight.sh`. |
+| `COOKIE_SECURE` | opsional | `true`/`false`. Kosong = ikuti `x-forwarded-proto` dari Caddy (benar untuk setup ini). |
 | `AI_PROVIDER` | opsional | Label provider yang tampil di UI. Default: hostname `AI_BASE_URL`. |
 | `AI_BASE_URL` | untuk AI | Endpoint yang kompatibel dengan OpenAI. |
 | `AI_API_KEY` | untuk AI | API key provider. |
 | `AI_MODEL` | untuk AI | Model utama. |
 | `AI_FALLBACK_MODEL` | opsional | Model cadangan. |
 
-Unit systemd sudah menyetel `NODE_ENV=production`, `NEXT_TELEMETRY_DISABLED=1`, dan `NODE_OPTIONS=--max-old-space-size=768`, jadi ketiganya tidak perlu ditulis di file ini.
+`compose.yaml` sudah menyetel `NODE_ENV=production`, `PORT=3000`, `HOSTNAME=0.0.0.0`, dan `NODE_OPTIONS=--max-old-space-size=640`, dan nilai itu menang atas env file. Image menyetel `NEXT_TELEMETRY_DISABLED=1`.
 
-## 6. Checklist hari demo
+## Checklist hari demo
 
 **H-1**
 
@@ -151,7 +171,7 @@ Unit systemd sudah menyetel `NODE_ENV=production`, `NEXT_TELEMETRY_DISABLED=1`, 
 - [ ] Buka `https://saksiku.web.id` di jendela incognito. Console browser bersih dari error CSP.
 - [ ] Wallet MetaMask demo sudah di jaringan Sepolia dan punya ETH (UI minta minimal 0.002).
 - [ ] Data sintetis di Neon siap. Catat UUID catatan **Share with third party** untuk demo tamper (`scripts/tamper.sql` / `scripts/restore.sql`).
-- [ ] Hafalkan perintah darurat: `deploy.sh --rollback`, `systemctl --user restart saksi-web`, `journalctl --user -u saksi-web -n 100 -f`.
+- [ ] Hafalkan perintah darurat: `deploy.sh --rollback`, `cd ~/saksi/deploy && docker compose restart web`, `docker compose logs -f --tail 100 web`.
 
 **Hari H**
 
@@ -161,21 +181,23 @@ Unit systemd sudah menyetel `NODE_ENV=production`, `NEXT_TELEMETRY_DISABLED=1`, 
 - [ ] Siapkan tab Sepolia Etherscan untuk alamat tiga kontrak sebagai bukti on-chain.
 - [ ] Setelah demo tamper, jalankan `scripts/restore.sql` dan cek Watch kembali normal.
 
-## 7. Troubleshooting
+## Troubleshooting
 
 | Gejala | Cek |
 |---|---|
 | `deploy.sh` berhenti di "DEMO_ADMIN_TOKEN is empty" | Isi token di `.env.production`. |
-| Health check 403 | Token di `.env.production` beda dengan yang dibaca app. Restart service setelah mengganti env. |
-| Health check 000 / connection refused | `journalctl --user -u saksi-web -n 100`. Port 3400 bentrok? `ss -ltnp \| grep 3400`. |
-| Service mati setelah logout SSH | Lingering belum aktif (`sudo loginctl enable-linger ubuntu`). |
-| `systemctl --user` error "Failed to connect to bus" | Jalankan dari sesi SSH user `ubuntu` langsung, bukan lewat `sudo su`. Script sudah menyetel `XDG_RUNTIME_DIR`. |
+| "cannot reach the Docker daemon" | `sudo usermod -aG docker ubuntu`, lalu login ulang. |
+| Health check 403 | Token di `.env.production` beda dengan yang dibaca container. Setelah mengganti env: `docker compose up -d --force-recreate web`. |
+| Health check 000 / container `starting` terus | `docker compose logs --tail 100 web`. Port 3400 bentrok? `preflight.sh` (baris `port 3400`) atau `sudo ss -ltnp 'sport = :3400'`. |
+| Container `unhealthy` | `docker inspect --format '{{json .State.Health}}' saksi-web-1`. Healthcheck image memanggil `/api/status` tanpa token dan mengharapkan 403. |
+| Build kehabisan memori atau disk | `docker system df`; hapus cache build lama dengan `docker builder prune --filter until=168h` (ingat: cache build dipakai bersama stack lain). |
 | Sertifikat tidak terbit | Cloudflare harus DNS only. Cek `journalctl -u caddy -n 100`. |
-| Build kehabisan memori | Naikkan `BUILD_MEMORY_MB`, atau pastikan swap VM aktif. |
 
 ## Catatan teknis
 
-- `web/next.config.mjs` membaca `SAKSI_DIST_DIR` (default `.next`). Hanya `deploy.sh` yang menyetelnya ke `.next-new` saat build. Vercel dan `pnpm dev` tetap memakai `.next`. Next.js mengirim `distDir` milik server ke setiap request, sehingga build yang dibuat di `.next-new` lalu di-rename ke `.next` tetap jalan. Ini sudah diuji dengan `next start` setelah rename.
-- `next build` menambahkan `.next-new/types` ke `web/tsconfig.json`. `deploy.sh` mengembalikan file itu setelah build supaya checkout tetap bersih.
-- Selama `pnpm install`, `node_modules` berubah di bawah server lama yang masih jalan. Module yang sudah di-load tidak terpengaruh. Risikonya hanya pada route yang belum pernah diakses dan baru di-load di detik-detik itu.
+- `web/next.config.mjs` memakai `output: 'standalone'` dan `outputFileTracingRoot` = `web/`, jadi `server.js` selalu ada di `.next/standalone/server.js`. `next build` tanpa env tetap berhasil; semua secret dibaca saat runtime.
+- `NEXT_PUBLIC_*` di-inline ke bundle browser **dan** server saat build (kode server sengaja membaca `process.env.NEXT_PUBLIC_*` secara literal). Karena itu nilainya menjadi build arg dan bagian dari tag image, bukan env runtime. Kalau kode mulai membaca `NEXT_PUBLIC_*` baru, tambahkan `ARG`-nya di `web/Dockerfile`; `deploy.sh` mengikuti daftar itu otomatis.
+- Branch ini belum punya halaman, jadi `/` menjawab 404. `HEALTHCHECK` di image memanggil `/api/status` tanpa token dan menunggu 403: jawaban itu hanya muncul setelah modul route ter-load, tanpa menyentuh database, RPC, atau AI, dan tanpa secret.
+- Container berjalan sebagai `node` (uid 1000) dengan rootfs read-only. File aplikasi milik root; yang bisa ditulis hanya tmpfs `/tmp` dan `/app/.next/cache`.
+- Image tidak arch-specific di Dockerfile: `node:22-alpine` multi-arch, dan pnpm memasang binary SWC/Turbopack musl yang sesuai platform build. Build di VM menghasilkan image `linux/arm64`.
 - Caddy menimpa `X-Forwarded-For` dengan IP klien asli (tidak ada trusted proxy, karena Cloudflare DNS only), dan rate limit di API memakai header itu.

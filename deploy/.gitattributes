@@ -1,2 +1,2 @@
-# Shell scripts and unit/Caddy files must keep LF endings, even in Windows checkouts.
+# Shell scripts, compose and Caddy files must keep LF endings, even in Windows checkouts.
 * text eol=lf

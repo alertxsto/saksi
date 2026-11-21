@@ -1,10 +1,10 @@
-// deploy/deploy.sh builds into a side directory (SAKSI_DIST_DIR=.next-new) while the
-// live server keeps serving .next, then swaps the directories. Unset means the default.
-const distDir = process.env.SAKSI_DIST_DIR || '.next';
-
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  distDir,
+  // web/Dockerfile runs .next/standalone/server.js (deploy/README.md).
+  output: 'standalone',
+  // Trace dependencies from web/ itself, so a lockfile in a parent directory cannot move the
+  // standalone layout to .next/standalone/<subdir>/server.js.
+  outputFileTracingRoot: import.meta.dirname,
   poweredByHeader: false,
   // The Docker kit copies .next/standalone into the runtime image.
   output: 'standalone',

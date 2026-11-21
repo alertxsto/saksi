@@ -1,22 +1,25 @@
 #!/usr/bin/env bash
-# Demo-day checklist for saksiku.web.id. Read-only: it only resolves names and sends GETs.
+# Demo-day checklist for saksiku.web.id. Read-only: it resolves names, sends GETs and asks
+# Docker what is running; it never starts, stops or changes anything.
 #
 #   SAKSI_VM_IP=<public VM IP> deploy/preflight.sh [--domain saksiku.web.id] [--ip <VM IP>]
 #
 # Checks: DNS (apex + www point at the VM, no stray AAAA), HTTPS (certificate valid, not
 # expiring within 14 days, HTTP->HTTPS and www->apex redirects, security headers),
-# /api/status through the public URL (rpc, db, ai, contracts) and, when run on the VM, the
-# systemd units and free disk space. Exit code 1 if anything is red.
+# /api/status through the public URL (rpc, db, ai, contracts) and, on the VM, the host:
+# Docker + compose + buildx, the env file (mode, required keys), port 3400 (free or published
+# by the saksi container), the container health, Caddy and free disk. Exit code 1 if anything
+# is red. Before the first deploy run only the parts that can pass: PREFLIGHT_SKIP="tls status".
 #
 # The status check needs DEMO_ADMIN_TOKEN, taken from the environment or from
 # SAKSI_ENV_FILE (default ~/saksi/web/.env.production). Never pass it as an argument.
-# Optional: SAKSI_PUBLIC_URL, SAKSI_STATUS_URL, PREFLIGHT_SKIP="dns tls status host".
+# Optional: SAKSI_PUBLIC_URL, SAKSI_STATUS_URL, SAKSI_PORT, PREFLIGHT_SKIP="dns tls status host".
 set -euo pipefail
 
 DOMAIN=${SAKSI_DOMAIN:-saksiku.web.id}
 VM_IP=${SAKSI_VM_IP:-}
 ENV_FILE=${SAKSI_ENV_FILE:-$HOME/saksi/web/.env.production}
-SERVICE=${SAKSI_SERVICE:-saksi-web.service}
+PORT=${SAKSI_PORT:-3400}
 SKIP=" ${PREFLIGHT_SKIP:-} "
 SCRIPT_DIR=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)
 export PATH="$HOME/.local/bin:$PATH"
@@ -25,7 +28,7 @@ while [[ $# -gt 0 ]]; do
   case $1 in
     --domain) DOMAIN=${2:?--domain needs a value}; shift ;;
     --ip) VM_IP=${2:?--ip needs a value}; shift ;;
-    -h|--help) sed -n '2,13p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
+    -h|--help) sed -n '2,17p' "$0" | sed 's/^# \{0,1\}//'; exit 0 ;;
     *) echo "unknown argument: $1" >&2; exit 64 ;;
   esac
   shift
@@ -171,22 +174,64 @@ check_status() {
   done <<< "$report"
 }
 
-check_host() {
-  local state='' avail=''
-  command -v systemctl >/dev/null 2>&1 || return 0
-  section "VM"
-  if systemctl --user cat "$SERVICE" >/dev/null 2>&1; then
-    state=$(systemctl --user is-active "$SERVICE" 2>/dev/null) || true
-    if [[ $state == active ]]; then pass "$SERVICE" "active"; else fail "$SERVICE" "$state (journalctl --user -u $SERVICE -n 100)"; fi
-  else
-    warn "$SERVICE" "not installed for $(id -un) (run deploy/deploy.sh)"
+check_env_file() {
+  local perms='' name missing=() dollar=''
+  if [[ ! -f $ENV_FILE ]]; then
+    fail "env file" "$ENV_FILE missing (cp deploy/env.production.example, chmod 600, fill in)"
+    return
   fi
-  state=$(systemctl is-active caddy 2>/dev/null) || true
-  if [[ $state == active ]]; then pass "caddy" "active"; else fail "caddy" "${state:-unknown}"; fi
-  avail=$(df -Pk "$HOME" 2>/dev/null | awk 'NR == 2 {print $4}') || true
+  perms=$(stat -c %a "$ENV_FILE" 2>/dev/null) || true
+  if [[ -z $perms || ${perms: -2} == 00 ]]; then pass "env file" "$ENV_FILE${perms:+ (mode $perms)}"
+  else warn "env file" "mode $perms, readable by others (chmod 600 $ENV_FILE)"; fi
+  for name in DATABASE_URL SUBJECT_KEY DATA_KEY SESSION_SECRET DEMO_ADMIN_TOKEN NEXT_PUBLIC_RPC_PRIMARY \
+      NEXT_PUBLIC_REGISTRY_ADDRESS NEXT_PUBLIC_JOURNAL_ADDRESS NEXT_PUBLIC_BREACH_ADDRESS NEXT_PUBLIC_DEPLOY_BLOCK; do
+    [[ -n $(env_value "$name") ]] || missing+=("$name")
+  done
+  if [[ ${#missing[@]} -eq 0 ]]; then pass "env required keys" "all set"; else fail "env required keys" "empty: ${missing[*]}"; fi
+  # docker compose expands $VAR inside env_file values unless the value is in single quotes.
+  dollar=$(grep -E "^[[:space:]]*[A-Za-z_][A-Za-z0-9_]*=[^']*[$]" "$ENV_FILE" | cut -d= -f1 | tr '\n' ' ') || true
+  if [[ -n $dollar ]]; then warn "env \$ in values" "${dollar% } (wrap the value in single quotes, or compose expands it)"; fi
+}
+
+check_port() {
+  local owner='' listening=''
+  owner=$(docker ps --filter "publish=$PORT" --format '{{.Label "com.docker.compose.project"}} {{.Names}}' 2>/dev/null | head -n 1) || true
+  if command -v ss >/dev/null 2>&1; then listening=$(ss -Htln "sport = :$PORT" 2>/dev/null) || true; fi
+  if [[ $owner == "saksi "* ]]; then pass "port $PORT" "published by ${owner#saksi }"
+  elif [[ -n $owner ]]; then fail "port $PORT" "taken by container ${owner#* } (compose project '${owner%% *}')"
+  elif [[ -n $listening ]]; then fail "port $PORT" "taken by a non-Docker process (sudo ss -ltnp 'sport = :$PORT')"
+  else pass "port $PORT" "free"; fi
+}
+
+check_host() {
+  local state='' avail='' root='' arch=''
+  section "VM"
+  if ! command -v docker >/dev/null 2>&1; then
+    fail "docker" "not installed"
+  elif ! arch=$(docker info --format '{{.ServerVersion}} {{.Architecture}}' 2>/dev/null); then
+    fail "docker" "daemon not reachable for $(id -un) (docker group?)"
+  else
+    pass "docker" "$arch"
+    if state=$(docker compose version --short 2>/dev/null); then pass "docker compose" "$state"; else fail "docker compose" "v2 plugin missing"; fi
+    if docker buildx version >/dev/null 2>&1; then pass "docker buildx" "available"; else fail "docker buildx" "plugin missing (web/Dockerfile needs BuildKit)"; fi
+    check_port
+    state=$(docker ps -a --filter label=com.docker.compose.project=saksi --filter label=com.docker.compose.service=web \
+      --format '{{.Names}} {{.Image}} {{.Status}}' 2>/dev/null | head -n 1) || true
+    if [[ -z $state ]]; then warn "saksi container" "not deployed yet (deploy/deploy.sh)"
+    elif [[ $state == *"(healthy)"* ]]; then pass "saksi container" "$state"
+    else fail "saksi container" "$state (cd ~/saksi/deploy && docker compose logs --tail 100 web)"; fi
+    root=$(docker info --format '{{.DockerRootDir}}' 2>/dev/null) || true
+  fi
+  check_env_file
+  if command -v systemctl >/dev/null 2>&1; then
+    state=$(systemctl is-active caddy 2>/dev/null) || true
+    if [[ $state == active ]]; then pass "caddy" "active"; else fail "caddy" "${state:-unknown}"; fi
+  fi
+  [[ -d $root ]] || root=$HOME
+  avail=$(df -Pk "$root" 2>/dev/null | awk 'NR == 2 {print $4}') || true
   if [[ -n $avail ]]; then
-    if (( avail > 2 * 1024 * 1024 )); then pass "disk free" "$((avail / 1024)) MB in $HOME"
-    else warn "disk free" "only $((avail / 1024)) MB in $HOME; a build needs about 2 GB"; fi
+    if (( avail > 3 * 1024 * 1024 )); then pass "disk free" "$((avail / 1024)) MB for $root"
+    else warn "disk free" "only $((avail / 1024)) MB for $root; an image build needs about 3 GB"; fi
   fi
 }
 
