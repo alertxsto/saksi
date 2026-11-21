@@ -7,8 +7,7 @@ import { Button } from '@/components/ui/Button'
 import { IconArrow, IconRefresh } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Quiet } from '@/components/regulator/Quiet'
-import { RiseHeading } from '@/components/regulator/Rise'
-import { StatRow } from '@/components/regulator/StatRow'
+import { Kpi, PageHeader } from '@/components/regulator/Workspace'
 import { getBreachList, type BreachDetailView, type BreachListWire } from '@/lib/data'
 import { formatWIB } from '@/lib/format'
 import type { BreachRow } from '@/lib/shared/types'
@@ -58,8 +57,8 @@ function RowBody({ r }: { r: BreachRow }) {
         <span className="text-[16px] font-medium leading-snug tracking-[-0.01em] text-ink">{r.title}</span>
         {breachBadge(r)}
       </span>
-      <span className="label text-[11px] text-ink-2">
-        {r.controllerName.replace(' (fictional)', '')} · {formatWIB(r.detectedAt * 1000)}
+      <span className="text-[13px] text-ink-3">
+        {r.controllerName.replace(' (fictional)', '')} · found {formatWIB(r.detectedAt * 1000)}
       </span>
       <MiniWindow r={r} />
     </>
@@ -89,25 +88,19 @@ export function BreachList({
   const onSelectBreach = (id: string) => setSel(id)
 
   return (
-    <div className="flex flex-col gap-10 md:gap-12">
-      <div className="grid gap-6 print:hidden lg:grid-cols-12 lg:items-end">
-        <RiseHeading as="h1" lead="On time is a fact," tail="not a promise." className="text-[34px] leading-[1.04] md:text-[56px] lg:col-span-7" />
-        <p className="max-w-[46ch] text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[17px] lg:col-span-4 lg:col-start-9">
-          UU PDP Art. 46 gives a company 72 hours. Each notice below is sealed with its own block time, and the contract
-          decides on time or late.
-        </p>
-      </div>
-
+    <div className="flex flex-col gap-6 lg:gap-8">
       <div className="print:hidden">
-        <StatRow
-          label="Breach notices"
-          stats={[
-            { label: 'Notices', value: stats ? stats.total : null, hint: 'Sealed on chain', tone: 'ink' },
-            { label: 'On time', value: stats ? stats.onTime : null, hint: 'Within 72 hours', tone: 'ok' },
-            { label: 'Late', value: stats ? stats.late : null, hint: 'Recorded by the contract', tone: 'pending' },
-          ]}
+        <PageHeader
+          title="Breach notices"
+          desc="UU PDP Pasal 46 gives an agency 3×24 hours to notify. Each notice is sealed with its own ledger time, and the contract decides on time or late."
         />
       </div>
+
+      <section aria-label="Breach notices at a glance" className="grid grid-cols-3 gap-3 print:hidden lg:max-w-[760px] lg:gap-4">
+        <Kpi label="Notices" value={stats ? stats.total : null} hint="Sealed on the public ledger" unknown={q.isError} />
+        <Kpi label="On time" value={stats ? stats.onTime : null} hint="Within 3×24 h" unknown={q.isError} />
+        <Kpi label="Late" value={stats ? stats.late : null} tone={stats?.late ? 'pending' : 'ink'} hint="Recorded by the contract" unknown={q.isError} />
+      </section>
 
       {q.isPending ? (
         <ListSkeleton />
@@ -115,7 +108,7 @@ export function BreachList({
         <Quiet
           glyph="eye"
           title="Couldn’t load notices"
-          body={`${q.error.message} The counts above stay empty until the list loads.`}
+          body={`${q.error.message} Nothing is shown, so nothing is decided.`}
           action={
             <Button variant="light" size="sm" icon={<IconRefresh size={15} />} onClick={onRetry}>
               Try again
@@ -123,12 +116,12 @@ export function BreachList({
           }
         />
       ) : rows.length === 0 ? (
-        <Quiet glyph="clock" title="No breach notices yet" body="Notices appear here as soon as a controller seals one on chain." />
+        <Quiet glyph="clock" title="No breach notices yet" body="Saksi lists a notice here the moment an agency seals one on the public ledger." />
       ) : (
         <div className="grid gap-10 lg:grid-cols-12">
           <div className="self-start lg:sticky lg:top-24 lg:col-span-5 print:hidden">
-            <h2 className="mb-3 text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
-              Notices <span className="text-ink-2">· hours used of 72</span>
+            <h2 className="mb-3 text-[15px] font-semibold text-ink">
+              Notices <span className="font-normal text-ink-3">· hours used of 72</span>
             </h2>
             <ul className="flex flex-col border-t border-line" aria-label="Notices">
               {rows.map((r) => {
@@ -148,7 +141,7 @@ export function BreachList({
                     </button>
                     <Link href={`/regulator/breach/${r.id}`} className="flex flex-col gap-2.5 py-4 lg:hidden">
                       <RowBody r={r} />
-                      <span className="label flex items-center gap-1 text-[11px] text-ink-2">
+                      <span className="flex items-center gap-1 text-[13px] text-ink-2">
                         Open notice <IconArrow size={12} />
                       </span>
                     </Link>
@@ -162,7 +155,7 @@ export function BreachList({
             {current ? (
               <Link
                 href={`/regulator/breach/${current.id}`}
-                className="label no-print mt-4 inline-flex min-h-11 items-center gap-2 text-ink-2 hover:text-blue"
+                className="no-print mt-4 inline-flex min-h-11 items-center gap-2 text-[14px] text-ink-2 hover:text-blue"
               >
                 Open full page <IconArrow size={13} />
               </Link>

@@ -4,16 +4,15 @@ import { useQuery } from '@tanstack/react-query'
 import { useId, type ReactNode } from 'react'
 import { Badge } from '@/components/ui/Badge'
 import { Button, ButtonLink } from '@/components/ui/Button'
-import { FingerprintChip } from '@/components/ui/FingerprintChip'
-import { IconArrowUpRight, IconCheck, IconDownload, IconExternal, IconQuestion, IconRefresh, IconX } from '@/components/ui/icons'
+import { IconArrowUpRight, IconDownload, IconExternal, IconQuestion, IconRefresh } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { Timeline72 } from '@/components/ui/Timeline72'
 import { EXPLORER_CAPTION, EXPLORER_HOST } from '@/components/regulator/explorer'
-import { HoursValue } from '@/components/regulator/Hours'
 import { Quiet } from '@/components/regulator/Quiet'
+import { Fact, plainTime, ProofRow, sealedPhrase, TechnicalProof } from '@/components/regulator/Workspace'
 import { explorerLink, getBreach, type BreachDetailView } from '@/lib/data'
 import { CHAIN_NAME } from '@/lib/env'
-import { formatWIB } from '@/lib/format'
+import { shortHex } from '@/lib/format'
 import type { BreachRow } from '@/lib/shared/types'
 
 
@@ -32,26 +31,23 @@ const PASAL46: { key: keyof BreachDetailView['pasal46']; label: string }[] = [
   { key: 'contact', label: '(d) Contact for citizens' },
 ]
 
-/** One line of the on-chain proof slab: value + copy, and an explorer link when there is one. */
+/** One line of the technical proof: value + copy, and an explorer link when there is one. */
 function ProofLine({ k, children, href, hrefLabel }: { k: string; children: ReactNode; href?: string; hrefLabel?: string }) {
   return (
-    <div className="flex min-h-11 items-center gap-3 border-b border-vault-line py-1 last:border-b-0">
-      <dt className="label w-32 shrink-0 text-[11px] text-vault-ink-2">{k}</dt>
-      <dd className="flex flex-1 items-center justify-end gap-1">
-        {children}
-        {href ? (
-          <a
-            href={href}
-            target="_blank"
-            rel="noreferrer"
-            aria-label={hrefLabel}
-            className="-my-2.5 -mr-2.5 flex h-11 w-11 items-center justify-center rounded-sm text-vault-ink-2 transition-colors hover:bg-vault-2 hover:text-ice"
-          >
-            <IconArrowUpRight size={15} />
-          </a>
-        ) : null}
-      </dd>
-    </div>
+    <ProofRow k={k}>
+      {children}
+      {href ? (
+        <a
+          href={href}
+          target="_blank"
+          rel="noreferrer"
+          aria-label={hrefLabel}
+          className="-my-2 flex h-9 w-9 items-center justify-center rounded-sm text-ink-3 transition-colors hover:bg-ink/[.05] hover:text-blue"
+        >
+          <IconArrowUpRight size={14} />
+        </a>
+      ) : null}
+    </ProofRow>
   )
 }
 
@@ -65,23 +61,26 @@ export function BreachDetail({ b }: { b: BreachDetailView }) {
   return (
     <article className="flex flex-col gap-10" aria-labelledby={`b-${b.id}`}>
       <div>
-        <h2 id={`b-${b.id}`} className="text-balance text-[28px] font-medium leading-[1.08] tracking-[-0.02em] text-ink md:text-[36px]">
+        <h2 id={`b-${b.id}`} className="text-balance text-[24px] font-semibold leading-[1.15] tracking-[-0.02em] text-ink md:text-[28px]">
           {b.title}
         </h2>
         <p className="mt-3 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
-          {b.controllerName} · <span className="tnum font-mono text-[13px] text-ink">{b.id.toUpperCase()}</span>
+          {b.controllerName}
         </p>
       </div>
 
       <div className="flex flex-wrap items-end justify-between gap-x-10 gap-y-6 border-t border-line pt-6">
         <div className="min-w-0">
           <p className="flex flex-wrap items-baseline gap-x-3 gap-y-1 text-ink">
-            <HoursValue hours={b.hoursUsed} className="text-[48px] md:text-[64px]" />
-            <span className="font-mono text-[13px] text-ink-2">of 72 H</span>
+            <span className={`tnum text-[44px] font-semibold leading-none tracking-[-0.03em] md:text-[56px] ${late ? 'text-pending' : 'text-ink'}`}>
+              {b.hoursUsed.toFixed(1)}
+              <span className="ml-1 text-[20px] font-medium tracking-normal text-ink-2">h</span>
+            </span>
+            <span className="text-[14px] text-ink-2">used of 3×24 h</span>
           </p>
           <div className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-2">
             {late ? <Badge kind="LATE" suffix={`BY ${lateH} H`} /> : <Badge kind="ON_TIME" suffix={`${spare.toFixed(1)} H TO SPARE`} />}
-            <span className="label text-[11px] text-ink-2">Computed by the contract</span>
+            <span className="text-[13px] text-ink-3">Decided by the contract, not by Saksi</span>
           </div>
         </div>
       </div>
@@ -99,11 +98,11 @@ export function BreachDetail({ b }: { b: BreachDetailView }) {
 
       <section aria-labelledby={`p46-${b.id}`}>
         <div className="flex items-baseline justify-between gap-3">
-          <h3 id={`p46-${b.id}`} className="text-[19px] font-medium tracking-[-0.015em] text-ink md:text-[22px]">
-            UU PDP Art. 46 notice
+          <h3 id={`p46-${b.id}`} className="text-[15px] font-semibold text-ink">
+            UU PDP Pasal 46 notice
           </h3>
           {b.affectedCount !== null ? (
-            <span className="label tnum text-[11px] text-ink-2">{b.affectedCount.toLocaleString('en-US')} people affected</span>
+            <span className="tnum text-[13px] text-ink-3">{b.affectedCount.toLocaleString('en-US')} people affected</span>
           ) : null}
         </div>
         <dl className="mt-4 grid grid-cols-1 border-b border-line sm:grid-cols-2">
@@ -112,81 +111,53 @@ export function BreachDetail({ b }: { b: BreachDetailView }) {
               key={f.key}
               className={`border-t border-line py-4 ${i % 2 ? 'sm:border-l sm:pl-5' : 'sm:pr-5'}`}
             >
-              <dt className="label text-[11px] text-ink-2">{f.label}</dt>
+              <dt className="text-[13px] text-ink-3">{f.label}</dt>
               <dd className="mt-2 text-[15px] leading-relaxed text-ink">{b.pasal46[f.key]}</dd>
             </div>
           ))}
         </dl>
       </section>
 
-      <section className="vault grain relative rounded-xl bg-vault p-5 text-vault-ink md:p-6" aria-label="On-chain proof">
-        <div className="relative z-[1]">
-          <div className="flex items-center justify-between gap-3">
-            <p className="label text-ice">On-chain proof</p>
-            <span className="label text-[11px] text-vault-ink-2">{CHAIN_NAME}</span>
-          </div>
-          <dl className="mt-3 flex flex-col">
-            <ProofLine
-              k="CONTRACT"
-              href={b.contract ? explorerLink('address', b.contract) : undefined}
-              hrefLabel={`Open contract on ${EXPLORER_HOST} (new tab)`}
-            >
-              {b.contract ? (
-                <FingerprintChip value={b.contract} kind="none" onVault label="contract address" />
-              ) : (
-                <span className="text-right font-mono text-[12px] text-vault-ink-2">Not configured on this deployment</span>
-              )}
-            </ProofLine>
-            <ProofLine
-              k="DISCOVERY TX"
-              href={b.discoveryTxHash ? explorerLink('tx', b.discoveryTxHash) : undefined}
-              hrefLabel={`Open discovery transaction on ${EXPLORER_HOST} (new tab)`}
-            >
-              {b.discoveryTxHash ? (
-                <FingerprintChip value={b.discoveryTxHash} kind="none" onVault label="discovery transaction" />
-              ) : (
-                <span className="text-right font-mono text-[12px] text-vault-ink-2">{formatWIB(b.detectedAt * 1000)} · sealed inside notice tx</span>
-              )}
-            </ProofLine>
-            <ProofLine
-              k="NOTICE TX"
-              href={b.txHash ? explorerLink('tx', b.txHash) : undefined}
-              hrefLabel={`Open notice transaction on ${EXPLORER_HOST} (new tab)`}
-            >
-              <FingerprintChip value={b.txHash} kind="none" onVault label="notice transaction" />
-            </ProofLine>
-            {b.reportHash ? (
-              <ProofLine k="NOTICE HASH">
-                <FingerprintChip value={b.reportHash} kind="none" onVault label="notice hash" />
-              </ProofLine>
-            ) : null}
-            {b.ai ? (
-              <ProofLine k="AI DRAFT">
-                <span className="text-right font-mono text-[12px] text-vault-ink-2">{b.ai.model} · provenance sealed in notice</span>
-              </ProofLine>
-            ) : null}
-          </dl>
-          {b.noticeHashMatches === true ? (
-            <p className="label mt-4 flex items-center gap-1.5 text-[11px] text-ok-v">
-              <IconCheck size={13} strokeWidth={2.6} /> Notice hash matches the sealed report
-            </p>
-          ) : b.noticeHashMatches === false ? (
-            <p className="label mt-4 flex items-center gap-1.5 text-[11px] text-bad-v">
-              <IconX size={13} strokeWidth={2.6} /> Notice hash does not match the sealed report
-            </p>
-          ) : (
-            <p className="label mt-4 flex items-center gap-1.5 text-[11px] text-unknown-v">
-              <IconQuestion size={13} strokeWidth={2.4} /> On time / late and the seal time come from the contract event
-            </p>
-          )}
-        </div>
+      <section aria-label="Sealed record" className="rounded-lg border border-line bg-card px-5 pt-2 lg:px-6">
+        <dl>
+          <Fact k="Notice sealed">{sealedPhrase(b.anchoredAt)}</Fact>
+          <Fact k="Discovery claimed">{plainTime(b.detectedAt * 1000)}</Fact>
+          <Fact k="Legal grounding">UU PDP Pasal 46 · notify within 3×24 hours</Fact>
+          <Fact k="Notice content" tone={b.noticeHashMatches === false ? 'bad' : b.noticeHashMatches === true ? 'ok' : undefined}>
+            {b.noticeHashMatches === true
+              ? 'Matches the sealed notice'
+              : b.noticeHashMatches === false
+                ? 'Changed after sealing'
+                : 'On time or late comes from the contract'}
+          </Fact>
+          {b.ai ? <Fact k="Drafted with">AI draft, provenance sealed in the notice</Fact> : null}
+        </dl>
+        <TechnicalProof>
+          <ProofLine k="Contract" href={b.contract ? explorerLink('address', b.contract) : undefined} hrefLabel={`Open contract on ${EXPLORER_HOST} (new tab)`}>
+            {b.contract ? shortHex(b.contract, 6, 4) : 'Not configured here'}
+          </ProofLine>
+          <ProofLine
+            k="Discovery tx"
+            href={b.discoveryTxHash ? explorerLink('tx', b.discoveryTxHash) : undefined}
+            hrefLabel={`Open discovery transaction on ${EXPLORER_HOST} (new tab)`}
+          >
+            {b.discoveryTxHash ? shortHex(b.discoveryTxHash, 6, 4) : 'Inside the notice tx'}
+          </ProofLine>
+          <ProofLine k="Notice tx" href={b.txHash ? explorerLink('tx', b.txHash) : undefined} hrefLabel={`Open notice transaction on ${EXPLORER_HOST} (new tab)`}>
+            {b.txHash ? shortHex(b.txHash, 6, 4) : 'None'}
+          </ProofLine>
+          {b.reportHash ? <ProofLine k="Notice hash">{shortHex(b.reportHash, 6, 4)}</ProofLine> : null}
+          {b.ai ? <ProofLine k="AI model">{b.ai.model}</ProofLine> : null}
+          <ProofLine k="Network">{CHAIN_NAME}</ProofLine>
+          <ProofLine k="Notice id">{b.id.toUpperCase()}</ProofLine>
+        </TechnicalProof>
       </section>
 
       <div className="no-print flex flex-col gap-3">
         <div className="flex flex-wrap gap-3">
           {b.txHash ? (
             <ButtonLink href={explorerLink('tx', b.txHash)} external variant="dark" arrow icon={<IconExternal size={16} />}>
-              View on block explorer
+              Open the public ledger
             </ButtonLink>
           ) : null}
           <Button variant="light" icon={<IconDownload size={16} />} onClick={onExport}>
