@@ -123,11 +123,11 @@ CITIZEN_CODE=JVHULK \\
 DATA_CATEGORIES=identity,health \\
 node scripts/agency-example.mjs`
 
-export const RUN_OUTPUT = `prepared  4c21a490-f991-4fc9-8af5-da591968d586
-sent      0xa53c…cb53
+export const RUN_OUTPUT = `prepared  51fef091-ee5a-4c0c-90e7-8df9199b4f27  (SIMRS · identity, health · desk-07)
+sent      0xb181…3acd
 submitted
-anchored  block 12182996
-proof     ${SITE_URL}/proof/0xa53c…cb53/240`
+anchored  block 12183248
+proof     ${SITE_URL}/proof/0xb181a685ade923fe8ccbfe93a5ccfdf6b7e5296e6165818a7caa278cbd8a3acd/64`
 
 /** AccessLogged / logAccess fields, in event order. */
 export const ON_CHAIN = [
