@@ -77,6 +77,10 @@ const NEXT: Record<Lang, Record<SignalCode, string>> = {
   },
 };
 
+export const LEGAL = /\b(lawful(ly)?|unlawful(ly)?|legal(ly)?|illegal(ly)?|violat\w*|breach(ed|es)? the law|guilty|criminal|crime|sah|ilegal|melanggar|pelanggaran|bersalah|pidana|melawan hukum)\b/i;
+// "Legal basis" is a field the regulator asks for, not a conclusion; the guard ignores that phrase.
+export const legalConclusion = (text: string) => LEGAL.test(text.replace(/\blegal bas(is|es)\b/gi, ''));
+
 export const signalReason = (lang: Lang, s: Signal) => REASON[lang][s.code](s);
 
 /** The words without the model: the top two signals as the reason, the top signal's step as the next step. */

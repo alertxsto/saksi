@@ -7,7 +7,7 @@ import { evidenceHash } from '../shared/commit';
 import { generate } from './ai';
 import { controllerRegister } from './controller-register';
 import { anomalyPrompt } from './prompts';
-import { scoreAgency, templateAudit, type AgencyFeatures, type Lang, type Scored } from './anomaly-score';
+import { legalConclusion, scoreAgency, templateAudit, type AgencyFeatures, type Lang, type Scored } from './anomaly-score';
 
 export type { Signal, SignalCode } from './anomaly-score';
 
@@ -42,7 +42,6 @@ async function accessPatterns() {
   }]));
 }
 
-const LEGAL = /\b(lawful(ly)?|unlawful(ly)?|legal(ly)?|illegal(ly)?|violat\w*|breach(ed|es)? the law|guilty|criminal|crime|sah|ilegal|melanggar|pelanggaran|bersalah|pidana|melawan hukum)\b/i;
 const numbersIn = (text: string) => text.match(/\d+(?:[.,]\d+)?/g) ?? [];
 
 /** The model writes the words only; refs, numbers and the no-legal-conclusion rule are checked here, on every answer. */
@@ -53,7 +52,7 @@ function auditSchema(refs: string[], allowedNumbers: Set<string>) {
     items: z.array(z.strictObject({ ref: z.string(), reason: text(400), nextStep: text(300) })),
   }).refine(({ items }) => items.length === refs.length && refs.every((ref) => items.some((i) => i.ref === ref)))
     .refine(({ summary, items }) => [summary, ...items.flatMap((i) => [i.reason, i.nextStep])]
-      .every((t) => !LEGAL.test(t) && numbersIn(t).every((n) => allowedNumbers.has(n.replace(',', '.')))));
+      .every((t) => !legalConclusion(t) && numbersIn(t).every((n) => allowedNumbers.has(n.replace(',', '.')))));
 }
 
 export type AuditItem = Scored & { id: string; name: string; status: 'active' | 'revoked'; reason: string; nextStep: string };

@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { scoreAgency, signalReason, templateAudit, type AgencyFeatures } from '../lib/server/anomaly-score';
+import { legalConclusion, scoreAgency, signalReason, templateAudit, type AgencyFeatures } from '../lib/server/anomaly-score';
 
 const quiet: AgencyFeatures = { tampered: 0, lateBreach: 0, openReports: 0, total: 20, outward: 2, burst: 2, offHours: 1, slowSeals: 0, staleDrafts: 0 };
 
@@ -49,6 +49,15 @@ describe('audit priority scoring', () => {
     }
     expect(signalReason('en', { code: 'outward', value: 3, total: 4, points: 15 })).toBe('3 of 4 accesses were exports or third-party shares.');
     expect(templateAudit('en', [], 4).summary).toBe('No pattern needs attention first across the 4 agencies checked.');
+  });
+
+  it('the guard blocks legal conclusions in both languages but not the phrase "legal basis"', () => {
+    expect(legalConclusion('Request the recipients and legal bases for the three exports.')).toBe(false);
+    expect(legalConclusion('Ask for the legal basis of each share.')).toBe(false);
+    expect(legalConclusion('These exports were illegal.')).toBe(true);
+    expect(legalConclusion('The agency acted unlawfully.')).toBe(true);
+    expect(legalConclusion('Instansi ini melanggar UU PDP.')).toBe(true);
+    expect(legalConclusion('Minta dasar hukum ekspor itu.')).toBe(false);
   });
 
   it('the prompt keeps the model to wording: no legal conclusions, input numbers only, no code', () => {
