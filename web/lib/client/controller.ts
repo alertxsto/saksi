@@ -5,7 +5,7 @@ import { useAccount, useConfig, useWriteContract } from 'wagmi';
 import { getAccount } from 'wagmi/actions';
 import { stringToHex, type Hash, type Hex } from 'viem';
 import { sepolia } from 'viem/chains';
-import { accessAbi, breachAbi, breachAddress, journalAddress, publicClient } from '../shared/chain';
+import { accessAbi, breachAbi, breachAddress, getReceiptRobust, journalAddress, publicClient } from '../shared/chain';
 import { confirmation, invalidResponse, post, responseObject, type Resource } from './api';
 import { createTransactionFlow, TransactionFlowError, type TransactionState } from './transactions';
 
@@ -86,8 +86,16 @@ function transactions(resource: Resource) {
     },
     async wait(hash: Hash) {
       // B associates the preparation with the original hash, not with a replacement transaction.
-      const receipt = await configured(publicClient).waitForTransactionReceipt({ hash, timeout: 60_000, checkReplacement: false });
-      return receipt.status;
+      configured(publicClient);
+      // Ask every configured RPC every 2 s: a single polling client can sit on a lagging backend for
+      // a minute after the block is mined, which made the demo wait long after the chain had the tx.
+      const deadline = Date.now() + 90_000;
+      for (;;) {
+        const { receipt } = await getReceiptRobust(hash).catch(() => ({ receipt: null }));
+        if (receipt) return receipt.status;
+        if (Date.now() > deadline) throw new TransactionFlowError('timeout', 'The transaction was not seen on Sepolia within 90 seconds. Use Re-confirm once it is mined.');
+        await new Promise((resolve) => setTimeout(resolve, 2_000));
+      }
     },
     confirm(id: string) {
       return confirmation(resource, id);
