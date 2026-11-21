@@ -11,7 +11,23 @@ import { HttpError } from './http';
 import { consume } from './rate-limit';
 import { clearSession, readSession, setSession } from './session';
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-const nextCheck = new Map<string, number>();
+type CheckState = Map<string, { due: number; delay: number; until: number }>;
+const nextCheck: CheckState = new Map();
+const CHECK_LIMIT = 3, FIRST_DELAY_MS = 3_000, MAX_DELAY_MS = 60_000, CHECK_WINDOW_MS = 15 * 60_000;
+// The receipts poll (every 3 s per open inbox) re-checks submitted rows on chain. Bound the RPC work per request:
+// at most the 3 newest due rows, each backing off 3 s, 6 s, 12 s ... up to 60 s, and none older than 15 minutes
+// (confirm has marked an unknown transaction failed by then).
+export function dueChecks<T extends { id: string; status: string; createdAt: Date }>(rows: readonly T[], state: CheckState = nextCheck, now = Date.now()): T[] {
+  for (const [rowId, entry] of state) if (entry.until <= now) state.delete(rowId);
+  const picked = rows.filter((row) => row.status === 'submitted' && now - row.createdAt.getTime() < CHECK_WINDOW_MS && (state.get(row.id)?.due ?? 0) <= now)
+    .sort((a, b) => b.createdAt.getTime() - a.createdAt.getTime()).slice(0, CHECK_LIMIT);
+  for (const row of picked) {
+    const previous = state.get(row.id)?.delay;
+    const delay = previous === undefined ? FIRST_DELAY_MS : Math.min(previous * 2, MAX_DELAY_MS);
+    state.set(row.id, { due: now + delay, delay, until: row.createdAt.getTime() + CHECK_WINDOW_MS });
+  }
+  return picked;
+}
 export async function createCitizen(ip: string, secureCookie: boolean) {
   if (!await consume(ip, 30)) throw new HttpError(429, 'RATE_LIMITED', 'Please wait before creating another profile.');
   const encrypted = encrypt(randomSalt32());
@@ -36,11 +52,7 @@ export async function citizenReceipts() {
   const orgs = await db().select({ id: controllers.id }).from(controllers);
   const pseudonyms = orgs.map((org) => { const controllerId = hash.parse(org.id); return { controllerId, pseudonym: pseudonym(controllerId, id, salt) }; });
   const rows = await loadCitizenRows(id);
-  const now = Date.now();
-  for (const [rowId, expiry] of nextCheck) if (expiry <= now) nextCheck.delete(rowId);
-  const checks = rows.filter(({ row }) => row.status === 'submitted' && !nextCheck.has(row.id));
-  for (const { row } of checks) nextCheck.set(row.id, now + 3000);
-  const checked = await Promise.allSettled(checks.map(({ row }) => confirmAccess(row.id)));
+  const checked = await Promise.allSettled(dueChecks(rows.map(({ row }) => row)).map((row) => confirmAccess(row.id)));
   const changed = checked.some((result) => result.status === 'fulfilled' && result.value.status !== 'submitted');
   return { receipts: (changed ? await loadCitizenRows(id) : rows).map(({ row, controllerName }) => readOpening(row, controllerName)), pseudonyms,
     profile: { code: subject.code, displayName: subject.displayName } };
