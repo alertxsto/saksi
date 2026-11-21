@@ -37,9 +37,9 @@ export function isUnanchoredClaim(row: { status: string; txHash: string | null; 
 }
 
 // An anchored row that no journal log backs: the database claims a seal the chain never recorded (a made-up or
-// re-pointed row). Rows sealed in the newest block are skipped, since the scan stops one block behind the tip.
+// re-pointed row). Rows from the newest few blocks are skipped: a fallback RPC can lag the tip.
 export function isPhantomSeal(row: { id: string; status: string; blockNumber: number | null }, matched: ReadonlySet<string>, head: number) {
-  return row.status === 'anchored' && !matched.has(row.id) && (row.blockNumber === null || row.blockNumber <= head);
+  return row.status === 'anchored' && !matched.has(row.id) && (row.blockNumber === null || row.blockNumber <= head - 5);
 }
 
 async function scan(controllerId?: Hex) {
@@ -112,7 +112,10 @@ export async function watch(controllerId?: Hex) {
     try { difference = compareOpening(readOpening(record.row, record.name), log.args); }
     catch { difference = { field: 'opening', dbValue: 'Unreadable', chainValue: 'Recorded commitment' }; }
     // Marking a sealed row as failed hides it from the citizen while every field still matches: the chain says it happened.
-    if (!difference && record.row.status === 'failed') difference = { field: 'status', dbValue: 'failed', chainValue: 'anchored' };
+    // Same for any other status on a row found by its exact chain position (hash and log index).
+    const byPosition = byEvent.get(key(log.transactionHash, log.logIndex)) === record;
+    if (!difference && (record.row.status === 'failed' || (byPosition && record.row.status !== 'anchored')))
+      difference = { field: 'status', dbValue: record.row.status, chainValue: 'anchored' };
     matched.add(record.row.id);
     return { ...base, eventId: record.row.id, controllerName: record.name,
       ...(difference ? { status: 'ALTERED' as const, ...difference } : { status: 'MATCH' as const }) };

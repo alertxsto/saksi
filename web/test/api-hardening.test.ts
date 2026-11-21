@@ -135,6 +135,7 @@ describe('Watch NOT_ANCHORED', () => {
     expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 100 }, new Set(), 200)).toBe(true);
     expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 100 }, new Set(['a']), 200)).toBe(false);
     expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 201 }, new Set(), 200)).toBe(false);
+    expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: 197 }, new Set(), 200)).toBe(false);
     expect(isPhantomSeal({ id: 'a', status: 'anchored', blockNumber: null }, new Set(), 200)).toBe(true);
     expect(isPhantomSeal({ id: 'a', status: 'failed', blockNumber: 100 }, new Set(), 200)).toBe(false);
   });

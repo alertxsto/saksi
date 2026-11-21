@@ -121,10 +121,13 @@ export function BreachNotice() {
     const id = ++draftReq.current
     const current = () => id === draftReq.current
     // What the controller had before streaming, put back if this draft fails.
+    // The previous AI run stays tied to the previous text, so sealing it keeps its provenance.
     const before = fields
+    const beforeRun = aiRunId
+    const beforeMeta = draft.meta
     const restore = () => {
       setFields(before)
-      setAiRunId(null)
+      setAiRunId(beforeRun)
     }
     setDraft((d) => ({ ...d, status: 'loading', error: undefined }))
     try {
@@ -135,13 +138,13 @@ export function BreachNotice() {
       if (!current()) return
       if (out.outOfScope) {
         restore()
-        setDraft({ status: 'error', meta: out.meta, error: DRAFT_OUT_OF_SCOPE })
+        setDraft({ status: 'error', meta: beforeMeta, error: DRAFT_OUT_OF_SCOPE })
         return
       }
       // Template fallback with nothing in it: no AI wrote anything, so no "AI draft" boxes.
       if (out.meta?.fallbackLevel === 'template' && !Object.values(out.fields).some((v) => v.trim())) {
         restore()
-        setDraft({ status: 'error', meta: out.meta, error: AI_UNAVAILABLE })
+        setDraft({ status: 'error', meta: beforeMeta, error: AI_UNAVAILABLE })
         return
       }
       setFields(out.fields)
@@ -152,7 +155,7 @@ export function BreachNotice() {
     } catch (e) {
       if (!current()) return
       restore()
-      setDraft((d) => ({ ...d, status: 'error', error: (e as Error).message }))
+      setDraft({ status: 'error', meta: beforeMeta, error: (e as Error).message })
     }
   }
 
@@ -223,7 +226,8 @@ export function BreachNotice() {
       fields={fields}
       edited={edited}
       onFieldChange={(k, v) => {
-        if (locked) return
+        // Typing while the model streams would be overwritten by the next piece; wait for the draft.
+        if (locked || draft.status === 'loading') return
         setFields((cur) => ({ ...(cur ?? EMPTY_FIELDS), [k]: v }))
         setEdited((x) => ({ ...x, [k]: true }))
         invalidate()

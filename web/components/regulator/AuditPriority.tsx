@@ -78,7 +78,7 @@ export function AuditPriority({ load }: { load?: () => Promise<AuditPriorityWire
     refetchIntervalInBackground: false,
   })
   const data = q.data
-  const flagged = data ? data.items.filter((i) => i.level !== 'low') : []
+  const flagged = data ? data.items.filter((i) => i.level !== 'low').slice(0, 6) : []
 
   return (
     <section aria-labelledby="ap-h" className="flex min-w-0 flex-col gap-3">

@@ -52,7 +52,8 @@ export async function generate<T>(feature: 'explain' | 'draft' | 'anomaly', prom
   const models = config ? [...new Set([config.model, process.env.AI_FALLBACK_MODEL || (feature === 'draft' ? config.model : '')].filter(Boolean))] : [];
   const attempts = feature === 'draft' && models.length === 1 ? [models[0], models[0]] : models;
   // One deadline for all attempts together; a closed stream (the agency left the page) stops the model too.
-  const deadline = AbortSignal.timeout(AI_TOTAL_MS);
+  // The regulator panel waits on page load, so it gets a shorter deadline and falls back to the rules wording sooner.
+  const deadline = AbortSignal.timeout(feature === 'anomaly' ? 25_000 : AI_TOTAL_MS);
   const signal = stream?.signal ? AbortSignal.any([deadline, stream.signal]) : deadline;
   for (const [index, model] of attempts.entries()) {
     if (!client || signal.aborted) break;

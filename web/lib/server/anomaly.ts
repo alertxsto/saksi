@@ -52,7 +52,7 @@ function auditSchema(refs: string[], allowedNumbers: Set<string>) {
     items: z.array(z.strictObject({ ref: z.string(), reason: text(400), nextStep: text(300) })),
   }).refine(({ items }) => items.length === refs.length && refs.every((ref) => items.some((i) => i.ref === ref)))
     .refine(({ summary, items }) => [summary, ...items.flatMap((i) => [i.reason, i.nextStep])]
-      .every((t) => !legalConclusion(t) && numbersIn(t).every((n) => allowedNumbers.has(n.replace(',', '.')))));
+      .every((t) => !legalConclusion(t) && numbersIn(t.replace(/\bA\d+\b/g, '')).every((n) => allowedNumbers.has(n.replace(',', '.')))));
 }
 
 export type AuditItem = Scored & { id: string; name: string; status: 'active' | 'revoked'; reason: string; nextStep: string };
