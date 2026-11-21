@@ -13,7 +13,7 @@ const LINKS = [
   ['#roles', 'Roles'],
   ['#verify', 'Verify'],
   ['#faq', 'FAQ'],
-  ['/why', 'Sources'],
+  ['/why', 'Real cases'],
 ] as const
 const LINK =
   'nav-link flex min-h-11 items-center whitespace-nowrap rounded-sm px-3 text-[14px] font-medium tracking-[0.01em] transition-colors duration-150'

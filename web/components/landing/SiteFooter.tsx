@@ -37,7 +37,7 @@ const COLS = [
       ["#roles", "Roles"],
       ["#faq", "FAQ"],
       ["/integrate", "Connect your system"],
-      ["/why", "Why Saksi exists"],
+      ["/why", "Real cases"],
       ["/why#sources", "Sources"],
     ],
   },

@@ -1,0 +1,43 @@
+/* WHY surface (/why "Real cases"). Owner: app/why/**. Ticket halves reuse the citizen stub mask (app/citizen/stub-ticket.css). */
+.wy-shadow { filter: drop-shadow(0 1px 0 rgb(30 26 22 / 0.1)) drop-shadow(0 10px 22px rgb(30 26 22 / 0.06)); }
+.wy-top, .wy-stub { --r: 11px; }
+.wy-top {
+  border-radius: 16px 16px 0 0;
+  -webkit-mask: radial-gradient(circle var(--r) at 0 100%, #0000 97%, #000 100%) left / 51% 100% no-repeat, radial-gradient(circle var(--r) at 100% 100%, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle var(--r) at 0 100%, #0000 97%, #000 100%) left / 51% 100% no-repeat, radial-gradient(circle var(--r) at 100% 100%, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+.wy-stub {
+  border-radius: 0 0 16px 16px;
+  -webkit-mask: radial-gradient(circle var(--r) at 0 0, #0000 97%, #000 100%) left / 51% 100% no-repeat, radial-gradient(circle var(--r) at 100% 0, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask: radial-gradient(circle var(--r) at 0 0, #0000 97%, #000 100%) left / 51% 100% no-repeat, radial-gradient(circle var(--r) at 100% 0, #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+.wy-perf {
+  height: 1.5px;
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 0);
+  background-size: 8px 1.5px; background-repeat: repeat-x;
+}
+.wy-n {
+  display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: 999px;
+  background: var(--color-ink); color: var(--color-paper); font-size: 13px; font-weight: 650; font-variant-numeric: tabular-nums;
+}
+.wy-today-dot { flex: none; width: 18px; height: 18px; margin-top: 3px; border-radius: 999px; border: 1.5px dashed var(--color-ink-3); }
+.wy-saksi-tick {
+  flex: none; display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; margin-top: 3px;
+  border-radius: 999px; background: var(--color-ok); color: #fff;
+}
+.wy-try { transition: border-color 150ms cubic-bezier(.2,.8,.2,1), background-color 150ms cubic-bezier(.2,.8,.2,1); }
+.wy-try:hover { border-color: var(--color-ink); background: rgb(30 26 22 / 0.04); }
+.wy-try-disc {
+  display: inline-flex; align-items: center; justify-content: center; width: 30px; height: 30px; border-radius: 999px;
+  background: var(--role); color: #fff; font-size: 13px; font-weight: 650;
+}
+.wy-case { animation: wy-rise 320ms cubic-bezier(.2,.8,.2,1) both; animation-delay: calc(120ms + var(--i, 0) * 40ms); }
+@keyframes wy-rise { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+
+/* Figures in plain rows (no dot leaders). */
+.wy-fig { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; padding: 12px 0; border-top: 1px solid var(--color-line); }
+
+@media (prefers-reduced-motion: reduce) {
+  .wy-case { animation: none; }
+  .wy-try, .wy-try svg { transition: none; }
+}

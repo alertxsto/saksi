@@ -8,14 +8,14 @@ import { SiteFooter } from '@/components/landing/SiteFooter'
 import { SmoothScroll } from '@/components/landing/SmoothScroll'
 import { FrameRules, Heading } from '@/components/landing/Words'
 import { Cite } from '@/components/ui/Cite'
-import { DotoValue } from '@/components/ui/DotoValue'
 import { IconArrow, IconArrowUpRight } from '@/components/ui/icons'
 import { formatSourceDate, SOURCES, type SourceId } from '@/lib/sources'
+import { RealCases } from './RealCases'
 
 export const metadata: Metadata = {
-  title: 'Why Saksi exists',
+  title: 'Real cases',
   description:
-    'The public evidence behind Saksi: Indonesian data breaches, the UU PDP and OJK duties that already require access records, and how each Saksi feature maps to one.',
+    'Four real situations, what happens today and what changes with Saksi, plus the public evidence and the UU PDP duties behind it.',
 }
 
 type Stat = { value: string; unit?: string; label: string; body: string; cite: SourceId[] }
@@ -75,8 +75,8 @@ const DUTIES: Duty[] = [
     cite: ['uu-pdp-31'],
     feature: 'Access receipt',
     how: 'Each access becomes a record whose fingerprint is sealed on Sepolia. The citizen’s phone recomputes it against the chain.',
-    href: '/citizen',
-    cta: 'Citizen app',
+    href: '/enter?as=citizen',
+    cta: 'Try it as the citizen',
   },
   {
     law: 'UU PDP Art. 20(2)',
@@ -84,8 +84,8 @@ const DUTIES: Duty[] = [
     cite: ['uu-pdp-20'],
     feature: 'Legal basis on every receipt',
     how: 'The controller picks the basis it claims (PDP-20-2-a to f) and it is sealed with the record, so it cannot be swapped later.',
-    href: '/controller',
-    cta: 'Controller console',
+    href: '/enter?as=agency',
+    cta: 'Try it as the agency',
   },
   {
     law: 'UU PDP Art. 46',
@@ -93,8 +93,8 @@ const DUTIES: Duty[] = [
     cite: ['uu-pdp-46'],
     feature: '72-hour contract clock',
     how: 'BreachReport compares the block time with the declared discovery time. After 72 hours an on-time notice is refused and can only be recorded as late.',
-    href: '/regulator',
-    cta: 'Breach notices',
+    href: '/enter?as=regulator',
+    cta: 'Try it as the regulator',
   },
   {
     law: 'UU PDP Art. 46',
@@ -102,17 +102,17 @@ const DUTIES: Duty[] = [
     cite: ['uu-pdp-46'],
     feature: 'AI notice draft',
     how: 'The AI drafts those three parts from the controller’s narrative; the controller edits and seals it. On time or late is decided by the contract, never the AI.',
-    href: '/controller/breach',
-    cta: 'Draft a notice',
+    href: '/enter?as=agency',
+    cta: 'Draft a notice as the agency',
   },
   {
     law: 'Oversight',
     duty: 'Someone outside the company has to check the record.',
     cite: ['pdp-agency-2026', 'komdigi-monitoring-2025'],
-    feature: 'Regulator Watch',
-    how: 'Compares each database row with its chain event and flags MATCH, ALTERED, DELETED or NOT_ANCHORED, without asking the company for access.',
-    href: '/regulator/watch',
-    cta: 'Open Watch',
+    feature: 'Regulator register',
+    how: 'Compares each database row with its chain event and flags records that match, were changed after sealing, were deleted, or were never sealed, without asking the agency for access.',
+    href: '/enter?as=regulator',
+    cta: 'Open the regulator workspace',
   },
   {
     law: 'POJK 40/2024 Art. 161–162',
@@ -156,35 +156,53 @@ export default function WhyPage() {
           <FrameRules />
 
           <section aria-labelledby="why-title" className="relative pb-16 pt-32 md:pb-[104px] md:pt-44">
-            <div className="frame grid gap-10 px-3 md:px-8 lg:grid-cols-12 lg:gap-6">
-              <div className="lg:col-span-8">
-                <p className="label text-[12px] text-ink-2">Why Saksi exists · public sources</p>
+            <div className="frame grid gap-8 px-3 md:px-8 lg:grid-cols-12 lg:gap-6">
+              <div className="lg:col-span-7">
                 <Heading
                   as="h1"
                   id="why-title"
-                  lead="Indonesia keeps leaking personal data."
-                  tail="Nobody outside can check the logs."
-                  className="mt-6 max-w-[18ch] text-[40px] leading-[1.03] sm:text-[52px] lg:text-[64px]"
+                  lead="Real cases."
+                  tail="What happens today, and what changes with Saksi."
+                  className="max-w-[18ch] text-[40px] leading-[1.03] sm:text-[52px] lg:text-[64px]"
                 />
               </div>
-              <div className="flex flex-col justify-end gap-5 lg:col-span-4">
+              <div className="flex flex-col justify-end gap-4 lg:col-span-4 lg:col-start-9">
                 <p className="text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2 md:text-[18px]">
-                  The law already makes companies keep an access record.<Cite ids={['uu-pdp-31']} /> That record sits in
-                  the company’s own database, where a citizen cannot see it and an insider can change it.
+                  <span className="tnum font-semibold text-ink">7,833</span> institutions use Dukcapil population
+                  data.<Cite ids={['dukcapil-7833-2026']} /> In 2025 they looked it up{' '}
+                  <span className="tnum font-semibold text-ink">2.57 billion</span> times.<Cite ids={['dukcapil-hits-2025']} />{' '}
+                  Each lookup opens someone’s NIK, and today that person never hears about it.
                 </p>
-                <p className="label text-[11px] leading-[1.6] text-ink-3">
-                  No field interviews yet. Every figure on this page links to a public source we opened and read.
+                <p className="text-[14px] leading-[1.6] text-ink-3">
+                  UU PDP already asks for the record: Pasal 31 (record all processing), Pasal 32 (the citizen may see it
+                  within 3×24 h), Pasal 46 (breach notice within 3×24 h) and Pasal 12 (the right to sue).
                 </p>
               </div>
             </div>
 
-            <ul className="frame mt-14 grid gap-3 px-3 sm:grid-cols-2 md:mt-20 md:px-8 lg:grid-cols-4" data-stagger="">
+            <div className="frame mt-12 px-3 md:mt-16 md:px-8">
+              <RealCases />
+            </div>
+          </section>
+
+          <Section id="evidence">
+            <div className="lg:col-span-12">
+              <Heading
+                id="evidence-title"
+                lead="Indonesia keeps leaking personal data."
+                tail="Nobody outside can check the logs."
+                className="max-w-[22ch] text-[32px] leading-[1.06] md:text-[48px]"
+              />
+            </div>
+            <ul className="grid gap-3 sm:grid-cols-2 lg:col-span-12 lg:grid-cols-4" data-stagger="">
               {STATS.map((s) => (
-                <li key={s.label} className="relative flex flex-col gap-6 overflow-hidden rounded-lg bg-card p-5">
-                  <span aria-hidden="true" className="absolute left-0 top-0 h-[3px] w-10 bg-ink" />
-                  <p className="label text-ink-2">{s.label}</p>
+                <li key={s.label} className="flex flex-col gap-5 rounded-2xl bg-card p-5">
+                  <p className="text-[14px] font-medium text-ink-2">{s.label}</p>
                   <div>
-                    <DotoValue className="text-[56px] text-ink" value={s.value} unit={s.unit} />
+                    <p className="tnum text-[44px] font-semibold leading-none tracking-[-0.03em] text-ink">
+                      {s.value}
+                      {s.unit ? <span className="ml-0.5 text-[24px] text-ink-2">{s.unit}</span> : null}
+                    </p>
                     <p className="mt-3 text-[14px] leading-[1.5] text-ink-2">
                       {s.body}
                       <Cite ids={s.cite} />
@@ -193,7 +211,7 @@ export default function WhyPage() {
                 </li>
               ))}
             </ul>
-          </section>
+          </Section>
 
           <Section id="gap">
             <div className="lg:col-span-5">
@@ -225,8 +243,8 @@ export default function WhyPage() {
             </div>
 
             <div className="lg:col-span-6 lg:col-start-7">
-              <figure className="rounded-lg bg-card p-5 md:p-6">
-                <blockquote className="font-mono text-[13px] leading-[1.7] text-ink">
+              <figure className="rounded-2xl bg-card p-5 md:p-6">
+                <blockquote className="text-[15px] italic leading-[1.6] text-ink">
                   “data log access dalam enam tahun terakhir menunjukkan tidak adanya indikasi yang mengarah kepada
                   kebocoran data langsung”
                 </blockquote>
@@ -237,17 +255,13 @@ export default function WhyPage() {
                 </figcaption>
               </figure>
 
-              <div className="mt-8 font-mono text-[12px] uppercase leading-[1.75] tracking-[0.02em] text-ink sm:text-[13px]">
-                <div className="mb-2 flex justify-between gap-4 border-b border-dashed border-line-strong pb-2 text-ink-2">
-                  <span>Who checks the controllers</span>
-                  <span>Public figures</span>
-                </div>
-                <dl>
+              <div className="mt-8 rounded-2xl bg-card px-5 pb-2 pt-4">
+                <p className="pb-3 text-[15px] font-semibold text-ink">Who checks the agencies</p>
+                <dl className="text-[14px] text-ink">
                   {OVERSIGHT.map((r) => (
-                    <div key={r.k} className="flex items-baseline">
-                      <dt className="min-w-0">{r.k}</dt>
-                      <span aria-hidden="true" className="leader" />
-                      <dd className="shrink-0 text-right">
+                    <div key={r.k} className="wy-fig">
+                      <dt className="min-w-0 text-ink-2">{r.k}</dt>
+                      <dd className="tnum shrink-0 text-right font-medium">
                         {r.v}
                         <Cite ids={r.cite} />
                       </dd>
@@ -268,14 +282,9 @@ export default function WhyPage() {
               />
             </div>
             <ol aria-labelledby="duties-title" className="border-b border-line lg:col-span-12" data-stagger="">
-              <li aria-hidden="true" className="label hidden grid-cols-12 gap-6 pb-3 text-ink-3 lg:grid">
-                <span className="col-span-3">Obligation</span>
-                <span className="col-span-4">What it asks</span>
-                <span className="col-span-5">Saksi feature</span>
-              </li>
-              {DUTIES.map((d) => (
+                            {DUTIES.map((d) => (
                 <li key={d.feature} className="grid gap-3 border-t border-line py-6 lg:grid-cols-12 lg:gap-6">
-                  <p className="label pt-1 text-[12px] text-ink lg:col-span-3">
+                  <p className="pt-0.5 text-[15px] font-semibold text-ink lg:col-span-3">
                     {d.law}
                     <Cite ids={d.cite} />
                   </p>
@@ -313,11 +322,11 @@ export default function WhyPage() {
                 const note: string | undefined = 'note' in s ? s.note : undefined
                 return (
                   <li key={s.id} id={`source-${i + 1}`} className="grid scroll-mt-28 grid-cols-[40px_1fr] gap-x-4 border-t border-line py-6 target:bg-blue-bg/40 md:grid-cols-[56px_1fr]">
-                    <DotoValue className="text-[28px] text-ink-3" value={String(i + 1).padStart(2, '0')} />
+                    <span className="tnum pt-0.5 text-[20px] font-semibold text-ink-3">{String(i + 1).padStart(2, '0')}</span>
                     <div className="min-w-0">
                       <p className="text-[17px] font-medium leading-[1.4] text-ink">{s.claim}</p>
-                      <p className="label mt-3 text-[11px] text-ink-2">{s.figure}</p>
-                      <blockquote className="mt-3 border-l-2 border-line-strong pl-3 font-mono text-[12px] leading-[1.7] text-ink-2">
+                      <p className="mt-2 text-[13px] font-medium text-ink-2">{s.figure}</p>
+                      <blockquote className="mt-3 border-l-2 border-line-strong pl-3 text-[14px] italic leading-[1.6] text-ink-2">
                         “{s.quote}”
                       </blockquote>
                       {note ? <p className="mt-3 text-[13px] leading-[1.5] text-ink-3">Note: {note}</p> : null}

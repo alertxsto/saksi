@@ -130,8 +130,12 @@ export function AppHeader({ actor: actorProp, identity, role, area, nav = [], ri
             <span aria-hidden="true" className="h-6 w-px shrink-0 bg-line" />
 
             <span className="sr-only">Signed in as </span>
-            <RoleChip actor={actor} identity={identity} className="min-w-0 max-md:hidden" />
-            <RoleChip actor={actor} identity={identity} size="sm" className="md:hidden" />
+            <span className="flex min-w-0 max-md:hidden">
+              <RoleChip actor={actor} identity={identity} />
+            </span>
+            <span className="flex md:hidden">
+              <RoleChip actor={actor} identity={identity} size="sm" />
+            </span>
 
             <Link
               href={switchHref}
