@@ -4,16 +4,14 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import Link from 'next/link'
 import { useParams, useSearchParams } from 'next/navigation'
 import { useEffect, useRef, useState, type ReactNode } from 'react'
-import { RiseHeading } from '@/components/citizen/motion'
-import { WaitingForChain } from '@/components/citizen/ReceiptRows'
+import { Avatar, IconChevron, WaitingForChain } from '@/components/citizen/ReceiptRows'
+import { ReceiptFacts, ReceiptStatusPill } from '@/components/citizen-workspace/ReceiptFacts'
 import { AiPanel } from '@/components/ui/AiPanel'
-import { Badge, receiptBadgeKind } from '@/components/ui/Badge'
 import { Act } from '@/components/citizen/Act'
 import { Cta } from '@/components/landing/Cta'
 import { NotFoundScreen } from '@/components/system/NotFoundScreen'
-import { IconArrow, IconDownload, IconQuestion, IconRefresh, IconShare, IconSpark, IconX } from '@/components/ui/icons'
+import { IconDownload, IconQuestion, IconRefresh, IconShare, IconSpark, IconX } from '@/components/ui/icons'
 import { DotIcon } from '@/components/ui/DotIcon'
-import { LedgerReceipt } from '@/components/ui/LedgerReceipt'
 import { Limits } from '@/components/ui/Limits'
 import { ReceiptDetailSkeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
@@ -22,7 +20,7 @@ import { VerifyStage, type VerifyPhase } from '@/components/ui/VerifyResult'
 import { runCheck, useAutoVerify, useReceiptCheck } from '@/lib/client/receipt-checks'
 import { downloadReceiptFile, explain, findReceipt, shareProof, toCitizenError, type ExplainResponse } from '@/lib/data'
 import { rememberedReceipt } from '@/lib/client/seen-receipts'
-import { timeAgo } from '@/lib/format'
+import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { contentKey, receiptHeadline, verdictNote, type ReceiptCheck } from '@/lib/receipt-state'
 import type { ReceiptOpening, VerifyResult } from '@/lib/shared/types'
@@ -59,8 +57,9 @@ export function ReceiptDetail() {
 
 function BackLink() {
   return (
-    <Link href="/citizen" className="label -ml-2 flex min-h-11 w-fit items-center gap-2 px-2 text-ink-2 hover:text-blue">
-      <IconArrow size={14} className="rotate-180" /> Receipts
+    // Laptop: the pane has its own close button and the list stays beside it.
+    <Link href="/citizen" className="-ml-2 flex min-h-11 w-fit items-center gap-1 px-2 text-[15px] font-medium text-ink-2 hover:text-ink @5xl:hidden">
+      <IconChevron size={18} className="rotate-180" /> Receipts
     </Link>
   )
 }
@@ -227,7 +226,7 @@ function Detail({ opening, reload }: { opening: ReceiptOpening; reload: () => Pr
       <dialog
         ref={sheet}
         aria-labelledby="limits-title"
-        className="anim-sheet m-0 mt-auto max-h-[85dvh] w-full max-w-full rounded-t-xl bg-paper p-0 backdrop:bg-ink/50 sm:mx-auto sm:max-w-[430px]"
+        className="anim-sheet m-0 mt-auto max-h-[85dvh] w-full max-w-full rounded-t-xl bg-paper p-0 backdrop:bg-ink/50 sm:mx-auto sm:max-w-[430px] lg:mb-auto lg:max-w-[480px] lg:rounded-xl"
         onClick={(e) => {
           if (e.target === e.currentTarget) e.currentTarget.close()
         }}
@@ -284,6 +283,21 @@ const NOTE_TONE: Record<string, string> = {
 }
 
 /** C3–C4: ledger receipt + verify + AI. Purely presentational. */
+/** Quiet text action under the main buttons (Save receipt, Share proof…). */
+function TextAction({ icon, children, onClick, disabled }: { icon: ReactNode; children: string; onClick: () => void; disabled?: boolean }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="flex min-h-11 items-center gap-1.5 rounded-md px-3 text-[14px] font-medium text-ink-2 transition-colors duration-150 hover:bg-ink/[.05] hover:text-ink disabled:cursor-not-allowed disabled:opacity-45"
+    >
+      {icon}
+      {children}
+    </button>
+  )
+}
+
 export function ReceiptDetailView({
   opening,
   now,
@@ -321,39 +335,33 @@ export function ReceiptDetailView({
   const altered = head.kind === 'ALTERED'
   const sealing = opening.status === 'pending' || opening.status === 'submitted'
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
       <BackLink />
 
-      <div>
-        <RiseHeading
-          as="h1"
-          lead={head.who}
-          tail={`${head.act}.`}
-          className="text-[34px] leading-[1.04] text-ink"
-          tailClass={head.source === 'chain' ? 'text-bad' : undefined}
-        />
-        {head.claimed ? (
-          <p className="mt-2 font-mono text-[13px] leading-snug text-bad">
-            The chain sealed this. The database now says: <span className="line-through decoration-2">{head.claimed}</span>
+      {/* Hero (riset-ui/35 detail §2–3): who + what + when, then the one status. */}
+      <div className="flex flex-col items-start gap-4">
+        <Avatar name={opening.controllerName} size={56} tone={altered ? 'bad' : 'neutral'} />
+        <div>
+          <h1 className="text-balance text-[24px] font-semibold leading-[1.2] tracking-[-0.02em] text-ink">
+            {head.who} <span className={head.source === 'chain' ? 'text-bad' : undefined}>{head.act}.</span>
+          </h1>
+          <p className="mt-1.5 text-[14px] leading-snug text-ink-2">
+            {formatWIB(opening.createdAt)} · {opening.purposeText}
+            {now ? <span className="text-ink-3"> · {timeAgo(opening.createdAt, now)}</span> : null}
           </p>
-        ) : null}
-        {note ? (
-          <p className={`label mt-2 flex items-center gap-1.5 text-[11px] ${NOTE_TONE[head.kind] ?? 'text-ink-2'}`} aria-live="polite">
-            {note}
+        </div>
+        <ReceiptStatusPill kind={head.kind} />
+        {head.claimed ? (
+          <p className="-mt-1 text-[14px] leading-snug text-bad">
+            The chain sealed this. The database now says: <span className="line-through decoration-[1.5px]">{head.claimed}</span>
           </p>
         ) : null}
       </div>
 
-      <LedgerReceipt
-        opening={opening}
-        check={check}
-        header={
-          <div className="flex items-center justify-between gap-2">
-            <Badge kind={head.kind} />
-            <span className="label text-[11px] text-ink-2">{now ? timeAgo(opening.createdAt, now) : ''}</span>
-          </div>
-        }
-      />
+      <section aria-label="Receipt details" className="flex flex-col gap-2">
+        <h2 className="px-1 text-[15px] font-semibold text-ink">Details</h2>
+        <ReceiptFacts opening={opening} check={check} />
+      </section>
 
       {sealing && verify.phase === 'idle' ? <WaitingForChain /> : null}
 
@@ -382,7 +390,7 @@ export function ReceiptDetailView({
             >
               Explain with AI
             </Act>
-            {!verified ? <p className="label text-center text-[11px] text-ink-2">Verify first — AI explains the verdict</p> : null}
+            {!verified ? <p className="text-center text-[13px] text-ink-3">Check on chain first. AI explains the verdict.</p> : null}
           </>
         ) : null}
 
@@ -392,21 +400,16 @@ export function ReceiptDetailView({
           </div>
         ) : null}
 
-        <button
-          type="button"
-          onClick={onShowLimits}
-          className="flex min-h-11 items-center justify-center gap-2 text-[15px] font-medium text-ink-2 transition-colors duration-150 hover:text-ink"
-        >
-          <IconQuestion size={16} /> What does Saksi prove?
-        </button>
-
-        <div className="grid grid-cols-2 gap-2.5">
-          <Act variant="light" size="md" full icon={<IconDownload size={15} />} onClick={onDownload}>
-            Download
-          </Act>
-          <Act variant="light" size="md" full icon={<IconShare size={15} />} onClick={onShare} disabled={!opening.txHash}>
+        <div className="mt-1 flex flex-wrap items-center justify-center gap-x-1 gap-y-1">
+          <TextAction icon={<IconDownload size={15} />} onClick={onDownload}>
+            Save receipt
+          </TextAction>
+          <TextAction icon={<IconShare size={15} />} onClick={onShare} disabled={!opening.txHash}>
             Share proof
-          </Act>
+          </TextAction>
+          <TextAction icon={<IconQuestion size={15} />} onClick={onShowLimits}>
+            What Saksi proves
+          </TextAction>
         </div>
       </div>
 

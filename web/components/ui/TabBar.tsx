@@ -11,7 +11,7 @@ const TABS = [
   { href: '/citizen/profile', label: 'Profile', Icon: IconUser, match: (p: string) => p.startsWith('/citizen/profile') },
 ]
 
-/** Mobile citizen tab bar: Receipts / Verify / Profile. */
+/** Mobile citizen tab bar: Receipts / Verify / Profile. From 1024 px of citizen-shell width the workspace sidebar replaces it. */
 export function TabBar() {
   // usePathname is request data: keep it inside Suspense so dynamic routes can still prerender.
   return (
@@ -29,7 +29,7 @@ function Bar({ path }: { path: string }) {
   return (
     <nav
       aria-label="Citizen"
-      className="no-print fixed inset-x-0 bottom-0 z-40 border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
+      className="no-print fixed inset-x-0 bottom-0 z-40 @5xl:hidden border-t border-line bg-card/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-md"
     >
       <ul className="mx-auto grid max-w-[430px] grid-cols-3">
         {TABS.map(({ href, label, Icon, match }) => {

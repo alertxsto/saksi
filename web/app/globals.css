@@ -1108,3 +1108,14 @@ html.lenis, html.lenis body { height: auto; }
 .ig-code .ig-n { color: var(--color-pending-v); }
 .ig-code .ig-c { color: var(--color-dot-2); font-style: italic; }
 .ig-code .ig-f { color: var(--color-vault-ink-2); }
+/* ── CITIZEN WORKSPACE ── laptop sidebar + receipts master–detail + profile (components/citizen-workspace/**).
+   Layout lives in container-query utilities on the citizen shell (@container, ≥ 64rem = workspace). */
+.ws-row-selected::after {
+  content: ""; position: absolute; left: 0; top: 10px; bottom: 10px; width: 3px;
+  border-radius: 999px; background: var(--color-ink);
+}
+.ws-pane { scrollbar-width: thin; scrollbar-color: var(--color-line-strong) transparent; }
+.ws-row-selected[data-verdict="altered"]::after { display: none; }
+/* Inset grouped list (riset-ui/35): hairline dividers start after the avatar, like iOS grouped tables. */
+.cz-group > li + li .cz-row-main,
+.cz-group > div + div .cz-row-main { border-top: 1px solid var(--color-line); }

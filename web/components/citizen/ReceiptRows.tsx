@@ -1,161 +1,178 @@
 'use client'
 
 import Link from 'next/link'
+import type { SVGProps } from 'react'
 import { Cta } from '@/components/landing/Cta'
-import { Badge, receiptBadgeKind, toneClasses } from '@/components/ui/Badge'
 import { DotIcon, type DotIconName } from '@/components/ui/DotIcon'
-import { IconAlert, IconArrow, IconArrowUpRight, IconCheck } from '@/components/ui/icons'
+import { IconArrowUpRight, IconCheck, IconSpinner, IconX } from '@/components/ui/icons'
 import type { AutoVerdict, GhostReceipt } from '@/lib/data'
 import { actSentence, formatWIB, proofPath, timeAgo } from '@/lib/format'
 import type { ReceiptOpening } from '@/lib/shared/types'
-import { Scramble } from './motion'
+
+/** Drill-in chevron (rows); same stroke family as components/ui/icons. */
+export function IconChevron({ size = 16, ...p }: { size?: number } & SVGProps<SVGSVGElement>) {
+  return (
+    <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" {...p}>
+      <path d="m9 6 6 6-6 6" />
+    </svg>
+  )
+}
 
 /** Event type → dot glyph (READ / UPDATE / EXPORT / SHARE). */
 export const EVENT_GLYPH: readonly DotIconName[] = ['eye', 'edit', 'export', 'share']
 
 const who = (o: Pick<ReceiptOpening, 'controllerName'>) => o.controllerName.replace(' (fictional)', '')
 
-/** Chain status badge. FAILED is a network/chain failure, not tampering, so it stays neutral (red = tamper only). */
-function StatusBadge({ opening }: { opening: ReceiptOpening }) {
-  if (opening.status === 'failed') {
-    return (
-      <span className={`inline-flex h-7 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-sm border px-2 font-mono text-[12px] font-bold tracking-[0.03em] ${toneClasses('unknown')}`}>
-        <IconAlert size={14} strokeWidth={2.2} />
-        <span>NOT SEALED</span>
-      </span>
-    )
-  }
-  return <Badge kind={receiptBadgeKind(opening.status)} size="sm" />
+/** Two-letter initials for a company avatar: "Contoh Lending Co." → "CL". */
+export function initials(name: string): string {
+  const parts = who({ controllerName: name })
+    .replace(/[^\p{L}\p{N} ]/gu, ' ')
+    .split(' ')
+    .filter((p) => p && !/^(co|ltd|inc|pt|tbk)$/i.test(p))
+  return ((parts[0]?.[0] ?? '?') + (parts[1]?.[0] ?? '')).toUpperCase()
 }
 
-/** Small mono note next to the badge for the background auto-verify. */
-function VerdictNote({ verdict }: { verdict?: AutoVerdict }) {
-  if (!verdict) return null
+/** Round initials avatar (rows 40, detail hero 56). Tamper turns it red; nothing else colours it. */
+export function Avatar({ name, size = 40, tone = 'neutral' }: { name: string; size?: 40 | 56; tone?: 'neutral' | 'bad' | 'ghost' }) {
+  const cls =
+    tone === 'bad'
+      ? 'bg-bad-bg text-bad'
+      : tone === 'ghost'
+        ? 'border border-dashed border-line-strong text-ink-3'
+        : 'bg-paper-2 text-ink'
+  return (
+    <span
+      aria-hidden="true"
+      className={`flex shrink-0 items-center justify-center rounded-full font-semibold tracking-[-0.01em] ${cls} ${
+        size === 56 ? 'h-14 w-14 text-[18px]' : 'h-10 w-10 text-[14px]'
+      }`}
+    >
+      {initials(name)}
+    </span>
+  )
+}
+
+/** Small red tamper pill (Altered / Deleted). The only red in a row. */
+export function TamperPill({ children }: { children: string }) {
+  return (
+    <span className="inline-flex h-6 shrink-0 items-center gap-1 rounded-pill bg-bad-bg px-2.5 text-[13px] font-medium text-bad">
+      <IconX size={12} strokeWidth={2.6} aria-hidden="true" />
+      {children}
+    </span>
+  )
+}
+
+/**
+ * The one status on the right of a row. Verified: a small green check. Sealing: amber text. Tamper: red
+ * pill. Not sealed / not on this node: quiet grey text (red is tamper only). Recorded, not checked: nothing.
+ */
+function RowStatus({ opening, verdict }: { opening: ReceiptOpening; verdict?: AutoVerdict }) {
+  if (verdict === 'altered') return <TamperPill>Altered</TamperPill>
+  if (opening.status === 'failed') return <span className="text-[13px] text-ink-3">Not sealed</span>
+  if (opening.status === 'pending' || opening.status === 'submitted') return <span className="text-[13px] font-medium text-pending">Sealing…</span>
   if (verdict === 'verifying')
     return (
-      <span className="label flex items-center gap-1.5 text-[11px] text-ink-2">
-        <span aria-hidden="true" className="cz-blink h-1.5 w-1.5 rounded-full bg-ink-2" />
-        Checking
+      <span className="flex items-center gap-1.5 text-[13px] text-ink-3">
+        <IconSpinner size={13} /> Checking
       </span>
     )
   if (verdict === 'match')
     return (
-      <span className="label flex items-center gap-1 text-[11px] text-ok">
-        <IconCheck size={13} strokeWidth={2.4} /> Checked
+      <span className="flex h-6 w-6 items-center justify-center rounded-full bg-ok-bg text-ok" title="Matches the chain">
+        <IconCheck size={13} strokeWidth={2.6} aria-hidden="true" />
+        <span className="sr-only">Matches the chain</span>
       </span>
     )
-  if (verdict === 'not_found') return <span className="label text-[11px] text-ink-2">Not on this node yet</span>
+  if (verdict === 'not_found') return <span className="text-[13px] text-ink-3">Not on this node</span>
   return null
 }
 
 /**
- * One receipt in the hairline list. No card: a row on the paper with a dot glyph, who + verb, purpose ·
- * time, then the chain badge. `isNew` slides it in with a blue rail and a scrambled "NEW" label.
- * `verdict` comes from the auto-verify; 'altered' turns the row red once (flash + 4 px shake), swaps
- * the badge to ALTERED and deep-links into the comparison (?check=1 re-runs the check on open).
+ * One receipt in an inset group (riset-ui/35): initials avatar, two lines of text, one status on the right,
+ * chevron. `isNew` adds a blue dot before the time and a soft blue wash while it slides in. `verdict`
+ * 'altered' flashes the row red once, turns the avatar and the second line red and deep-links into the
+ * comparison (?check=1 re-runs the check on open). `selected` marks the receipt open in the laptop pane.
  */
 export function ReceiptRow({
   opening,
   now,
   isNew,
   verdict,
+  selected = false,
 }: {
   opening: ReceiptOpening
   now: number
   isNew?: boolean
   verdict?: AutoVerdict
+  /** Open in the laptop detail pane. */
+  selected?: boolean
 }) {
   const altered = verdict === 'altered'
   const href = `/citizen/receipt/${opening.eventId}${altered ? '?check=1' : ''}`
+  const when = now ? timeAgo(opening.createdAt, now) : '—'
   return (
     <Link
       href={href}
       data-verdict={verdict ?? 'none'}
-      className={`group relative -mx-2 flex gap-3.5 rounded-lg px-2 py-4 transition-colors duration-150 ${
-        altered ? 'cz-tamper' : isNew ? 'cz-row-in bg-blue-bg/45' : 'hover:bg-card'
-      }`}
+      aria-current={selected ? 'page' : undefined}
+      className={`cz-row group relative flex min-h-16 items-center gap-3 pl-4 transition-colors duration-150 ${
+        altered ? 'cz-tamper bg-bad-bg/50' : isNew ? 'cz-row-in bg-blue-bg/40' : selected ? 'bg-paper-2/70' : 'hover:bg-paper-2/50'
+      } ${selected ? 'ws-row-selected' : ''}`}
     >
-      {altered || isNew ? (
-        <span aria-hidden="true" className={`absolute inset-y-3 left-0 w-[3px] rounded-pill ${altered ? 'bg-bad' : 'bg-blue'}`} />
-      ) : null}
-      <span
-        aria-hidden="true"
-        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-md transition-colors duration-300 ${
-          altered ? 'bg-bad-bg text-bad' : opening.eventType === 3 ? 'bg-vault text-ice' : 'bg-paper-2 text-ink'
-        }`}
-      >
-        <DotIcon name={altered ? 'cross' : (EVENT_GLYPH[opening.eventType] ?? 'eye')} size={22} />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-[15px] leading-snug text-ink">
-          {who(opening)} <strong className="font-semibold">{actSentence(opening.eventType)}</strong>
-        </span>
-        {altered ? (
-          <span className="mt-1 block font-mono text-[12px] font-medium text-bad">
-            Changed after it was sealed · {now ? timeAgo(opening.createdAt, now) : '—'}
+      <Avatar name={opening.controllerName} tone={altered ? 'bad' : 'neutral'} />
+      <span className="cz-row-main flex min-w-0 flex-1 items-center gap-3 self-stretch py-3 pr-3">
+        <span className="min-w-0 flex-1">
+          <span className="block text-[16px] font-medium leading-snug text-ink">
+            {who(opening)} {actSentence(opening.eventType)}
           </span>
-        ) : (
-          <span className="mt-1 block truncate font-mono text-[12px] text-ink-2">
-            {opening.purposeText} · {now ? timeAgo(opening.createdAt, now) : '—'}
-          </span>
-        )}
-        <span className="mt-2.5 flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          {altered ? <Badge kind="ALTERED" size="sm" /> : <StatusBadge opening={opening} />}
-          <VerdictNote verdict={verdict} />
-          {isNew && !altered ? (
-            <span className="label flex items-center gap-1.5 text-[11px] text-blue">
-              <span className="h-1.5 w-1.5 rounded-full bg-blue" aria-hidden="true" />
-              <Scramble value="NEW · JUST ARRIVED" onMount />
+          <span className={`mt-0.5 flex min-w-0 items-center gap-1.5 text-[14px] leading-snug ${altered ? 'text-bad' : 'text-ink-2'}`}>
+            {isNew && !altered ? <span aria-hidden="true" className="h-1.5 w-1.5 shrink-0 rounded-full bg-blue" /> : null}
+            <span className="truncate">
+              {altered ? 'Changed after it was sealed' : opening.purposeText} · {when}
             </span>
-          ) : null}
+            {isNew && !altered ? <span className="sr-only">, just arrived</span> : null}
+          </span>
         </span>
+        <RowStatus opening={opening} verdict={verdict} />
+        <IconChevron size={16} aria-hidden="true" className={`shrink-0 ${altered ? 'text-bad' : 'text-ink-3 group-hover:text-ink-2'}`} />
       </span>
-      <IconArrow
-        size={15}
-        aria-hidden="true"
-        className={`mt-1 shrink-0 transition-transform duration-200 group-hover:translate-x-0.5 ${altered ? 'text-bad' : 'text-ink-3 group-hover:text-blue'}`}
-      />
     </Link>
   )
 }
 
 /**
- * DELETED ghost: a receipt the phone remembers but the company's database no longer returns. Grey,
- * dashed (it is an absence), with the red DELETED badge and a red strike through what they did.
+ * DELETED ghost: a receipt the phone remembers but the company's database no longer returns. Same row
+ * anatomy on a dashed, sunken surface (it is an absence), red "Deleted" pill, what they did struck through,
+ * and the link to the on-chain proof that still exists.
  */
 export function GhostRow({ ghost, now }: { ghost: GhostReceipt; now: number }) {
   const o = ghost.opening
   return (
     <article
       aria-label={`Deleted record: ${who(o)} ${actSentence(o.eventType)}`}
-      className="cz-tamper-soft relative rounded-lg border border-dashed border-line-strong bg-paper-2/70 p-4"
+      className="cz-tamper-soft overflow-hidden rounded-lg border border-dashed border-line-strong bg-paper-2/60"
     >
-      <div className="flex gap-3.5">
-        <span aria-hidden="true" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-md border border-dashed border-line-strong text-ink-3">
-          <DotIcon name={EVENT_GLYPH[o.eventType] ?? 'eye'} size={22} />
-        </span>
+      <div className="flex min-h-16 items-center gap-3 px-4 py-3">
+        <Avatar name={o.controllerName} tone="ghost" />
         <div className="min-w-0 flex-1">
-          <p className="text-[15px] leading-snug text-ink-3 line-through decoration-bad decoration-[1.5px]">
+          <p className="text-[16px] font-medium leading-snug text-ink-3 line-through decoration-bad decoration-[1.5px]">
             {who(o)} {actSentence(o.eventType)}
           </p>
-          <p className="mt-1 font-mono text-[12px] leading-snug text-ink-3">
+          <p className="mt-0.5 truncate text-[14px] leading-snug text-ink-3">
             {o.purposeText} · sealed {now ? timeAgo(o.createdAt, now) : formatWIB(o.createdAt)}
           </p>
-          <Badge kind="DELETED" size="sm" className="mt-2.5" />
         </div>
+        <TamperPill>Deleted</TamperPill>
       </div>
-      <p className="mt-3 border-t border-line pt-3 text-[14px] leading-relaxed text-ink">
-        <span className="text-bad">This record disappeared from the company&apos;s database.</span>{' '}
-        <strong className="font-semibold">The chain still has it.</strong>
-      </p>
-      <p className="mt-2 font-mono text-[12px] leading-snug text-ink-2">
-        Seen in the database {now ? timeAgo(new Date(ghost.lastSeenAt).toISOString(), now) : 'earlier'} · missing now · still sealed on chain
-      </p>
-      <div className="mt-1 flex flex-wrap items-center justify-between gap-2">
-        <Link
-          href={proofPath(o)}
-          className="label -ml-1 flex min-h-11 items-center gap-1.5 px-1 text-[12px] text-ink hover:text-blue"
-        >
+      <div className="border-t border-line px-4 pb-1 pt-3">
+        <p className="text-[15px] leading-relaxed text-ink">
+          <span className="text-bad">This record disappeared from the company&apos;s database.</span>{' '}
+          <strong className="font-semibold">The chain still has it.</strong>
+        </p>
+        <p className="mt-1 text-[13px] leading-snug text-ink-3">
+          Seen {now ? timeAgo(new Date(ghost.lastSeenAt).toISOString(), now) : 'earlier'} · missing now · still sealed on chain
+        </p>
+        <Link href={proofPath(o)} className="-ml-1 flex min-h-11 w-fit items-center gap-1.5 px-1 text-[14px] font-medium text-ink hover:text-blue">
           View on-chain proof <IconArrowUpRight size={14} />
         </Link>
       </div>

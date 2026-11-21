@@ -1,15 +1,14 @@
 'use client'
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { queryOptions, useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
-import { RiseHeading, Scramble } from '@/components/citizen/motion'
-import { GhostRow, ReceiptRow, TamperBanner } from '@/components/citizen/ReceiptRows'
-import { Badge } from '@/components/ui/Badge'
+import { ReceiptsSplit } from '@/components/citizen-workspace/Split'
+import { RiseHeading } from '@/components/citizen/motion'
+import { GhostRow, IconChevron, ReceiptRow, TamperBanner } from '@/components/citizen/ReceiptRows'
 import { LiveDot } from '@/components/ui/Chip'
 import { DotIcon, type DotIconName } from '@/components/ui/DotIcon'
-import { DotoValue } from '@/components/ui/DotoValue'
-import { IconAlert, IconClock, IconCopy, IconEye, IconLock, IconRefresh, IconShield, IconWifiOff } from '@/components/ui/icons'
+import { IconAlert, IconClock, IconCopy, IconEye, IconLock, IconRefresh, IconShield, IconSpinner, IconWifiOff } from '@/components/ui/icons'
 import { Skeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
@@ -50,9 +49,28 @@ function track(receipts: ReceiptOpening[]) {
 
 const NEW_MS = 10_000
 
-/** The session is an httpOnly cookie, so the receipts request decides: 401 SESSION_REQUIRED shows onboarding. */
-export function CitizenHome() {
-  return <ReceiptList />
+/**
+ * The one receipts query (GET /api/citizen/receipts, polled every 3 s). Shared by the list, the profile and
+ * the laptop sidebar so they read one cache entry and every fetch still records first-seen times.
+ */
+export const receiptsQuery = queryOptions({
+  queryKey: ['receipts'],
+  queryFn: async () => {
+    const data = await getReceipts()
+    track(data.receipts)
+    return data
+  },
+  refetchInterval: (query) => (query.state.status === 'error' ? false : 3000),
+  refetchIntervalInBackground: false,
+  retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 1,
+})
+
+/**
+ * The session is an httpOnly cookie, so the receipts request decides: 401 SESSION_REQUIRED shows onboarding.
+ * `pane` (laptop detail side) and `focus` come from CitizenWorkspace; without a pane it is just the list.
+ */
+export function CitizenHome({ pane, focus = 'list', selectedId }: { pane?: ReactNode; focus?: 'list' | 'pane'; selectedId?: string }) {
+  return <ReceiptList pane={pane} focus={focus} selectedId={selectedId} />
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -106,9 +124,10 @@ export function OnboardingView({
   const limited = status === 'error' && error?.code === 'RATE_LIMITED'
   return (
     // No tab bar here: cancel the shell's tab-bar padding so the sticky button bar sits flush at the bottom.
-    <div className="-mb-[calc(5rem+env(safe-area-inset-bottom))] flex flex-1 flex-col">
-      <div className="vault grain relative overflow-hidden rounded-xl border border-vault-line bg-vault">
-        <div className="relative z-[1] mx-auto w-[62%] max-w-[240px] py-1" aria-hidden="true">
+    // Laptop: two columns (story + action left, the vault right), vertically centred in the workspace.
+    <div className="-mb-[calc(5rem+env(safe-area-inset-bottom))] flex flex-1 flex-col @5xl:mx-auto @5xl:mb-0 @5xl:grid @5xl:w-full @5xl:max-w-[1120px] @5xl:grid-cols-[minmax(0,1fr)_minmax(0,1fr)] @5xl:grid-rows-[1fr_auto_auto_auto_auto_1fr] @5xl:gap-x-16 @5xl:px-10 @5xl:py-12">
+      <div className="vault grain relative overflow-hidden rounded-xl border border-vault-line bg-vault @5xl:col-start-2 @5xl:row-[1/-1] @5xl:flex @5xl:aspect-[5/6] @5xl:self-center @5xl:items-center @5xl:justify-center">
+        <div className="relative z-[1] mx-auto w-[62%] max-w-[240px] py-1 @5xl:max-w-[380px]" aria-hidden="true">
           <VaultSeal grid={false} />
         </div>
         <p className="label absolute bottom-3 left-3.5 z-[1] flex items-center gap-1.5 text-[11px] text-vault-ink-2">
@@ -116,13 +135,13 @@ export function OnboardingView({
         </p>
       </div>
 
-      <RiseHeading as="h1" lead="See who opened" tail="your data." className="mt-7 text-[34px] leading-[1.04]" />
-      <p className="mt-3 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
+      <RiseHeading as="h1" lead="See who opened" tail="your data." className="mt-7 text-[34px] leading-[1.04] @5xl:col-start-1 @5xl:row-start-2 @5xl:mt-0 @5xl:text-[56px]" />
+      <p className="mt-3 text-[16px] @5xl:col-start-1 @5xl:row-start-3 @5xl:mt-5 @5xl:max-w-[46ch] @5xl:text-[17px] leading-[1.6] tracking-[0.01em] text-ink-2">
         A demo profile with no name, no ID number and no wallet. Every time a company opens your data you get a
         receipt you can check yourself.
       </p>
 
-      <ul data-stagger="" className="mt-6 flex flex-col border-t border-line">
+      <ul data-stagger="" className="mt-6 flex flex-col border-t border-line @5xl:col-start-1 @5xl:row-start-4 @5xl:mt-8">
         {HOW.map(([g, k, v]) => (
           <li key={k} className="flex items-center gap-3.5 border-b border-line py-3">
             <span aria-hidden="true" className="flex h-10 w-10 shrink-0 items-center justify-center rounded-md bg-vault text-ice">
@@ -136,9 +155,9 @@ export function OnboardingView({
         ))}
       </ul>
 
-      <div aria-hidden="true" className="min-h-6 flex-1" />
+      <div aria-hidden="true" className="min-h-6 flex-1 @5xl:hidden" />
       {/* Sticky so a judge who just scanned the QR sees the one button without scrolling, even on short phones. */}
-      <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-paper/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md">
+      <div className="sticky bottom-0 z-10 -mx-4 border-t border-line bg-paper/95 px-4 pb-[calc(0.75rem+env(safe-area-inset-bottom))] pt-3 backdrop-blur-md @5xl:static @5xl:col-start-1 @5xl:row-start-5 @5xl:mx-0 @5xl:max-w-[400px] @5xl:self-start @5xl:border-0 @5xl:bg-transparent @5xl:px-0 @5xl:pb-0 @5xl:pt-8 @5xl:backdrop-blur-none">
         {status === 'error' && error ? (
           <div role="alert" className="anim-rise mb-3 flex items-start gap-2.5 border-y border-line-strong py-3 text-[14px] text-ink-2">
             {limited ? <IconClock size={17} className="mt-0.5 shrink-0 text-ink" /> : <IconAlert size={17} className="mt-0.5 shrink-0 text-ink" />}
@@ -153,7 +172,7 @@ export function OnboardingView({
         <Act full loading={loading} disabled={loading} onClick={onCreateProfile}>
           {loading ? 'Creating profile…' : status === 'error' ? 'Try again' : 'Create synthetic profile'}
         </Act>
-        <p className="label mt-3 text-center text-[11px] text-ink-2">Takes 1 second · delete it anytime</p>
+        <p className="label mt-3 text-center text-[11px] text-ink-2 @5xl:text-left">Takes 1 second · delete it anytime</p>
       </div>
     </div>
   )
@@ -163,29 +182,10 @@ export function OnboardingView({
 // C2 — receipts list (+ C2e states, + the red moment: banner, altered rows, deleted ghosts)
 // ---------------------------------------------------------------------------------------------
 
-function ProfileCard({ code, onCopy }: { code: string; onCopy: () => void }) {
-  return (
-    <section aria-label="Your profile code" className="vault grain relative overflow-hidden rounded-xl border border-vault-line bg-vault">
-      <div className="relative z-[1] p-4">
-        <p className="label text-[11px] text-vault-ink-2">Your code · synthetic</p>
-        <p className="mt-3 text-[48px] leading-[0.9] text-vault-ink" aria-label={code ? `Code ${code.split('').join(' ')}` : 'Loading code'}>
-          {code ? <DotoValue value={code} className="gap-[0.06em]" /> : <span className="doto text-dot">······</span>}
-        </p>
-        <div className="mt-4 flex items-center justify-between gap-3">
-          <p className="min-w-0 text-[14px] leading-snug text-vault-ink-2">Show it to a company. Every access comes back here.</p>
-          <Act variant="vault" size="md" arrow={false} icon={<IconCopy size={14} />} disabled={!code} onClick={onCopy}>
-            Copy
-          </Act>
-        </div>
-      </div>
-    </section>
-  )
-}
-
 /** Offline: neutral (red is for tampering only). Receipts stay on screen; polling pauses. */
 export function OfflineBanner() {
   return (
-    <p role="status" className="flex items-start gap-2.5 border-y border-line-strong py-3 text-[14px] leading-relaxed text-ink-2">
+    <p role="status" className="flex items-start gap-2.5 rounded-lg border border-line bg-card px-4 py-3 text-[14px] leading-relaxed text-ink-2">
       <IconWifiOff size={17} className="mt-0.5 shrink-0 text-ink" />
       <span>
         <strong className="font-semibold text-ink">You&apos;re offline.</strong> Receipts refresh when you&apos;re back.
@@ -196,25 +196,24 @@ export function OfflineBanner() {
 
 function RowSkeleton() {
   return (
-    <div className="flex gap-3.5 border-b border-line py-4" aria-hidden="true">
-      <Skeleton className="h-11 w-11 shrink-0 rounded-md" />
-      <div className="flex flex-1 flex-col gap-2 pt-1">
+    <div className="flex min-h-16 items-center gap-3 px-4" aria-hidden="true">
+      <Skeleton className="h-10 w-10 shrink-0 rounded-full" />
+      <div className="cz-row-main flex flex-1 flex-col gap-2 py-4">
         <Skeleton className="h-3.5 w-2/3" />
         <Skeleton className="h-3 w-1/2" />
-        <Skeleton className="mt-1.5 h-7 w-28" />
       </div>
     </div>
   )
 }
 
-/** Quiet state on the paper: dot glyph, line, body, optional action. Hairlines, no box. */
+/** Quiet state in an inset card: dot glyph (empty states keep the dot family), line, body, optional action. */
 function Quiet({ glyph, title, body, action }: { glyph: DotIconName; title: string; body: ReactNode; action?: ReactNode }) {
   return (
-    <div className="anim-rise flex flex-col items-start gap-3 border-y border-line py-6">
-      <DotIcon name={glyph} size={40} className="text-ink-3" />
+    <div className="anim-rise flex flex-col items-start gap-3 rounded-lg border border-line bg-card p-5">
+      <DotIcon name={glyph} size={36} className="text-ink-3" />
       <div>
-        <p className="text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">{title}</p>
-        <p className="mt-1 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">{body}</p>
+        <p className="text-[17px] font-semibold leading-snug tracking-[-0.01em] text-ink">{title}</p>
+        <div className="mt-1 text-[15px] leading-[1.55] text-ink-2">{body}</div>
       </div>
       {action}
     </div>
@@ -224,22 +223,12 @@ function Quiet({ glyph, title, body, action }: { glyph: DotIconName; title: stri
 const VERDICT = { CHECKING: 'verifying', MATCH: 'match', ALTERED: 'altered', NOT_FOUND: 'not_found' } as const
 
 /** Container: polls GET /api/citizen/receipts every 3 s while a profile exists. */
-function ReceiptList() {
+function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'list' | 'pane'; selectedId?: string }) {
   const online = useOnline()
   const now = useNow()
   const { toast } = useToast()
 
-  const q = useQuery({
-    queryKey: ['receipts'],
-    queryFn: async () => {
-      const data = await getReceipts()
-      track(data.receipts)
-      return data
-    },
-    refetchInterval: (query) => (query.state.status === 'error' ? false : 3000),
-    refetchIntervalInBackground: false,
-    retry: (count, err) => toCitizenError(err).code !== 'NO_SESSION' && count < 1,
-  })
+  const q = useQuery(receiptsQuery)
 
   const receipts = q.data?.receipts ?? EMPTY_RECEIPTS
   const pseudonyms = q.data?.pseudonyms
@@ -256,7 +245,8 @@ function ReceiptList() {
   const ghostKeys = new Set(ghosts.map((g) => `${g.opening.txHash?.toLowerCase()}:${g.opening.logIndex}`))
 
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
-  if (q.isError && toCitizenError(q.error).code === 'NO_SESSION') return <Onboarding />
+  // An open receipt keeps its own "no profile" screen (ReceiptMissingView) instead.
+  if (q.isError && toCitizenError(q.error).code === 'NO_SESSION') return focus === 'pane' && pane ? <>{pane}</> : <Onboarding />
 
   const code = q.data?.profile.code ?? ''
   const freshIds = receipts
@@ -276,8 +266,9 @@ function ReceiptList() {
   }
   const onRetry = () => void q.refetch()
 
-  return (
+  const list = (
     <ReceiptListView
+      selectedId={selectedId}
       state={q.isPending ? 'loading' : q.isError ? 'error' : receipts.length === 0 ? 'empty' : 'ready'}
       receipts={receipts}
       code={code}
@@ -294,6 +285,7 @@ function ReceiptList() {
       onRetry={onRetry}
     />
   )
+  return pane === undefined ? list : <ReceiptsSplit focus={focus} list={list} pane={pane} />
 }
 
 export type ReceiptListState = 'loading' | 'error' | 'empty' | 'ready'
@@ -315,6 +307,7 @@ export function ReceiptListView({
   error,
   retrying,
   demoHint,
+  selectedId,
   onCopy,
   onRetry,
 }: {
@@ -336,6 +329,8 @@ export function ReceiptListView({
   error?: string | null
   retrying?: boolean
   demoHint?: boolean
+  /** Laptop master–detail: the receipt open in the pane (highlighted row). */
+  selectedId?: string
   onCopy: () => void
   onRetry: () => void
 }) {
@@ -349,34 +344,24 @@ export function ReceiptListView({
     return !!v && v !== 'verifying'
   }).length
   const matched = receipts.filter((r) => verdicts?.[r.eventId] === 'match').length
-  const tally = altered.length
-    ? `${altered.length} altered · ${receipts.length} shown`
-    : checking
-      ? `checking ${checking} · ${receipts.length} shown`
-      : matched
-        ? `${matched} match the chain · ${receipts.length} shown`
-        : `${anchored} on chain · ${receipts.length} shown`
+  const sealing = receipts.filter((r) => r.status === 'pending' || r.status === 'submitted').length
+  const tamper = altered.length + lost.length + hiddenExtra > 0
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex flex-col gap-6">
+      {/* Large title + the code as a small chip (copy on tap). The laptop sidebar also carries the code. */}
+      <header className="flex items-center justify-between gap-3">
+        <h1 className="text-[28px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink">Receipts</h1>
+        <CodeChip code={code} onCopy={onCopy} />
+      </header>
+
+      {/* Status card first: the answer to "is my data OK?". Tamper keeps the existing red banner. */}
       <TamperBanner altered={altered.length} deleted={lost.length + hiddenExtra} checked={checked} href={altered[0] ? `/citizen/receipt/${altered[0]}?check=1` : null} />
+      {!tamper && state === 'ready' ? (
+        <StatusCard total={receipts.length} matched={matched} checking={checking} anchored={anchored} sealing={sealing} watching={watching} />
+      ) : null}
 
       {!online ? <OfflineBanner /> : null}
-
-      <ProfileCard code={code} onCopy={onCopy} />
-
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <p className="label flex items-center gap-2 text-ink">
-          {watching ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
-          {watching ? 'Watching · every 3 s' : 'Paused'}
-        </p>
-        {state === 'ready' ? (
-          <p className={`label flex items-center gap-1.5 text-[11px] ${altered.length ? 'text-bad' : 'text-ink-2'}`}>
-            <IconShield size={13} strokeWidth={2.2} />
-            <Scramble value={tally} />
-          </p>
-        ) : null}
-      </div>
 
       {/* polite announcement for receipts that just arrived */}
       <p aria-live="polite" className="sr-only">
@@ -391,15 +376,16 @@ export function ReceiptListView({
       </p>
 
       {lost.length ? (
-        <div className="flex flex-col gap-2.5">
+        <section aria-label="Deleted records" className="flex flex-col gap-2.5">
+          <h2 className="text-[15px] font-semibold text-ink">Missing from the database</h2>
           {lost.map((g) => (
             <GhostRow key={g.opening.eventId} ghost={g} now={now} />
           ))}
-        </div>
+        </section>
       ) : null}
 
       {state === 'loading' ? (
-        <div className="flex flex-col border-t border-line" aria-label="Loading receipts">
+        <div className="cz-group overflow-hidden rounded-lg border border-line bg-card" aria-label="Loading receipts">
           <RowSkeleton />
           <RowSkeleton />
           <RowSkeleton />
@@ -416,25 +402,38 @@ export function ReceiptListView({
           }
         />
       ) : state === 'empty' ? (
-        <Quiet glyph="eye" title="No one has opened your data yet." body="Show your code to a company to try it. Receipts appear here within seconds." />
+        <Quiet
+          glyph="eye"
+          title="No one has opened your data yet"
+          body={
+            <>
+              Show your code to a company to try it. Receipts appear here within seconds.
+              <span className="mt-3 flex items-center gap-2 text-[14px] text-ink-3">
+                {watching ? <LiveDot tone="blue" /> : null}
+                {watching ? 'Watching for new receipts' : 'Paused'}
+              </span>
+            </>
+          }
+        />
       ) : (
-        <div className="flex flex-col gap-4">
+        <div className="flex flex-col gap-6">
           {BUCKETS.map((b) => {
             const items = receipts.filter((r) => (now ? timeBucket(r.createdAt, now) : 'EARLIER') === b)
             if (items.length === 0) return null
             return (
-              <section key={b} aria-label={b.toLowerCase()}>
-                <div className="flex items-center gap-3 pb-1">
-                  <span className={`label ${b === 'NOW' ? 'text-blue' : 'text-ink-2'}`}>{b}</span>
-                  <span aria-hidden="true" className="h-px flex-1 bg-line" />
-                  <span className="label tnum text-[11px] text-ink-2">
-                    <Scramble value={String(items.length).padStart(2, '0')} />
+              <section key={b} aria-labelledby={`bucket-${b}`}>
+                <div className="flex items-baseline justify-between px-1 pb-2">
+                  <h2 id={`bucket-${b}`} className="text-[15px] font-semibold text-ink">
+                    {BUCKET_LABEL[b]}
+                  </h2>
+                  <span className="tnum text-[13px] text-ink-3">
+                    {items.length} {items.length === 1 ? 'receipt' : 'receipts'}
                   </span>
                 </div>
-                <ul className="flex flex-col">
+                <ul className="cz-group overflow-hidden rounded-lg border border-line bg-card">
                   {items.map((r) => (
-                    <li key={r.eventId} className="border-b border-line last:border-b-0">
-                      <ReceiptRow opening={r} now={now} isNew={freshIds.includes(r.eventId)} verdict={verdicts?.[r.eventId]} />
+                    <li key={r.eventId}>
+                      <ReceiptRow opening={r} now={now} isNew={freshIds.includes(r.eventId)} verdict={verdicts?.[r.eventId]} selected={r.eventId === selectedId} />
                     </li>
                   ))}
                 </ul>
@@ -445,25 +444,102 @@ export function ReceiptListView({
       )}
 
       {demoHint ? (
-        <p className="label flex items-center gap-2 text-[11px] text-ink-2">
-          <IconEye size={13} /> Demo: a company opens your data in a few seconds…
+        <p className="flex items-center gap-2 text-[14px] text-ink-3">
+          <IconEye size={14} /> Demo: a company opens your data in a few seconds…
         </p>
       ) : null}
 
-      <section className="mt-3 border-t border-line pt-5">
-        <h2 className="text-[19px] font-medium leading-snug tracking-[-0.015em] text-ink">What a receipt proves</h2>
-        <p className="mt-2 text-[16px] leading-[1.6] tracking-[0.01em] text-ink-2">
-          Each receipt is a fingerprint sealed on a public chain. If anyone edits the record later, your phone sees it
-          and this screen turns red. <Badge kind="RECORDED" size="sm" className="ml-0.5 align-middle" /> means the company
-          says it sealed it. Your phone then checks each one: <Badge kind="MATCH" size="sm" className="align-middle" /> unchanged,{' '}
-          <Badge kind="ALTERED" size="sm" className="align-middle" /> edited after sealing.
-        </p>
-        <p className="label mt-3 flex items-center gap-1.5 text-[11px] text-ink-2">
-          <IconLock size={13} /> Only a fingerprint goes on chain · no names
-        </p>
-      </section>
+      <details className="group rounded-lg border border-line bg-card">
+        <summary className="flex min-h-12 cursor-pointer list-none items-center justify-between gap-3 px-4 text-[15px] font-medium text-ink [&::-webkit-details-marker]:hidden">
+          <span className="flex items-center gap-2.5">
+            <IconLock size={15} className="text-ink-2" /> What a receipt proves
+          </span>
+          <IconChevron size={16} className="text-ink-3 transition-transform duration-200 group-open:rotate-90" />
+        </summary>
+        <div className="border-t border-line px-4 pb-4 pt-3 text-[14px] leading-relaxed text-ink-2">
+          <p>
+            Each receipt is a fingerprint sealed on a public chain. If anyone edits the record later, your phone sees it
+            and this screen turns red.
+          </p>
+          <p className="mt-2">
+            A green check means your phone compared the record with the chain and it matches. Only a fingerprint goes on
+            chain, never your name.
+          </p>
+        </div>
+      </details>
 
       <TabBar />
     </div>
+  )
+}
+
+const BUCKET_LABEL = { NOW: 'Just now', TODAY: 'Today', EARLIER: 'Earlier' } as const
+
+/** The code as a small mono chip; tap copies. Hidden on the laptop, where the sidebar shows it. */
+function CodeChip({ code, onCopy }: { code: string; onCopy: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onCopy}
+      disabled={!code}
+      aria-label={code ? `Copy your code ${code.split('').join(' ')}` : 'Loading code'}
+      className="flex h-9 shrink-0 items-center gap-2 rounded-pill border border-line bg-card pl-3.5 pr-3 font-mono text-[14px] font-medium tracking-[0.06em] text-ink transition-colors duration-150 hover:border-line-strong disabled:opacity-50 @5xl:hidden"
+    >
+      {code || '······'}
+      <IconCopy size={14} className="text-ink-3" />
+    </button>
+  )
+}
+
+/** Status card (riset-ui/35 home §2): one sentence about the whole profile, never red (red is the TamperBanner). */
+function StatusCard({
+  total,
+  matched,
+  checking,
+  anchored,
+  sealing,
+  watching,
+}: {
+  total: number
+  matched: number
+  checking: number
+  anchored: number
+  sealing: number
+  watching: boolean
+}) {
+  const all = matched > 0 && matched === anchored && checking === 0
+  const title = checking
+    ? `Checking ${checking} ${checking === 1 ? 'receipt' : 'receipts'} against the chain`
+    : all
+      ? `${anchored === total ? (total === 1 ? 'Your receipt matches' : `All ${total} receipts match`) : `${matched} of ${total} receipts match`} the chain`
+      : matched
+        ? `${matched} of ${anchored} sealed receipts match the chain`
+        : sealing
+          ? `${sealing} ${sealing === 1 ? 'receipt is' : 'receipts are'} being sealed`
+          : `${total} ${total === 1 ? 'receipt' : 'receipts'} on record`
+  const sub = checking
+    ? 'Your phone is checking, not our server.'
+    : matched
+      ? 'Checked by your phone, not by Saksi’s server.'
+      : 'Your phone checks each one once it is sealed.'
+  return (
+    <section aria-label="Receipts status" className="flex items-center gap-3.5 rounded-lg border border-line bg-card p-4">
+      <span
+        aria-hidden="true"
+        className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${
+          checking ? 'bg-paper-2 text-ink-2' : matched ? 'bg-ok-bg text-ok' : sealing ? 'bg-pending-bg text-pending' : 'bg-paper-2 text-ink-2'
+        }`}
+      >
+        {checking ? <IconSpinner size={18} /> : <IconShield size={20} strokeWidth={2} />}
+      </span>
+      <div className="min-w-0 flex-1">
+        <p className="text-[16px] font-medium leading-snug text-ink">{title}</p>
+        <p className="mt-0.5 text-[14px] leading-snug text-ink-2">{sub}</p>
+        <p className="mt-1.5 flex items-center gap-2 text-[13px] text-ink-3">
+          {watching ? <LiveDot tone="blue" /> : <span aria-hidden="true" className="h-2 w-2 shrink-0 rounded-full bg-ink-3" />}
+          {watching ? 'Live · refreshes every 3 s' : 'Paused'}
+        </p>
+      </div>
+    </section>
   )
 }

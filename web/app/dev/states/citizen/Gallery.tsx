@@ -17,7 +17,7 @@ import { AiPanel } from '@/components/ui/AiPanel'
 import { ReceiptDetailSkeleton } from '@/components/ui/Skeleton'
 import { ToastView } from '@/components/ui/Toast'
 import type { AutoVerdicts, GhostReceipt } from '@/lib/data'
-import { MOCK_BLOCK_BASE, mockAllReceipts } from '@/lib/mock'
+import { MOCK_BLOCK_BASE, mockAllReceipts, mockWorkspaceReceipts } from '@/lib/mock'
 import type { ReceiptCheck } from '@/lib/receipt-state'
 import type { AiMeta, ReceiptOpening, VerifyResult } from '@/lib/shared/types'
 
@@ -90,6 +90,10 @@ const META: Record<AiMeta['fallbackLevel'], AiMeta> = {
 
 const noop = () => {}
 const PROFILE = { code: CODE, displayName: 'Synthetic citizen K7M' }
+// Profile: every company that opened this profile, counted from its receipts (CITIZEN WORKSPACE fixtures).
+const WS = mockWorkspaceReceipts(NOW, CODE)
+const WS_MATCH: AutoVerdicts = Object.fromEntries(WS.map((r) => [r.eventId, 'match' as const]))
+const WS_ALTERED: AutoVerdicts = { ...WS_MATCH, evt_7Q2M4K: 'altered', [WS[0].eventId]: 'verifying' }
 
 // ---- frames ------------------------------------------------------------------------------------
 
@@ -149,11 +153,27 @@ function Detail({
   )
 }
 
-function Profile({ state, confirm = 'closed', error }: { state: ProfileState; confirm?: ConfirmState; error?: string }) {
+function Profile({
+  state,
+  confirm = 'closed',
+  error,
+  receipts = WS,
+  verdicts = WS_MATCH,
+}: {
+  state: ProfileState
+  confirm?: ConfirmState
+  error?: string
+  receipts?: ReceiptOpening[]
+  verdicts?: AutoVerdicts
+}) {
   return (
     <ProfileScreenView
       state={state}
       profile={state === 'ready' ? PROFILE : null}
+      receipts={receipts}
+      verdicts={verdicts}
+      now={NOW}
+      onDownloadAll={noop}
       error={state === 'error' ? 'Could not reach the Saksi server. Check your connection.' : null}
       confirm={confirm}
       deleteError={error}
@@ -201,6 +221,10 @@ export function CitizenStatesGallery({ width = 390 }: { width?: number }) {
         ·{' '}
         <Link href="/dev/states/citizen?w=360" className="text-blue underline">
           360
+        </Link>
+. Laptop workspace (sidebar, master–detail, profile):{' '}
+        <Link href="/dev/states/citizen/workspace" className="text-blue underline">
+          /dev/states/citizen/workspace
         </Link>
         . Reduced motion: emulate prefers-reduced-motion in devtools; every one-shot animation drops out.
       </p>
@@ -363,8 +387,14 @@ export function CitizenStatesGallery({ width = 390 }: { width?: number }) {
         <Frame label="load error">
           <Profile state="error" />
         </Frame>
-        <Frame label="ready · QR">
+        <Frame label="ready · who opened your data + rights">
           <Profile state="ready" />
+        </Frame>
+        <Frame label="ready · one record altered">
+          <Profile state="ready" verdicts={WS_ALTERED} />
+        </Frame>
+        <Frame label="ready · no receipts yet">
+          <Profile state="ready" receipts={[]} verdicts={{}} />
         </Frame>
         <Frame label="confirm delete">
           <Profile state="ready" confirm="open" />
