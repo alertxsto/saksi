@@ -6,6 +6,18 @@ const distDir = process.env.SAKSI_DIST_DIR || '.next';
 const nextConfig = {
   distDir,
   poweredByHeader: false,
+  // The Docker kit copies .next/standalone into the runtime image.
+  output: 'standalone',
+  cacheComponents: true,
+  partialPrefetching: true,
+  turbopack: {
+    rules: {
+      '*.css': {
+        loaders: ['@tailwindcss/turbopack'],
+        as: '*.css',
+      },
+    },
+  },
 };
 
 export default nextConfig;

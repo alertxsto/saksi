@@ -21,16 +21,24 @@
     "noEmit": true,
     "allowJs": true,
     "incremental": true,
-    "resolveJsonModule": true
+    "resolveJsonModule": true,
+    "paths": {
+      "@/*": [
+        "./*"
+      ]
+    }
   },
   "include": [
     "next-env.d.ts",
     "app/**/*.ts",
     "app/**/*.tsx",
+    "components/**/*.ts",
+    "components/**/*.tsx",
     "db/**/*.ts",
     "drizzle.config.ts",
     "instrumentation.ts",
     "lib/**/*.ts",
+    "lib/**/*.tsx",
     "test/**/*.ts",
     "scripts/**/*.ts",
     ".next/types/**/*.ts",

@@ -1,0 +1,551 @@
+@import "tailwindcss";
+
+/* ------------------------------------------------------------------------------------------
+   Saksi — "Paper & Vault" tokens (riset-ui/05-arah-desain.md §2). Use exactly these values.
+   ------------------------------------------------------------------------------------------ */
+@theme {
+  /* paper (light, default for every screen) */
+  --color-paper: #f4f2ec;
+  --color-paper-2: #ebe8e0;
+  --color-card: #fbfaf7;
+  --color-ink: #1e1a16;
+  --color-ink-2: #6b645b;
+  --color-ink-3: #9a9288;
+  --color-line: #d9d4c9;
+  --color-line-strong: #bfb8aa;
+  --color-blue: #2a2ae8;
+  --color-blue-bg: #e6e6fd;
+
+  /* vault (dark proof slab) */
+  --color-vault: #24211d;
+  --color-vault-2: #2e2a25;
+  --color-vault-line: #3d3832;
+  --color-dot: #6e6457;
+  --color-dot-2: #8a7f70;
+  --color-ice: #9bd9e0;
+  --color-vault-ink: #ede9e1;
+  --color-vault-ink-2: #a39b8f;
+
+  /* semantic — always paired with an icon and text */
+  --color-ok: #157f3d;
+  --color-ok-bg: #ddf3e4;
+  --color-ok-v: #5bcb8a;
+  --color-bad: #c8281e;
+  --color-bad-bg: #fde3e0;
+  --color-bad-v: #ff5a4d;
+  --color-unknown: #6b645b;
+  --color-unknown-bg: #ece9e2;
+  --color-unknown-v: #a39b8f;
+  --color-pending: #a85a00;
+  --color-pending-bg: #fbebd3;
+  --color-pending-v: #f2a33a;
+  --color-ai: #5b3fd6;
+  --color-ai-bg: #ece8fd;
+  --color-ai-v: #bdb4f8;
+
+  /* radius scale (riset-ui/05 §4): sm badges/tiles, md buttons/inputs, lg cards/tables, xl slabs/hero, pill chips */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 24px;
+  --radius-pill: 999px;
+
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  --tracking-display: -0.04em;
+  --tracking-label: 0.06em;
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, SFMono-Regular, Menlo, monospace;
+  --font-dot: var(--font-doto), var(--font-geist-mono), ui-monospace, monospace;
+}
+
+/* ------------------------------------------------------------------------------------------ */
+
+html {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-paper);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+  font-feature-settings: "ss01", "cv11";
+}
+
+::selection {
+  background: var(--color-blue);
+  color: #fff;
+}
+
+/* Visible focus everywhere (blue, 2px, offset). */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-blue);
+  outline-offset: 2px;
+}
+.vault :where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline-color: var(--color-ice);
+}
+
+/* ------------------------------------------------------------------------------------------
+   Utilities
+   ------------------------------------------------------------------------------------------ */
+
+/* Mono uppercase label. Minimum 11px. */
+@utility label {
+  font-family: var(--font-mono);
+  font-size: 11px;
+  line-height: 1.35;
+  letter-spacing: var(--tracking-label);
+  text-transform: uppercase;
+}
+
+@utility tnum {
+  font-variant-numeric: tabular-nums;
+}
+
+@utility display {
+  font-family: var(--font-sans);
+  font-weight: 560;
+  letter-spacing: var(--tracking-display);
+  line-height: 1.02;
+}
+
+/* Doto dot-matrix numerals — only for big numbers. */
+@utility doto {
+  font-family: var(--font-dot);
+  font-weight: 800;
+  font-variation-settings: "ROND" 100;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  line-height: 0.9;
+}
+
+/* 5% grain, vault only. */
+@utility grain {
+  position: relative;
+  isolation: isolate;
+  &::after {
+    border-radius: inherit;
+    content: "";
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 0;
+    opacity: 0.07;
+    mix-blend-mode: overlay;
+    background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='160' height='160'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1  0 0 0 0 1  0 0 0 0 1  0 0 0 .9 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>");
+  }
+}
+
+/* Dot leader for ledger rows: WHO ........ value */
+@utility leader {
+  flex: 1 1 auto;
+  min-width: 12px;
+  height: 0.9em;
+  margin: 0 8px;
+  background-image: radial-gradient(circle, currentColor 0.9px, transparent 1.1px);
+  background-size: 6px 4px;
+  background-repeat: repeat-x;
+  background-position: left bottom;
+  opacity: 0.45;
+}
+
+/* Perforated edge (receipt top / bottom). */
+@utility perf-top {
+  background-image: radial-gradient(circle at 6px 0, var(--color-paper) 4px, transparent 4.5px);
+  background-size: 12px 8px;
+  background-repeat: repeat-x;
+  background-position: top left;
+}
+@utility perf-bottom {
+  background-image: radial-gradient(circle at 6px 8px, var(--color-paper) 4px, transparent 4.5px);
+  background-size: 12px 8px;
+  background-repeat: repeat-x;
+  background-position: bottom left;
+}
+
+@utility dashed-line {
+  background-image: linear-gradient(90deg, var(--color-line-strong) 50%, transparent 50%);
+  background-size: 8px 1px;
+  background-repeat: repeat-x;
+  height: 1px;
+}
+
+/* ------------------------------------------------------------------------------------------
+   Vault seal (dot-matrix). Classes are baked by components/ui/VaultSeal.tsx.
+   ------------------------------------------------------------------------------------------ */
+.seal .d0 { fill: var(--color-dot); }
+.seal .d1 { fill: var(--color-dot-2); }
+.seal .di { fill: var(--color-ice); }
+.seal .dg { transition: fill 0.6s var(--ease-out); }
+
+/* cycler: one dot group lights up per state (01 RECORD / 02 SEAL / 03 VERIFY) */
+.seal[data-state="0"] .g0,
+.seal[data-state="1"] .g1,
+.seal[data-state="2"] .g2 { fill: var(--color-ice); }
+
+/* travelling glint on ice dots */
+.seal .di {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: dot-pulse 2.4s var(--ease-out) infinite;
+  animation-delay: calc(var(--d, 0) * 1ms);
+}
+
+/* verdict tones: ice dots turn green / red from the centre outwards */
+.seal[data-tone="ok"] .di { fill: var(--color-ok-v); transition: fill 0.4s var(--ease-out); transition-delay: calc(var(--c, 0) * 1ms); }
+.seal[data-tone="bad"] .di { fill: var(--color-bad-v); transition: fill 0.4s var(--ease-out); transition-delay: calc(var(--c, 0) * 1ms); }
+.seal[data-tone="bad"] .d1 { fill: #8a4f45; transition: fill 0.4s var(--ease-out); transition-delay: calc(var(--c, 0) * 1ms + 200ms); }
+.seal[data-tone="unknown"] .di { fill: var(--color-vault-ink-2); }
+.seal[data-tone="unknown"] .di,
+.seal[data-tone="ok"] .di,
+.seal[data-tone="bad"] .di { animation: none; }
+
+@keyframes dot-pulse {
+  0%, 70%, 100% { transform: scale(1); opacity: 1; }
+  35% { transform: scale(1.35); opacity: 0.75; }
+}
+
+/* ------------------------------------------------------------------------------------------
+   Motion
+   ------------------------------------------------------------------------------------------ */
+@keyframes arrive {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  20% { transform: translateX(-6px); }
+  40% { transform: translateX(6px); }
+  60% { transform: translateX(-4px); }
+  80% { transform: translateX(3px); }
+}
+@keyframes flash-bad {
+  0% { background-color: var(--color-bad-v); }
+  100% { background-color: var(--color-bad-bg); }
+}
+@keyframes ping {
+  0% { transform: scale(1); opacity: 0.7; }
+  80%, 100% { transform: scale(2.6); opacity: 0; }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes rise {
+  from { opacity: 0; transform: translateY(8px) scale(0.97); }
+  to { opacity: 1; transform: none; }
+}
+@keyframes shimmer {
+  from { background-position: -200px 0; }
+  to { background-position: calc(200px + 100%) 0; }
+}
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+@keyframes sheet-up {
+  from { transform: translateY(100%); }
+  to { transform: none; }
+}
+
+.anim-arrive { animation: arrive 200ms var(--ease-out) both; }
+.anim-shake { animation: shake 300ms var(--ease-out) both; }
+.anim-flash { animation: flash-bad 1.2s var(--ease-out) both; }
+.anim-fade { animation: fade-in 320ms var(--ease-out) both; }
+.anim-rise { animation: rise 480ms var(--ease-out-expo) both; }
+.anim-ping { animation: ping 2.4s var(--ease-out) infinite; }
+.anim-spin { animation: spin 0.9s linear infinite; }
+.anim-sheet { animation: sheet-up 280ms var(--ease-out-expo) both; }
+
+.skeleton {
+  background-color: var(--color-paper-2);
+  background-image: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.55), transparent);
+  background-size: 200px 100%;
+  background-repeat: no-repeat;
+  animation: shimmer 1.3s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 1ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 1ms !important;
+    transition-delay: 0ms !important;
+    scroll-behavior: auto !important;
+  }
+  .seal .di { animation: none !important; }
+  .anim-ping, .anim-spin, .skeleton { animation: none !important; }
+  .anim-arrive, .anim-rise, .anim-shake { animation: fade-in 1ms both !important; }
+}
+
+/* print: regulator "Export audit PDF" */
+@media print {
+  .no-print { display: none !important; }
+  body { background: #fff; }
+}
+
+/* ==========================================================================================
+   Landing motion (riset-ui/09-motion-teardown.md §1, §2.4, §4). Appended; tokens above unchanged.
+   Hidden "before" states live only under (scripting: enabled) so the page is complete without JS,
+   and only under (prefers-reduced-motion: no-preference) so reduced motion shows everything static.
+   ========================================================================================== */
+@theme {
+  --ease-out-soft: cubic-bezier(0.19, 1, 0.22, 1);
+  --ease-snap: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-step: cubic-bezier(0.7, 0, 0.3, 1);
+  --dur-hover: 150ms;
+  --dur-swap-in: 480ms;
+  --dur-swap-out: 320ms;
+  --dur-reveal: 1200ms;
+  --dur-media: 1800ms;
+  --stagger: 80ms;
+}
+
+@keyframes blur-rise {
+  from { opacity: 0; transform: translateY(12px); filter: blur(6px); }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes line-in {
+  from { opacity: 0; transform: translateY(55%); filter: blur(8px); }
+  60% { opacity: 1; }
+  to { opacity: 1; transform: none; filter: none; }
+}
+@keyframes ws-label {
+  0% { opacity: 0; transform: translateY(2px); }
+  7%, 85% { opacity: 1; transform: none; }
+  100% { opacity: 0; }
+}
+
+/* load choreography (hero): CSS only, so it also runs before hydration / without JS */
+.m-line { display: block; overflow: hidden; padding-bottom: 0.1em; margin-bottom: -0.1em; }
+.m-line > span { display: block; animation: line-in 900ms var(--ease-out-expo) both; animation-delay: var(--d, 0ms); }
+.m-in { animation: blur-rise 1000ms var(--ease-out-soft) both; animation-delay: var(--d, 0ms); }
+
+/* scroll reveals: [data-reveal] (single) and [data-stagger] (children, 80 ms apart) */
+[data-reveal],
+[data-stagger] > * {
+  transition:
+    opacity calc(var(--dur-reveal) * 0.8) var(--ease-out-soft),
+    transform var(--dur-reveal) var(--ease-out-soft),
+    filter var(--dur-reveal) var(--ease-out-soft);
+  transition-delay: calc(var(--i, 0) * var(--stagger));
+}
+[data-reveal="media"] { transition-duration: calc(var(--dur-media) * 0.8), var(--dur-media), var(--dur-media); }
+[data-stagger] > :nth-child(2) { --i: 1; }
+[data-stagger] > :nth-child(3) { --i: 2; }
+[data-stagger] > :nth-child(4) { --i: 3; }
+[data-stagger] > :nth-child(5) { --i: 4; }
+[data-stagger] > :nth-child(6) { --i: 5; }
+[data-stagger] > :nth-child(n + 7) { --i: 6; }
+
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-reveal]:not([data-shown]),
+  [data-stagger]:not([data-shown]) > * {
+    opacity: 0;
+    transform: translateY(12px);
+    filter: blur(6px);
+  }
+  [data-reveal="media"]:not([data-shown]) { transform: translateY(24px); }
+}
+
+/* Witness Seal footer art: CSS draw-on (pathLength=1 on every path), 55 ms stagger */
+.ws-art path { stroke-dasharray: 1.06 1.06; stroke-dashoffset: 0; }
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .ws-art path { transition: stroke-dashoffset 1.2s var(--ease-out-expo) calc(var(--i, 0) * 55ms); }
+  .ws-art:not([data-drawn]) path { stroke-dashoffset: 1.06; }
+}
+.ws-label { opacity: 0; pointer-events: none; }
+.ws-label[data-show] { animation: ws-label 3000ms linear both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .m-line > span, .m-in { animation: none !important; }
+  .ws-label[data-show] { animation: none !important; opacity: 1; }
+}
+
+/* ==========================================================================================
+   Landing rebuild (riset-ui/15–19). Two container widths (zaro A.1), nav, odometer, word rise,
+   hero dive, problem moment, countdown, roles, verifier, FAQ, closer. Scroll-scrubbed values arrive
+   as CSS variables from lib/motion/scroll.ts; every var defaults to its FINAL state, so the page is
+   complete without JS and under reduced motion. "Before" states exist only under (scripting: enabled).
+   ========================================================================================== */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth iframe { pointer-events: none; }
+
+.chrome { width: min(1312px, calc(100% - 32px)); margin-inline: auto; }
+.frame { width: min(1240px, calc(100% - 24px)); margin-inline: auto; }
+
+/* nav (zaro A.7): transparent → card 80% + 4px blur + hairline; vault variant; hides in the closer */
+.nav { transition: transform 300ms var(--ease-out-expo); }
+.nav[data-hidden] { transform: translateY(calc(-100% - 28px)); }
+.nav-box {
+  color: var(--color-ink);
+  transition: background-color 160ms cubic-bezier(0.65, 0, 0.2, 1), border-color 100ms cubic-bezier(0.65, 0, 0.2, 1), color 160ms;
+}
+.nav[data-solid] .nav-box {
+  background: rgb(251 250 247 / 0.8);
+  border-color: var(--color-line);
+  -webkit-backdrop-filter: blur(4px);
+  backdrop-filter: blur(4px);
+}
+.nav[data-vault] .nav-box { background: rgb(36 33 29 / 0.82); border-color: var(--color-vault-line); color: var(--color-vault-ink); }
+.nav[data-vault] .nav-mark-paper { display: none; }
+.nav[data-vault] .nav-mark-vault { display: block; }
+.nav-link { color: var(--color-ink-2); }
+.nav-link:hover { color: var(--color-ink); }
+.nav[data-vault] .nav-link { color: var(--color-vault-ink-2); }
+.nav[data-vault] .nav-link:hover { color: var(--color-vault-ink); }
+.nav[data-vault] .nav-cta { background: var(--color-paper); color: var(--color-vault); }
+
+/* odometer letter roll (contentarchitecture A.6): 6-glyph column, 520 ms, 28 ms per letter */
+.odo { display: inline-block; }
+.odo-row { display: inline-flex; }
+.odo-cell { position: relative; display: inline-block; height: 1.25em; line-height: 1.25em; overflow: hidden; }
+.odo-col {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  transform: translate(-50%, 0);
+  transition: transform 520ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.odo-col > span { display: block; height: 1.25em; }
+@media (hover: hover) and (prefers-reduced-motion: no-preference) {
+  :is(a, button):hover .odo-col,
+  :is(a, button):focus-visible .odo-col { transform: translate(-50%, -6.25em); transition-delay: calc(var(--i, 0) * 28ms); }
+}
+
+/* word rise (zaro A.8): y 18, blur 8, 48 ms stagger after 60 ms */
+[data-words] .w {
+  display: inline-block;
+  transition: opacity 600ms var(--ease-out-expo), transform 900ms var(--ease-out-expo), filter 900ms var(--ease-out-expo);
+  transition-delay: calc(60ms + var(--i, 0) * 48ms);
+}
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  [data-words]:not([data-shown]) .w { opacity: 0; transform: translateY(18px); filter: blur(8px); }
+}
+
+/* S1 hero dive (contentarchitecture B.1) */
+.hero-panel { container-type: size; }
+.hero-back, .dive-only { display: none; }
+@media (scripting: enabled) and (min-width: 1024px) and (min-height: 640px) and (prefers-reduced-motion: no-preference) {
+  .hero-track { height: calc(100svh + 760px); }
+  .hero-stage { position: sticky; top: 0; height: 100svh; overflow: hidden; }
+  .hero-stage > .chrome { height: 100%; }
+  .hero-back { display: block; opacity: 0; }
+  .hero-track[data-ready] .hero-back { opacity: 1; }
+  .hero-track[data-ready] .hero-panel { background: transparent; }
+  .hero-track[data-ready] .hero-panel::after { display: none; }
+  .hero-seal, .hero-copy { will-change: transform; }
+  .dive-only { display: block; }
+}
+
+/* S2 problem moment: word scrub + till-roll ledger */
+.pm-text .pm-w {
+  --k: clamp(0, calc((var(--wp, 1) * (var(--n) + 2.5) - var(--i)) / 2.5), 1);
+  opacity: calc(0.14 + 0.86 * var(--k));
+  filter: blur(calc((1 - var(--k)) * 3px));
+}
+.pm-mute .pm-w { color: var(--color-ink-2); }
+.pm-ink .pm-w { color: var(--color-ink); }
+.pm-roll { clip-path: inset(0 0 calc((1 - var(--q, 1)) * 100%) 0); transform: translateY(calc((1 - var(--q, 1)) * 100%)); }
+.pm-row { transition: background-color 120ms linear, color 120ms linear; }
+.pm-row[data-new] { background: var(--color-ink); color: var(--color-paper); }
+.pm-row[data-edit] { background: var(--color-paper-2); box-shadow: inset 0 0 0 1px var(--color-line-strong); }
+.pm-row[data-edit] .pm-caret { background: var(--color-blue); }
+.pm-was { display: flex; }
+.pm-track[data-live] .pm-was { display: none; }
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .pm-text { --wp: 0; }
+}
+@media (scripting: enabled) and (min-width: 768px) and (min-height: 620px) and (prefers-reduced-motion: no-preference) {
+  .pm-track { height: 250vh; }
+  .pm-stage { position: sticky; top: 0; height: 100svh; display: flex; align-items: center; padding-top: 48px; }
+  .bc-track { height: 250vh; }
+  .bc-stage { position: sticky; top: 0; height: 100svh; display: flex; align-items: center; padding-top: 64px; }
+}
+
+/* S5 countdown: odometer digit columns + ruler */
+/* odometer: tabular Doto cells on a 1.25em row, so no neighbouring digit or clipped dot row shows */
+.bc-digits { --row: 1.25em; font-size: clamp(52px, min(18vw, 22svh), 200px); line-height: 1; column-gap: 0.05em; font-variant-numeric: tabular-nums; }
+.bc-cell { display: block; height: var(--row); overflow: hidden; }
+.bc-col { display: flex; flex-direction: column; will-change: transform; }
+.bc-col > span { display: block; height: var(--row); line-height: var(--row); text-align: center; }
+/* colon: two dots the size of a Doto dot, on glyph rows 2 and 4, equal space either side */
+.bc-sep { display: flex; flex-direction: column; justify-content: center; gap: 0.115em; margin-inline: 0.09em; }
+.bc-sep > i { display: block; width: 0.088em; height: 0.088em; border-radius: 999px; background: currentColor; }
+.bc-fill { transform-origin: left; transform: scaleX(var(--e, 1)); }
+.bc-marker { left: calc(var(--to) * var(--e, 1)); }
+.bc-notified { opacity: var(--n, 1); transform: translateY(calc((1 - var(--n, 1)) * -10px)); }
+.bc-verdict {
+  opacity: var(--v, 1);
+  transform: scale(calc(1.06 - 0.06 * var(--v, 1)));
+  transform-origin: left center;
+  filter: blur(calc((1 - var(--v, 1)) * 6px));
+}
+.bc-ghost {
+  background-image: linear-gradient(90deg, var(--color-bad) 50%, transparent 50%);
+  background-size: 8px 1px;
+  opacity: 0.5;
+  transform-origin: left;
+  transform: scaleX(var(--g, 1));
+}
+.bc-lateby { opacity: var(--g, 1); }
+.bc-late { background: repeating-linear-gradient(135deg, var(--color-line-strong) 0 1px, transparent 1px 6px); opacity: 0.7; }
+
+/* S6 roles: scrubbed line mask, clip wipe, self-drawing hairline, lattice glyph morph */
+.role-rule { transform-origin: left; transform: scaleX(var(--q, 1)); }
+.role-title { transform: translateY(calc((1 - var(--q, 1)) * 110%)); }
+.role-body { clip-path: inset(0 0 calc((1 - var(--q, 1)) * 100%) 0); transform: translateY(calc((1 - var(--q, 1)) * 12px)); }
+.role-glyph circle {
+  transform-box: fill-box;
+  transform-origin: center;
+  --t: clamp(0, calc((var(--q, 1) - var(--dl) * 0.45) * 2.4), 1);
+  scale: calc(var(--a) + (var(--b) - var(--a)) * var(--t));
+}
+.role-glyph [data-k="e"] { fill: var(--color-ink); }
+.role-glyph [data-k="i"] { fill: var(--color-ink); }
+.role-glyph [data-k="b"] { fill: var(--color-blue); }
+@keyframes glyph-pulse {
+  0%, 100% { fill: var(--color-blue); }
+  50% { fill: var(--color-ice); }
+}
+.role a:hover .role-glyph [data-k="b"] { animation: glyph-pulse 1.2s var(--ease-out) infinite; }
+@media (scripting: enabled) and (prefers-reduced-motion: no-preference) {
+  .roles .role { --q: 0; }
+}
+
+/* S7 verifier demo + limits scrub */
+.ver-result { transition: opacity 500ms var(--ease-out-expo), filter 500ms var(--ease-out-expo), transform 500ms var(--ease-out-expo); }
+[data-phase="idle"] .ver-result,
+[data-phase="press"] .ver-result { opacity: 0; filter: blur(8px); transform: translateY(8px); }
+[data-phase="press"] .ver-btn { transform: scale(0.96); background: var(--color-blue); }
+.limits[data-live] .limit-row { color: color-mix(in oklab, var(--color-ink) calc(var(--q, 1) * 100%), var(--color-ink-3)); }
+.limits[data-live] .limit-row svg { opacity: calc(0.3 + 0.7 * var(--q, 1)); scale: calc(0.6 + 0.4 * var(--q, 1)); }
+
+/* S8 FAQ: 400 ms height via grid rows, one open at a time */
+.faq-panel {
+  grid-template-rows: 0fr;
+  opacity: 0;
+  transition: grid-template-rows 400ms cubic-bezier(0.23, 1, 0.32, 1), opacity 400ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.faq-panel[data-open] { grid-template-rows: 1fr; opacity: 1; }
+@media (scripting: none) {
+  .faq-panel { grid-template-rows: 1fr; opacity: 1; }
+}
+
+/* S9 closer: QR rises and its marks flash ice once */
+.qr-flash { opacity: var(--q, 1); transform: translateY(calc((1 - var(--q, 1)) * 24px)); }
+@keyframes qr-flash {
+  0% { background-color: var(--color-dot-2); }
+  25% { background-color: var(--color-ice); box-shadow: 0 0 14px var(--color-ice); }
+  100% { background-color: var(--color-ice); box-shadow: none; }
+}
+.qr-flash[data-flash] .qr-mark { animation: qr-flash 900ms var(--ease-out) both; }

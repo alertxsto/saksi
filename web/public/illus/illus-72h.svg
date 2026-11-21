@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none">
+<title>Saksi illustration · 72H</title>
+  <rect id="tile" x="0.5" y="0.5" width="639" height="399" rx="16" fill="#FBFAF7" stroke="#D9D4C9"/>
+  <path id="rail-top-line" d="M110 50L250 50" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="rail-top-bars" d="M126 47.5H140V52.5H126ZM196 47.5H218V52.5H196Z" fill="#D9D4C9"/>
+  <path id="rail-top-sq-ice" d="M157.5 47.5H162.5V52.5H157.5Z" fill="#9BD9E0"/>
+  <path id="rail-top-sq-lineS" d="M233.5 47.5H238.5V52.5H233.5Z" fill="#BFB8AA"/>
+  <path id="rail-top-r-line" d="M390 50L530 50" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="rail-top-r-bars" d="M436 47.5H458V52.5H436ZM512 47.5H526V52.5H512Z" fill="#D9D4C9"/>
+  <path id="rail-top-r-sq-lineS" d="M401.5 47.5H406.5V52.5H401.5Z" fill="#BFB8AA"/>
+  <path id="rail-top-r-sq-pend" d="M477.5 47.5H482.5V52.5H477.5Z" fill="#F2A33A"/>
+  <path id="track" d="M249.29 284.71A100 100 0 1 1 390.71 284.71" fill="none" stroke="#D9D4C9" stroke-width="6" stroke-linecap="round"/>
+  <path id="track-inner" d="M263.43 270.57A80 80 0 1 1 376.57 270.57" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <g id="anim-elapsed">
+    <path id="anim-elapsed--elapsed" d="M249.29 284.71A100 100 0 0 1 352.14 119.31" fill="none" stroke="#F2A33A" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <path id="ticks" d="M216.53 256.86L210.98 259.16M208 214L202 214M216.53 171.14L210.98 168.84M277.14 110.53L274.84 104.98M320 102L320 96M362.86 110.53L365.16 104.98M423.47 171.14L429.02 168.84M432 214L438 214M423.47 256.86L429.02 259.16" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  <path id="ticks-major" d="M240.8 293.2L230.9 303.1M240.8 134.8L230.9 124.9M399.2 134.8L409.1 124.9M399.2 293.2L409.1 303.1" fill="none" stroke="#1E1A16" stroke-width="2"/>
+  <path id="tick-nodes" d="M220.83 307.17H226.83V313.17H220.83ZM220.83 114.83H226.83V120.83H220.83ZM413.17 114.83H419.17V120.83H413.17Z" fill="#BFB8AA"/>
+  <g id="anim-deadline">
+    <path id="anim-deadline--deadline" d="M412.17 306.17H420.17V314.17H412.17Z" fill="#C8281E"/>
+  </g>
+  <g id="anim-hand">
+    <path id="anim-hand--hand" d="M320 214L343.79 143.93" fill="none" stroke="#1E1A16" stroke-width="2.5" stroke-linecap="round"/>
+    <path id="anim-hand--knob" d="M345.64 112.81H358.64V125.81H345.64Z" fill="#F2A33A"/>
+    <path id="anim-hand--knob-ring" d="M345.64 112.81H358.64V125.81H345.64Z" fill="none" stroke="#1E1A16" stroke-width="1.5"/>
+  </g>
+  <path id="hub" d="M313 214A7 7 0 1 0 327 214A7 7 0 1 0 313 214Z" fill="#1E1A16"/>
+  <path id="hub-dot" d="M317.5 214A2.5 2.5 0 1 0 322.5 214A2.5 2.5 0 1 0 317.5 214Z" fill="#FBFAF7"/>
+  <path id="readout" d="M292 252H348A8 8 0 0 1 356 260V268A8 8 0 0 1 348 276H292A8 8 0 0 1 284 268V260A8 8 0 0 1 292 252Z" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  <g id="anim-deadline-pulse">
+    <path id="anim-deadline-pulse--readout-sq" d="M294.5 260.5H301.5V267.5H294.5Z" fill="#F2A33A"/>
+  </g>
+  <path id="readout-bars" d="M310 262H344A2 2 0 0 1 346 264V264A2 2 0 0 1 344 266H310A2 2 0 0 1 308 264V264A2 2 0 0 1 310 262Z" fill="#D9D4C9"/>
+  <text id="label-0H" x="206.86" y="331.14" text-anchor="middle" font-family="Geist Mono, ui-monospace, monospace" font-size="12" letter-spacing="0.7" fill="#9A9288">0H</text>
+  <text id="label-24H" x="206.86" y="104.86" text-anchor="middle" font-family="Geist Mono, ui-monospace, monospace" font-size="12" letter-spacing="0.7" fill="#9A9288">24H</text>
+  <text id="label-48H" x="433.14" y="104.86" text-anchor="middle" font-family="Geist Mono, ui-monospace, monospace" font-size="12" letter-spacing="0.7" fill="#9A9288">48H</text>
+  <text id="label-72H" x="433.14" y="331.14" text-anchor="middle" font-family="Geist Mono, ui-monospace, monospace" font-size="12" letter-spacing="0.7" fill="#C8281E">72H</text>
+</svg>

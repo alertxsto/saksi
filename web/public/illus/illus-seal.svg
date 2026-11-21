@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none">
+<title>Saksi illustration · SEAL</title>
+  <rect id="tile" x="0.5" y="0.5" width="639" height="399" rx="16" fill="#FBFAF7" stroke="#D9D4C9"/>
+  <path id="rail-top-line" d="M170 62L480 62" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="rail-top-bars" d="M188 59.5H202V64.5H188ZM256 59.5H278V64.5H256ZM372 59.5H386V64.5H372ZM446 59.5H468V64.5H446Z" fill="#D9D4C9"/>
+  <path id="rail-top-sq-lineS" d="M219.5 59.5H224.5V64.5H219.5ZM407.5 59.5H412.5V64.5H407.5Z" fill="#BFB8AA"/>
+  <path id="rail-top-sq-ice" d="M297.5 59.5H302.5V64.5H297.5Z" fill="#9BD9E0"/>
+  <path id="rail-top-sq-blue" d="M333.5 59.5H338.5V64.5H333.5Z" fill="#2A2AE8"/>
+  <path id="rail-bottom-line" d="M180 340L470 340" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="rail-bottom-bars" d="M230 337.5H252V342.5H230ZM312 337.5H326V342.5H312ZM386 337.5H408V342.5H386Z" fill="#D9D4C9"/>
+  <path id="rail-bottom-sq-ice" d="M195.5 337.5H200.5V342.5H195.5Z" fill="#9BD9E0"/>
+  <path id="rail-bottom-sq-lineS" d="M273.5 337.5H278.5V342.5H273.5Z" fill="#BFB8AA"/>
+  <path id="rail-bottom-sq-blue" d="M347.5 337.5H352.5V342.5H347.5Z" fill="#2A2AE8"/>
+  <path id="rail-bottom-sq-okv" d="M427.5 337.5H432.5V342.5H427.5Z" fill="#5BCB8A"/>
+  <g id="anim-print">
+    <path id="anim-print--print" d="M167.16 207.25A6 7.32 0 0 1 166.15 193.04M167.79 192.68A6 7.32 0 0 1 168.84 207.25M162.71 214.49A13 15.86 0 0 1 155.95 194.06M157.76 190.24A13 15.86 0 1 1 173.29 214.49M157.7 220.91A20 24.4 0 1 1 181.38 181.87M184.96 187.07A20 24.4 0 0 1 178.3 220.91M152.51 226.98A27 32.94 0 0 1 149.59 175.91M155.74 170.65A27 32.94 0 0 1 183.49 226.98M146.6 232.24A34 41.48 0 0 1 175.07 159.43M183.96 163.38A34 41.48 0 0 1 189.4 232.24M140.57 237.17A41 50.02 0 0 1 127.9 189.6M131.8 176.52A41 50.02 0 1 1 195.43 237.17M134.06 241.41A48 58.56 0 1 1 208.26 168.11M213.9 182.88A48 58.56 0 0 1 201.94 241.41" fill="none" stroke="#BFB8AA" stroke-width="1.5" stroke-linecap="round"/>
+  </g>
+  <g id="anim-print-glow">
+    <path id="anim-print-glow--print-core" d="M152.51 226.98A27 32.94 0 0 1 149.59 175.91M155.74 170.65A27 32.94 0 0 1 183.49 226.98" fill="none" stroke="#9BD9E0" stroke-width="2" stroke-linecap="round"/>
+  </g>
+  <g id="anim-scanline">
+    <path id="anim-scanline--scanline" d="M108 200L228 200" fill="none" stroke="#2A2AE8" stroke-width="1.5"/>
+  </g>
+  <path id="print-handles" d="M107.5 131.5H112.5V136.5H107.5ZM223.5 131.5H228.5V136.5H223.5ZM107.5 263.5H112.5V268.5H107.5ZM223.5 263.5H228.5V268.5H223.5Z" fill="#1E1A16"/>
+  <g id="anim-flow-1">
+    <path id="anim-flow-1--flow-1" d="M214 168C320 168 350 184 440 184" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  </g>
+  <g id="anim-flow-2">
+    <path id="anim-flow-2--flow-2" d="M228 200C330 200 350 205 440 205" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  </g>
+  <g id="anim-flow-3">
+    <path id="anim-flow-3--flow-3" d="M214 232C320 232 350 226 440 226" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  </g>
+  <g id="anim-packet-1">
+    <path id="anim-packet-1--packet-1" d="M313.92 170.6H320.92V177.6H313.92Z" fill="#2A2AE8"/>
+  </g>
+  <g id="anim-packet-2">
+    <path id="anim-packet-2--packet-2" d="M352.37 199.74H359.37V206.74H352.37Z" fill="#9BD9E0"/>
+  </g>
+  <g id="anim-packet-3">
+    <path id="anim-packet-3--packet-3" d="M329.5 225.5H336.5V232.5H329.5Z" fill="#2A2AE8"/>
+  </g>
+  <path id="chip-pins" d="M457 150H461A1 1 0 0 1 462 151V159A1 1 0 0 1 461 160H457A1 1 0 0 1 456 159V151A1 1 0 0 1 457 150ZM457 250H461A1 1 0 0 1 462 251V259A1 1 0 0 1 461 260H457A1 1 0 0 1 456 259V251A1 1 0 0 1 457 250ZM478 150H482A1 1 0 0 1 483 151V159A1 1 0 0 1 482 160H478A1 1 0 0 1 477 159V151A1 1 0 0 1 478 150ZM478 250H482A1 1 0 0 1 483 251V259A1 1 0 0 1 482 260H478A1 1 0 0 1 477 259V251A1 1 0 0 1 478 250ZM499 150H503A1 1 0 0 1 504 151V159A1 1 0 0 1 503 160H499A1 1 0 0 1 498 159V151A1 1 0 0 1 499 150ZM499 250H503A1 1 0 0 1 504 251V259A1 1 0 0 1 503 260H499A1 1 0 0 1 498 259V251A1 1 0 0 1 499 250ZM531 181H539A1 1 0 0 1 540 182V186A1 1 0 0 1 539 187H531A1 1 0 0 1 530 186V182A1 1 0 0 1 531 181ZM531 202H539A1 1 0 0 1 540 203V207A1 1 0 0 1 539 208H531A1 1 0 0 1 530 207V203A1 1 0 0 1 531 202ZM531 223H539A1 1 0 0 1 540 224V228A1 1 0 0 1 539 229H531A1 1 0 0 1 530 228V224A1 1 0 0 1 531 223Z" fill="#BFB8AA"/>
+  <g id="anim-chip">
+    <path id="anim-chip--chip" d="M456 160H514A16 16 0 0 1 530 176V234A16 16 0 0 1 514 250H456A16 16 0 0 1 440 234V176A16 16 0 0 1 456 160Z" fill="#2A2AE8"/>
+    <path id="anim-chip--chip-link" d="M466 197H480A8 8 0 0 1 488 205V205A8 8 0 0 1 480 213H466A8 8 0 0 1 458 205V205A8 8 0 0 1 466 197ZM490 197H504A8 8 0 0 1 512 205V205A8 8 0 0 1 504 213H490A8 8 0 0 1 482 205V205A8 8 0 0 1 490 197Z" fill="none" stroke="#FBFAF7" stroke-width="2.5"/>
+  </g>
+  <path id="chip-handles" d="M431.5 151.5H436.5V156.5H431.5ZM533.5 151.5H538.5V156.5H533.5ZM431.5 253.5H436.5V258.5H431.5ZM533.5 253.5H538.5V258.5H533.5Z" fill="#1E1A16"/>
+  <path id="next-link" d="M540 205L558 205" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  <path id="next-block" d="M567 187H585A9 9 0 0 1 594 196V214A9 9 0 0 1 585 223H567A9 9 0 0 1 558 214V196A9 9 0 0 1 567 187Z" fill="none" stroke="#D9D4C9" stroke-width="1.5"/>
+  <path id="hash-row" d="M449.5 273.5H454.5V278.5H449.5ZM459 273.5H464V278.5H459ZM468.5 273.5H473.5V278.5H468.5Z" fill="#9BD9E0"/>
+  <path id="hash-row-rest" d="M478 273.5H483V278.5H478ZM487.5 273.5H492.5V278.5H487.5ZM497 273.5H502V278.5H497ZM506.5 273.5H511.5V278.5H506.5ZM516 273.5H521V278.5H516Z" fill="#D9D4C9"/>
+</svg>

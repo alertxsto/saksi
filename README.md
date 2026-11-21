@@ -33,7 +33,7 @@ Jika ABI kontrak berubah, jalankan `node web/generate-abi.mjs` dari root repo de
 
 ## Backend dan gladi
 
-Pakai Node.js 24 dan pnpm 10.34.4. Salin `web/.env.example` ke `web/.env.local`, isi Neon latihan, secret server, konfigurasi Sepolia, dan model sponsor. Jangan taruh private key wallet atau secret di Git. Di Vercel gunakan root `web/`, Node.js 24, dan Neon region Singapore.
+Pakai Node.js 24 dan pnpm 10.34.4. Salin `web/.env.example` ke `web/.env.local`, isi Neon latihan, secret server, konfigurasi Sepolia, dan model AI. Jangan taruh private key wallet atau secret di Git. Di Vercel gunakan root `web/`, Node.js 24, dan Neon region Singapore.
 
 ```sh
 cd web

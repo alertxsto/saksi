@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="640" height="400" viewBox="0 0 640 400" fill="none">
+<title>Saksi illustration · VERIFY</title>
+  <rect id="tile" x="0.5" y="0.5" width="639" height="399" rx="16" fill="#FBFAF7" stroke="#D9D4C9"/>
+  <path id="rail-top-line" d="M360 50L560 50" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="rail-top-bars" d="M380 47.5H394V52.5H380ZM446 47.5H468V52.5H446ZM526 47.5H540V52.5H526Z" fill="#D9D4C9"/>
+  <path id="rail-top-sq-ice" d="M411.5 47.5H416.5V52.5H411.5Z" fill="#9BD9E0"/>
+  <path id="rail-top-sq-okv" d="M489.5 47.5H494.5V52.5H489.5Z" fill="#5BCB8A"/>
+  <path id="rail-bottom-line" d="M100 352L560 352" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="rail-bottom-bars" d="M120 349.5H142V354.5H120ZM210 349.5H224V354.5H210ZM400 349.5H422V354.5H400ZM486 349.5H500V354.5H486Z" fill="#D9D4C9"/>
+  <path id="rail-bottom-sq-ice" d="M163.5 349.5H168.5V354.5H163.5Z" fill="#9BD9E0"/>
+  <path id="rail-bottom-sq-lineS" d="M357.5 349.5H362.5V354.5H357.5Z" fill="#BFB8AA"/>
+  <path id="rail-bottom-sq-okv" d="M443.5 349.5H448.5V354.5H443.5Z" fill="#5BCB8A"/>
+  <path id="rail-bottom-sq-blue" d="M527.5 349.5H532.5V354.5H527.5Z" fill="#2A2AE8"/>
+  <path id="phone-bg" d="M202 68H290A24 24 0 0 1 314 92V308A24 24 0 0 1 290 332H202A24 24 0 0 1 178 308V92A24 24 0 0 1 202 68Z" fill="#FBFAF7"/>
+  <path id="phone" d="M202 68H290A24 24 0 0 1 314 92V308A24 24 0 0 1 290 332H202A24 24 0 0 1 178 308V92A24 24 0 0 1 202 68Z" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  <path id="phone-screen" d="M203 98H289A13 13 0 0 1 302 111V305A13 13 0 0 1 289 318H203A13 13 0 0 1 190 305V111A13 13 0 0 1 203 98Z" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="phone-speaker" d="M230.5 82H261.5A2.5 2.5 0 0 1 264 84.5V84.5A2.5 2.5 0 0 1 261.5 87H230.5A2.5 2.5 0 0 1 228 84.5V84.5A2.5 2.5 0 0 1 230.5 82Z" fill="#D9D4C9"/>
+  <g id="anim-badge">
+    <path id="anim-badge--badge" d="M216 166A30 30 0 1 0 276 166A30 30 0 1 0 216 166Z" fill="#5BCB8A"/>
+  </g>
+  <g id="anim-check">
+    <path id="anim-check--check" d="M232 166L242 176L261 156" fill="none" stroke="#FBFAF7" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <path id="rows" d="M209 214H283A3 3 0 0 1 286 217V217A3 3 0 0 1 283 220H209A3 3 0 0 1 206 217V217A3 3 0 0 1 209 214ZM209 228H261A3 3 0 0 1 264 231V231A3 3 0 0 1 261 234H209A3 3 0 0 1 206 231V231A3 3 0 0 1 209 228ZM235 266H275A3 3 0 0 1 278 269V269A3 3 0 0 1 275 272H235A3 3 0 0 1 232 269V269A3 3 0 0 1 235 266Z" fill="#D9D4C9"/>
+  <path id="row-card" d="M215 252H277A9 9 0 0 1 286 261V277A9 9 0 0 1 277 286H215A9 9 0 0 1 206 277V261A9 9 0 0 1 215 252Z" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  <path id="row-ok" d="M215.5 265.5H222.5V272.5H215.5Z" fill="#157F3D"/>
+  <path id="gauge-base" d="M372 250L560 250" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <path id="gauge-track" d="M382 250A84 84 0 0 1 550 250" fill="none" stroke="#D9D4C9" stroke-width="6" stroke-linecap="round"/>
+  <path id="gauge-inner" d="M398 250A68 68 0 0 1 534 250" fill="none" stroke="#D9D4C9" stroke-width="1"/>
+  <g id="anim-gauge">
+    <path id="anim-gauge--gauge-fill" d="M382 250A84 84 0 0 1 548.16 232.54" fill="none" stroke="#157F3D" stroke-width="6" stroke-linecap="round"/>
+  </g>
+  <path id="gauge-ticks" d="M552.84 214.03L558.39 211.73M532.47 183.53L536.71 179.29M501.97 163.16L504.27 157.61M430.03 163.16L427.73 157.61M399.53 183.53L395.29 179.29M379.16 214.03L373.61 211.73" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  <path id="gauge-ticks-major" d="M560 250L572 250M466 156L466 144M372 250L360 250" fill="none" stroke="#1E1A16" stroke-width="1.5"/>
+  <path id="hub" d="M461 245H471V255H461Z" fill="#1E1A16"/>
+  <g id="anim-needle">
+    <path id="anim-needle--needle" d="M466 250L526.65 237.11" fill="none" stroke="#1E1A16" stroke-width="2" stroke-linecap="round"/>
+    <path id="anim-needle--knob" d="M543.66 228.04H552.66V237.04H543.66Z" fill="#5BCB8A"/>
+  </g>
+  <g id="anim-flow">
+    <path id="anim-flow--link" d="M314 166C352 166 344 250 372 250" fill="none" stroke="#BFB8AA" stroke-width="1.5"/>
+  </g>
+  <path id="link-start" d="M311 163H317V169H311Z" fill="#1E1A16"/>
+  <path id="float-ice" d="M137 117H143V123H137ZM147.5 289.5H152.5V294.5H147.5ZM557 129H563V135H557ZM395.5 125.5H400.5V130.5H395.5Z" fill="#9BD9E0"/>
+  <path id="float-blue" d="M123.5 207.5H128.5V212.5H123.5ZM587.5 193.5H592.5V198.5H587.5Z" fill="#2A2AE8"/>
+</svg>

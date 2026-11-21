@@ -9,8 +9,6 @@ import { draft, draftInput, explain, explainInput } from '../../../lib/server/ai
 import { serviceStatus } from '../../../lib/server/status';
 import { tamper, tamperInput } from '../../../lib/server/tamper';
 import { watch } from '../../../lib/server/watch';
-export const dynamic = 'force-dynamic';
-export const runtime = 'nodejs';
 export const maxDuration = 30;
 type Context = { params: Promise<{ path: string[] }> };
 // Prepare writes a draft for any citizen code and answers 404 for unknown codes, so cap it per client IP.
