@@ -121,6 +121,7 @@ CONTROLLER_PRIVATE_KEY=0x… \\
 CONTROLLER_SLUG=${DEMO_CONTROLLER_SLUG} \\
 CITIZEN_CODE=JVHULK \\
 DATA_CATEGORIES=identity,health \\
+SYSTEM=SIMRS OPERATOR_REF=desk-07 \\
 node scripts/agency-example.mjs`
 
 export const RUN_OUTPUT = `prepared  51fef091-ee5a-4c0c-90e7-8df9199b4f27  (SIMRS · identity, health · desk-07)
