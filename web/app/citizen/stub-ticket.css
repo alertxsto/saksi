@@ -1,0 +1,84 @@
+/* Receipt Stub — ticket half (riset-ui/36 direction A). Detail ticket, verdict stamp, Citizen Pass,
+   profile. Classes are prefixed st- so they never collide with the list half (stub-list.css). */
+
+/* Ticket with a notch on each side at --notch (px from the top). The shadow lives on .st-shadow (a
+   wrapper), because a mask clips the element's own box-shadow. */
+.st-ticket {
+  --notch: 50%;
+  --r: 12px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 var(--notch), #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch), #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at 0 var(--notch), #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch), #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+.st-shadow {
+  filter: drop-shadow(0 1px 0 rgb(30 26 22 / 0.1)) drop-shadow(0 10px 22px rgb(30 26 22 / 0.07));
+}
+.st-shadow-bad {
+  filter: drop-shadow(0 1px 0 rgb(200 40 30 / 0.35)) drop-shadow(0 10px 22px rgb(200 40 30 / 0.1));
+}
+/* Dashed perforation across the ticket at the notch line. */
+.st-perf {
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 0);
+  background-size: 8px 1.5px;
+  background-repeat: repeat-x;
+  height: 1.5px;
+}
+
+/* ---- the stamp: one per verdict ------------------------------------------------------------ */
+
+@keyframes st-stamp {
+  0% { opacity: 0; transform: rotate(-12deg) scale(1.9); }
+  55% { opacity: 1; transform: rotate(-12deg) scale(0.93); }
+  100% { opacity: 1; transform: rotate(-12deg) scale(1); }
+}
+.st-stamp {
+  transform: rotate(-12deg);
+  animation: st-stamp 560ms cubic-bezier(0.2, 0.9, 0.3, 1.15) 120ms both;
+}
+.st-stamp svg { mix-blend-mode: multiply; }
+/* Checking: the empty ring breathes while the phone asks the chain. */
+@keyframes st-ring {
+  0%, 100% { opacity: 0.35; transform: rotate(-12deg) scale(0.97); }
+  50% { opacity: 0.8; transform: rotate(-12deg) scale(1); }
+}
+.st-stamp-checking { transform: rotate(-12deg); animation: st-ring 1.6s ease-in-out infinite; }
+.st-stamp-checking .st-ring-dash { animation: st-spin 6s linear infinite; transform-origin: 66px 66px; }
+@keyframes st-spin { to { transform: rotate(360deg); } }
+/* ALTERED: lands, then one shake (the existing tamper rhythm). */
+@keyframes st-stamp-shake {
+  0%, 100% { transform: rotate(-12deg) translateX(0); }
+  25% { transform: rotate(-12deg) translateX(-4px); }
+  75% { transform: rotate(-12deg) translateX(4px); }
+}
+.st-stamp-bad { animation: st-stamp 560ms cubic-bezier(0.2, 0.9, 0.3, 1.15) 120ms both, st-stamp-shake 300ms ease-in-out 700ms 1; }
+
+/* ---- pass + readout ------------------------------------------------------------------------- */
+
+@keyframes st-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(91 203 138 / 0.55); }
+  100% { box-shadow: 0 0 0 7px rgb(91 203 138 / 0); }
+}
+.st-live { animation: st-pulse 2.4s ease-out infinite; }
+
+@keyframes st-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.st-rise { animation: st-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .st-stamp, .st-stamp-bad, .st-stamp-checking, .st-live, .st-rise, .st-stamp-checking .st-ring-dash {
+    animation: none !important;
+  }
+  .st-stamp, .st-stamp-bad, .st-stamp-checking { transform: rotate(-12deg); }
+  .st-stamp-checking { opacity: 0.6; }
+}
+
+/* Print: drop the mask so the ticket prints as a plain card. */
+@media print {
+  .st-ticket { -webkit-mask: none; mask: none; border: 1px solid #bfb8aa; }
+  .st-shadow, .st-shadow-bad { filter: none; }
+}
