@@ -8,14 +8,16 @@ export type PassCounts = {
   checking: number
   anchored: number
   sealing: number
-  /** Altered + deleted (ghosts and hidden receipts). Above 0 is the only way the pass turns red. */
-  tampered: number
+  /** Receipts the chain check found changed after sealing. */
+  altered: number
+  /** Receipts gone from the agency's database (ghosts plus hidden receipts). Altered or deleted above 0 is the only way the pass turns red. */
+  deleted: number
   watching: boolean
 }
 
 /** Two-line version for the compact pass in the laptop sidebar (about 24 characters a line). */
 export function passShortTitle(c: PassCounts): string {
-  if (c.tampered > 0) return 'Tampering found'
+  if (c.altered + c.deleted > 0) return 'Tampering found'
   if (c.state === 'loading') return 'Loading receipts'
   if (c.state === 'error') return 'Receipts didn’t load'
   if (c.state === 'empty' || c.total === 0) return 'No receipts yet'
@@ -23,6 +25,14 @@ export function passShortTitle(c: PassCounts): string {
   if (c.matched > 0) return c.matched === c.total ? `All ${c.total} match the sealed record` : `${c.matched} of ${c.total} match the seal`
   if (c.sealing > 0) return `${c.sealing} being sealed`
   return `${c.total} on record`
+}
+
+/** The red pass title: what was changed, what disappeared, or both. */
+export function tamperTitle(altered: number, deleted: number): string {
+  const n = (k: number) => `${k} ${k === 1 ? 'record' : 'records'}`
+  if (altered > 0 && deleted > 0) return `${n(altered)} changed and ${deleted} disappeared after sealing`
+  if (deleted > 0) return `${n(deleted)} disappeared from the agency’s database`
+  return `${altered} ${altered === 1 ? 'record was' : 'records were'} changed after sealing`
 }
 
 /** What Saksi does for you, in one line (riset-ui/37 §1): shown under the verdict on the pass. */
@@ -34,10 +44,10 @@ const WITNESS = 'Saksi witnesses every access to your data.'
  */
 export function passStatus(c: PassCounts): { verdict: PassVerdict; title: string; subtitle: string } {
   const paused = c.watching ? '' : ' Paused while offline.'
-  if (c.tampered > 0)
+  if (c.altered + c.deleted > 0)
     return {
       verdict: 'tamper',
-      title: `${c.tampered} ${c.tampered === 1 ? 'record was' : 'records were'} changed after sealing`,
+      title: tamperTitle(c.altered, c.deleted),
       subtitle: 'Your phone caught it against the sealed record, not Saksi’s server.',
     }
   if (c.state === 'loading') return { verdict: 'checking', title: 'Loading your receipts', subtitle: WITNESS }

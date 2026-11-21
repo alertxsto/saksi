@@ -27,7 +27,7 @@ import {
   type GhostReceipt,
 } from '@/lib/data'
 import { checkOf, useAutoVerify, useReceiptChecks } from '@/lib/client/receipt-checks'
-import { useGhostReceipts } from '@/lib/client/seen-receipts'
+import { useTamperCounts } from '@/lib/client/seen-receipts'
 import { timeBucket } from '@/lib/format'
 import { useNow, useOnline } from '@/lib/hooks'
 import { verdictKind } from '@/lib/receipt-state'
@@ -275,8 +275,7 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
     // NOT FOUND only means something once the company says the receipt is sealed.
     if (kind && (kind !== 'NOT_FOUND' || r.status === 'anchored')) verdicts[r.eventId] = VERDICT[kind]
   }
-  const ghosts = useGhostReceipts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
-  const ghostKeys = new Set(ghosts.map((g) => `${g.opening.txHash?.toLowerCase()}:${g.opening.logIndex}`))
+  const { ghosts, hiddenExtra } = useTamperCounts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
 
   // No session cookie (401 SESSION_REQUIRED): offer to create a profile instead of an error.
   // An open receipt keeps its own "no profile" screen (ReceiptMissingView) instead.
@@ -312,7 +311,7 @@ function ReceiptList({ pane, focus, selectedId }: { pane?: ReactNode; focus: 'li
       freshIds={freshIds}
       verdicts={verdicts}
       ghosts={ghosts}
-      hiddenExtra={q.data ? store.hidden.filter((key) => !ghostKeys.has(key)).length : 0}
+      hiddenExtra={hiddenExtra}
       error={q.isError ? toCitizenError(q.error).message : null}
       retrying={q.isFetching}
       onCopy={() => void onCopy()}
@@ -405,8 +404,7 @@ export function ReceiptListView({
   }).length
   const matched = receipts.filter((r) => verdicts?.[r.eventId] === 'match').length
   const sealing = receipts.filter((r) => r.status === 'pending' || r.status === 'submitted').length
-  const tampered = altered.length + lost.length + hiddenExtra
-  const pass = passStatus({ state, total: receipts.length, matched, checking, anchored, sealing, tampered, watching })
+  const pass = passStatus({ state, total: receipts.length, matched, checking, anchored, sealing, altered: altered.length, deleted: lost.length + hiddenExtra, watching })
   const types = TYPE_FILTERS.map(([t, label]) => [t, label, receipts.filter((r) => r.eventType === t).length] as const).filter(([, , n]) => n > 0)
   const active = filter !== 'all' && types.some(([t]) => t === filter) ? filter : 'all'
   const shownOnLaptop = (r: ReceiptOpening) => active === 'all' || r.eventType === active

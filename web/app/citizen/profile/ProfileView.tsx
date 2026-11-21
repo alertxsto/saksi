@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { useMemo, useEffect, useRef, useState, type ReactNode } from 'react'
 import { Act } from '@/components/citizen/Act'
 import { CitizenPass, type PassVerdict } from '@/components/citizen/CitizenPass'
+import { tamperTitle } from '@/components/citizen/passStatus'
 import { accessTotals, aggregateAccess, downloadReceiptsJson } from '@/components/citizen-workspace/access'
 import { AccessList, AccessTotalsStrip, DataActions, ProfileGroup, RightsList } from '@/components/citizen-workspace/ProfileSections'
 import { Cta } from '@/components/landing/Cta'
@@ -14,7 +15,7 @@ import { ProfileSkeleton } from '@/components/ui/Skeleton'
 import { TabBar } from '@/components/ui/TabBar'
 import { useToast } from '@/components/ui/Toast'
 import { checkOf, useAutoVerify, useReceiptChecks } from '@/lib/client/receipt-checks'
-import { forgetSeenReceipts } from '@/lib/client/seen-receipts'
+import { forgetSeenReceipts, useTamperCounts } from '@/lib/client/seen-receipts'
 import { copyText, deleteProfile, toCitizenError, type AutoVerdicts, type CitizenProfile } from '@/lib/data'
 import { useNow } from '@/lib/hooks'
 import { verdictKind } from '@/lib/receipt-state'
@@ -48,6 +49,8 @@ export function ProfileView() {
     const kind = verdictKind(checkOf(store.checks, r))
     if (kind && (kind !== 'NOT_FOUND' || r.status === 'anchored')) verdicts[r.eventId] = VERDICT[kind]
   }
+  // Deleted receipts (ghosts plus hidden), counted the same way as the list and the sidebar.
+  const { deleted } = useTamperCounts(q.data?.profile.code ?? '', receipts, verdicts, q.isSuccess)
   const del = useMutation({
     mutationFn: deleteProfile,
     onSuccess: () => {
@@ -86,6 +89,7 @@ export function ProfileView() {
       profile={q.data?.profile ?? null}
       receipts={receipts}
       verdicts={verdicts}
+      deleted={deleted}
       now={now}
       error={q.isError && !noSession ? toCitizenError(q.error).message : null}
       confirm={!confirmOpen ? 'closed' : del.isPending ? 'deleting' : del.isError ? 'error' : 'open'}
@@ -117,6 +121,7 @@ export function ProfileScreenView({
   profile,
   receipts = NO_RECEIPTS,
   verdicts,
+  deleted = 0,
   now = 0,
   error,
   confirm,
@@ -135,6 +140,8 @@ export function ProfileScreenView({
   receipts?: ReceiptOpening[]
   /** This browser's chain verdict per eventId (same shape as the receipts list). */
   verdicts?: AutoVerdicts
+  /** Receipts gone from the agency's database (ghosts plus hidden), as on the list. */
+  deleted?: number
   now?: number
   error?: string | null
   confirm: ConfirmState
@@ -199,7 +206,7 @@ export function ProfileScreenView({
 
         {/* Identity: the Citizen Pass at full size (riset-ui/36 A). The code (Doto) and the QR live on its stub. */}
         <section aria-label="Your code" className="flex flex-col gap-3">
-          <CitizenPass code={code} size="full" onCopy={onCopy} {...passStatus(receipts, verdicts)} />
+          <CitizenPass code={code} size="full" onCopy={onCopy} {...passStatus(receipts, verdicts, deleted)} />
           <div className="px-1">
             <p className="text-[15px] font-medium text-ink">{displayName}</p>
             <p className="mt-0.5 text-[13px] text-ink-2">Synthetic profile · no name, ID number or wallet</p>
@@ -244,14 +251,14 @@ export function ProfileScreenView({
 }
 
 
-/** The pass's one-sentence verdict over every receipt on this profile. Red only when a record was altered. */
-function passStatus(receipts: ReceiptOpening[], verdicts: AutoVerdicts | undefined): { verdict: PassVerdict; title: string; subtitle: string } {
+/** The pass's one-sentence verdict over every receipt on this profile. Red only when a record was altered or deleted. */
+function passStatus(receipts: ReceiptOpening[], verdicts: AutoVerdicts | undefined, deleted: number): { verdict: PassVerdict; title: string; subtitle: string } {
   const v = verdicts ?? {}
   const altered = receipts.filter((r) => v[r.eventId] === 'altered').length
   const checking = receipts.filter((r) => v[r.eventId] === 'verifying').length
   const matched = receipts.filter((r) => v[r.eventId] === 'match').length
   const n = (k: number, one: string, many: string) => `${k} ${k === 1 ? one : many}`
-  if (altered) return { verdict: 'tamper', title: `${n(altered, 'record was', 'records were')} changed after sealing`, subtitle: 'Your phone caught it, not Saksi’s server.' }
+  if (altered || deleted) return { verdict: 'tamper', title: tamperTitle(altered, deleted), subtitle: 'Your phone caught it, not Saksi’s server.' }
   if (checking) return { verdict: 'checking', title: `Checking ${n(checking, 'receipt', 'receipts')} against the public ledger`, subtitle: 'Your phone is checking, not our server.' }
   if (!receipts.length) return { verdict: 'empty', title: 'No receipts yet', subtitle: 'Show your code to an agency to try it.' }
   if (matched)

@@ -10,10 +10,13 @@ import { passShortTitle, passStatus } from '@/components/citizen/passStatus'
 import { IconArrowUpRight, IconReceipt, IconShield, IconUser } from '@/components/ui/icons'
 import { LogoMark } from '@/components/ui/Logo'
 import { useToast } from '@/components/ui/Toast'
-import { copyText, toCitizenError, type ReceiptsResponse } from '@/lib/data'
+import { copyText, toCitizenError, type AutoVerdicts, type ReceiptsResponse } from '@/lib/data'
 import { checkOf, useReceiptChecks } from '@/lib/client/receipt-checks'
+import { useTamperCounts } from '@/lib/client/seen-receipts'
 import { useOnline } from '@/lib/hooks'
 import { verdictKind } from '@/lib/receipt-state'
+
+const NO_RECEIPTS: ReceiptsResponse['receipts'] = []
 
 type IconProps = { size?: number; strokeWidth?: number; className?: string }
 
@@ -166,8 +169,15 @@ function LiveSidebar({ path }: { path: string }) {
 
   // The compact pass reads the same in-browser chain checks the list does (no new state, no fetch).
   const store = useReceiptChecks()
-  const receipts = q.data?.receipts ?? []
+  const receipts = q.data?.receipts ?? NO_RECEIPTS
   const kinds = receipts.map((r) => verdictKind(checkOf(store.checks, r)))
+  const verdicts: AutoVerdicts = {}
+  receipts.forEach((r, i) => {
+    if (kinds[i] === 'MATCH') verdicts[r.eventId] = 'match'
+    else if (kinds[i] === 'ALTERED') verdicts[r.eventId] = 'altered'
+  })
+  // Same deleted count as the list: ghosts plus hidden receipts that are not already ghosts.
+  const tamper = useTamperCounts(code, receipts, verdicts, q.isSuccess)
   const counts = {
     state: !q.data ? (q.isError ? 'error' : 'loading') : receipts.length === 0 ? 'empty' : 'ready',
     total: receipts.length,
@@ -175,7 +185,8 @@ function LiveSidebar({ path }: { path: string }) {
     checking: kinds.filter((k) => k === 'CHECKING').length,
     anchored: receipts.filter((r) => r.status === 'anchored').length,
     sealing: receipts.filter((r) => r.status === 'pending' || r.status === 'submitted').length,
-    tampered: kinds.filter((k) => k === 'ALTERED').length + (q.data ? store.hidden.length : 0),
+    altered: tamper.altered,
+    deleted: tamper.deleted,
     watching: watch === 'watching',
   } as const
   const pass = passStatus(counts)
