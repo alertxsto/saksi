@@ -10,6 +10,10 @@ import { decrypt, encrypt, pseudonym, randomSalt32 } from './crypto';
 import { HttpError } from './http';
 import { consume } from './rate-limit';
 import { clearSession, readSession, setSession } from './session';
+
+// Faker's Indonesian full names sometimes repeat a word ("Iriana Iriana Ananda"); drop the repeats.
+export const dedupeWords = (name: string) => name.split(/\s+/).filter((w, i, all) => all.indexOf(w) === i).join(' ');
+const syntheticName = () => dedupeWords(fakerID_ID.person.fullName());
 const alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
 type CheckState = Map<string, { due: number; delay: number; until: number }>;
 const nextCheck: CheckState = new Map();
@@ -33,7 +37,7 @@ export async function createCitizen(ip: string, secureCookie: boolean) {
   const encrypted = encrypt(randomSalt32());
   for (let attempt = 0; attempt < 4; attempt++) {
     const code = Array.from({ length: 6 }, () => alphabet[randomInt(alphabet.length)]).join('');
-    const [row] = await db().insert(subjects).values({ code, displayName: fakerID_ID.person.fullName(), pseudonymSaltEnc: encrypted.ciphertext, pseudonymSaltIv: encrypted.iv })
+    const [row] = await db().insert(subjects).values({ code, displayName: syntheticName(), pseudonymSaltEnc: encrypted.ciphertext, pseudonymSaltIv: encrypted.iv })
       .onConflictDoNothing({ target: subjects.code }).returning({ id: subjects.id, code: subjects.code, displayName: subjects.displayName });
     if (row) { await setSession(row.id, secureCookie); return { code: row.code, displayName: row.displayName }; }
   }
