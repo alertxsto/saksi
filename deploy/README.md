@@ -6,7 +6,7 @@ Kit ini menjalankan Saksi di `https://saksiku.web.id` sebagai container Docker, 
 Browser ──HTTPS──> Caddy :443 (di host, multi-site)
                      └─ sites/saksi.caddy ──> 127.0.0.1:3400 ──> container saksi-web-1 :3000 (node server.js)
 Cloudflare: DNS only (awan abu-abu), A record ke IP VM. Sertifikat TLS diurus Caddy.
-Database: Neon (eksternal). Tidak ada container database.
+Database: container Postgres 17 (service `db` di compose.yaml), tanpa port publik. Skema dibuat dari deploy/db/*.sql saat volume pertama kali diinisialisasi.
 ```
 
 | File | Fungsi |
@@ -147,8 +147,9 @@ Formatnya `KEY=value` polos, tanpa `export`. File ini dibaca oleh `docker compos
 | `NEXT_PUBLIC_JOURNAL_ADDRESS` | ya | Alamat kontrak journal. |
 | `NEXT_PUBLIC_BREACH_ADDRESS` | ya | Alamat kontrak breach. |
 | `NEXT_PUBLIC_DEPLOY_BLOCK` | ya | Nomor blok deployment kontrak (awal pemindaian log). |
-| `NEXT_PUBLIC_SITE_URL` | tidak | Belum dibaca kode dan bukan build arg, jadi belum berpengaruh. |
-| `DATABASE_URL` | ya | Connection string **Neon**. App memakai driver Neon HTTP, jadi Postgres biasa tidak bisa dipakai. |
+| `NEXT_PUBLIC_SITE_URL` | disarankan | URL publik situs untuk link bukti, QR, dan metadata (build arg). Contoh `https://saksiku.web.id`. |
+| `POSTGRES_PASSWORD` | ya | Password container Postgres `db`. `deploy.sh` meneruskannya ke compose. |
+| `DATABASE_URL` | ya | `postgres://saksi:<POSTGRES_PASSWORD>@db:5432/saksi` untuk container `db`, atau URL Postgres hosted dengan `sslmode=require`. App memakai driver TCP `postgres` (postgres-js). |
 | `SUBJECT_KEY` | ya | 64 karakter hex (`openssl rand -hex 32`). Kunci HMAC pseudonim subjek. Jangan diganti setelah ada data. |
 | `DATA_KEY` | ya | 64 karakter hex. Kunci AES-256-GCM data terenkripsi. Jangan diganti setelah ada data. |
 | `SESSION_SECRET` | ya | Minimal 32 byte (`openssl rand -hex 32`). |
@@ -170,7 +171,7 @@ Formatnya `KEY=value` polos, tanpa `export`. File ini dibaca oleh `docker compos
 - [ ] `SAKSI_VM_IP=<ip> ~/saksi/deploy/preflight.sh` menampilkan **READY**, tanpa baris merah (rpc, db, ai, contracts semuanya PASS).
 - [ ] Buka `https://saksiku.web.id` di jendela incognito. Console browser bersih dari error CSP.
 - [ ] Wallet MetaMask demo sudah di jaringan Sepolia dan punya ETH (UI minta minimal 0.002).
-- [ ] Data sintetis di Neon siap. Catat UUID catatan **Share with third party** untuk demo tamper (`scripts/tamper.sql` / `scripts/restore.sql`).
+- [ ] Data sintetis di database siap. Catat UUID catatan **Share with third party** untuk demo tamper (`scripts/tamper.sql` / `scripts/restore.sql`).
 - [ ] Hafalkan perintah darurat: `deploy.sh --rollback`, `cd ~/saksi/deploy && docker compose restart web`, `docker compose logs -f --tail 100 web`.
 
 **Hari H**
