@@ -20,6 +20,7 @@ import { VerifyStage, type VerifyPhase } from '@/components/ui/VerifyResult'
 import { runCheck, useAutoVerify, useReceiptCheck } from '@/lib/client/receipt-checks'
 import { downloadReceiptFile, explain, findReceipt, shareProof, toCitizenError, type ExplainResponse } from '@/lib/data'
 import { rememberedReceipt } from '@/lib/client/seen-receipts'
+import { ReportAccess } from '@/components/citizen/ReportAccess'
 import { formatWIB, timeAgo } from '@/lib/format'
 import { useNow } from '@/lib/hooks'
 import { contentKey, receiptHeadline, verdictNote, type ReceiptCheck } from '@/lib/receipt-state'
@@ -221,6 +222,7 @@ function Detail({ opening, reload }: { opening: ReceiptOpening; reload: () => Pr
         onDownload={() => void onDownload()}
         onShare={() => void onShare()}
         onKeepEvidence={() => void onKeepEvidence()}
+        renderReport={(altered) => <ReportAccess eventId={opening.eventId} verdict={altered ? 'altered' : undefined} />}
       />
 
       <dialog
@@ -310,6 +312,7 @@ export function ReceiptDetailView({
   onDownload,
   onShare,
   onKeepEvidence,
+  renderReport,
   demoSwitcher,
 }: {
   opening: ReceiptOpening
@@ -325,6 +328,8 @@ export function ReceiptDetailView({
   onShare: () => void
   /** ALTERED verdict: "Keep as evidence" (saves the receipt file). */
   onKeepEvidence: () => void
+  /** "Report to the regulator" block; the container passes ReportAccess, the gallery can leave it out. */
+  renderReport?: (altered: boolean) => ReactNode
   demoSwitcher?: ReactNode
 }) {
   // One verdict drives the headline, the badge and the ledger rows, so they never disagree.
@@ -412,6 +417,8 @@ export function ReceiptDetailView({
           </TextAction>
         </div>
       </div>
+
+      {renderReport ? renderReport(altered) : null}
 
       {demoSwitcher}
 
