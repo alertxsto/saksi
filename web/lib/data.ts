@@ -74,7 +74,8 @@ export type RecentAccess = {
   blockNumber?: number | null
 }
 
-export type DraftWire = { fields: Pasal46Fields; ai: AiMeta; aiRunId: string }
+/** `fields` may carry extra keys from older servers (detectedAtGuess); toBreachDraft keeps only the four parts. */
+export type DraftWire = { fields: Pasal46Fields; detectedAtGuess?: string; ai: AiMeta; aiRunId: string }
 export type BreachDraft = { fields: Pasal46Fields; meta: AiMeta; aiRunId: string | null }
 export type BreachListWire = { rows: BreachRow[]; stats: { total: number; onTime: number; late: number } }
 
@@ -82,6 +83,8 @@ export type BreachListWire = { rows: BreachRow[]; stats: { total: number; onTime
 export type BreachDetailWire = BreachRow & {
   pasal46: Pasal46Fields
   ai: { model: string; promptVersionHash: Hex; outputHash: Hex } | null
+  /** The notice fingerprint emitted by the BreachReport event (optional for older servers). */
+  reportHash?: Hex
   discoveryAt: number
   deadline: number
 }
@@ -133,7 +136,7 @@ export function toRecentAccess(row: RecentAccessWire): RecentAccess {
 }
 
 export function toBreachDraft(wire: DraftWire): BreachDraft {
-  // Keep only the four Art. 46 parts: the draft can carry extras (detectedAtGuess) that prepare rejects.
+  // Prepare rejects any key outside the four Art. 46 parts, so never forward the wire object as is.
   const { dataAffected, whenAndHow, actionsTaken, contact } = wire.fields
   return { fields: { dataAffected, whenAndHow, actionsTaken, contact }, meta: wire.ai, aiRunId: wire.aiRunId }
 }
@@ -155,7 +158,7 @@ export function toBreachDetail(wire: BreachDetailWire, contract: Hex | null): Br
     affectedCount: null,
     contract,
     discoveryTxHash: null,
-    reportHash: null,
+    reportHash: wire.reportHash ?? null,
     noticeHashMatches: null,
   }
 }

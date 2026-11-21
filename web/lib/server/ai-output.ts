@@ -13,3 +13,9 @@ export function extractJson(content: string): unknown {
 }
 export const draftResult = z.strictObject({ dataAffected: z.string().max(1000), whenAndHow: z.string().max(2000),
   actionsTaken: z.string().max(2000), contact: z.string().max(500), detectedAtGuess: z.string().max(100).optional() });
+// The notice accepts exactly the four Art. 46 parts (prepareBreachInput is strict), so the optional
+// detection-time hint travels beside them, never inside them.
+export function splitDraft({ detectedAtGuess, ...fields }: z.output<typeof draftResult>) {
+  const hint = detectedAtGuess?.trim();
+  return { fields, ...(hint ? { detectedAtGuess: hint } : {}) };
+}

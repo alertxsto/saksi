@@ -15,7 +15,7 @@ import { missing } from './http';
 import { controller } from './registry';
 import { draftPrompt, explainPrompt } from './prompts';
 import { contradictsVerdict, EXPLAIN_TEMPLATE, withVerdict } from './explain-guard';
-import { AI_MAX_TOKENS, AI_TIMEOUT_MS, draftResult, extractJson } from './ai-output';
+import { AI_MAX_TOKENS, AI_TIMEOUT_MS, draftResult, extractJson, splitDraft } from './ai-output';
 export { draftResult, extractJson } from './ai-output';
 
 const explainResult = z.strictObject({ text: z.string().trim().min(1).max(1500)
@@ -87,5 +87,5 @@ export async function draft({ controllerId, narrative }: z.output<typeof draftIn
   await controller(controllerId);
   const { value, ai, aiRunId } = await generate('draft', draftPrompt, { controllerId, narrative }, draftResult,
     { dataAffected: '', whenAndHow: '', actionsTaken: '', contact: '' });
-  return { fields: value, ai, aiRunId };
+  return { ...splitDraft(value), ai, aiRunId };
 }
