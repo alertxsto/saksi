@@ -1,0 +1,113 @@
+/* Identity directions (/dev/identity only). Every class is prefixed idn- so nothing leaks into production. */
+
+/* ---- A · Receipt Stub ------------------------------------------------------------------------- */
+
+/* Ticket with a notch on each side at --notch (px from the top). The wrapper carries the shadow. */
+.idn-ticket {
+  --notch: 50%;
+  --r: 12px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at 0 var(--notch), #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch), #0000 97%, #000 100%) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at 0 var(--notch), #0000 97%, #000 100%) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--r) at 100% var(--notch), #0000 97%, #000 100%) right / 51% 100% no-repeat;
+}
+.idn-ticket-shadow {
+  filter: drop-shadow(0 1px 0 rgb(30 26 22 / 0.1)) drop-shadow(0 10px 22px rgb(30 26 22 / 0.07));
+}
+/* Vertical stub notch: top and bottom bites at --cut (px from the left). */
+.idn-stub {
+  --cut: 76px;
+  --r: 7px;
+  -webkit-mask:
+    radial-gradient(circle var(--r) at var(--cut) 0, #0000 97%, #000 100%) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--r) at var(--cut) 100%, #0000 97%, #000 100%) bottom / 100% 51% no-repeat;
+  mask:
+    radial-gradient(circle var(--r) at var(--cut) 0, #0000 97%, #000 100%) top / 100% 51% no-repeat,
+    radial-gradient(circle var(--r) at var(--cut) 100%, #0000 97%, #000 100%) bottom / 100% 51% no-repeat;
+}
+.idn-perf {
+  background-image: linear-gradient(90deg, currentColor 50%, transparent 0);
+  background-size: 8px 1.5px;
+  background-repeat: repeat-x;
+  height: 1.5px;
+}
+.idn-perf-v {
+  background-image: linear-gradient(180deg, currentColor 50%, transparent 0);
+  background-size: 1.5px 7px;
+  background-repeat: repeat-y;
+  width: 1.5px;
+}
+
+@keyframes idn-stamp {
+  0% { opacity: 0; transform: rotate(-12deg) scale(1.9); }
+  55% { opacity: 1; transform: rotate(-12deg) scale(0.93); }
+  100% { opacity: 1; transform: rotate(-12deg) scale(1); }
+}
+.idn-stamp {
+  transform: rotate(-12deg);
+  animation: idn-stamp 560ms cubic-bezier(0.2, 0.9, 0.3, 1.15) 450ms both;
+}
+@keyframes idn-ink {
+  0% { opacity: 0; }
+  100% { opacity: 1; }
+}
+.idn-stamp-ink { animation: idn-ink 220ms ease-out 760ms both; }
+
+/* ---- B · Night Vault -------------------------------------------------------------------------- */
+
+@keyframes idn-breathe {
+  0%, 100% { opacity: 0.55; transform: scale(1); }
+  50% { opacity: 0.9; transform: scale(1.07); }
+}
+.idn-glow { animation: idn-breathe 4.8s ease-in-out infinite; }
+.idn-glass {
+  background: rgb(28 26 23 / 0.72);
+  backdrop-filter: blur(18px) saturate(1.4);
+  -webkit-backdrop-filter: blur(18px) saturate(1.4);
+}
+@keyframes idn-pulse {
+  0% { box-shadow: 0 0 0 0 rgb(91 203 138 / 0.55); }
+  100% { box-shadow: 0 0 0 7px rgb(91 203 138 / 0); }
+}
+.idn-live { animation: idn-pulse 2.4s ease-out infinite; }
+
+/* ---- C · Public Register ---------------------------------------------------------------------- */
+
+@keyframes idn-block {
+  from { opacity: 0; transform: translateY(6px) scale(0.9); }
+  to { opacity: 1; transform: none; }
+}
+.idn-block { animation: idn-block 360ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes idn-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  60% { transform: scale(1.12); opacity: 1; }
+  100% { transform: scale(1); opacity: 1; }
+}
+.idn-pop { animation: idn-pop 480ms cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+@keyframes idn-draw {
+  from { stroke-dashoffset: var(--len, 200); }
+  to { stroke-dashoffset: 0; }
+}
+.idn-draw { stroke-dasharray: var(--len, 200); animation: idn-draw 700ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+/* ---- shared ----------------------------------------------------------------------------------- */
+
+@keyframes idn-rise {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: none; }
+}
+.idn-rise { animation: idn-rise 480ms cubic-bezier(0.22, 1, 0.36, 1) both; }
+
+@media (prefers-reduced-motion: reduce) {
+  .idn-stamp, .idn-stamp-ink, .idn-glow, .idn-live, .idn-block, .idn-pop, .idn-draw, .idn-rise {
+    animation: none !important;
+  }
+  .idn-stamp { transform: rotate(-12deg); }
+}
+
+/* Phone-like frames for screenshots: no desktop scrollbar, no dev overlay badge. */
+html:has(.idn-root) { scrollbar-width: none; }
+html:has(.idn-root)::-webkit-scrollbar { display: none; }
+html:has(.idn-root) nextjs-portal { display: none; }
