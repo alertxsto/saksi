@@ -533,3 +533,103 @@ export async function getWatchSummary(): Promise<WatchSummary> {
     verdicts: new Map(wire.rows.map((row) => [watchKey(row.txHash, row.logIndex), row.status])),
   }
 }
+
+// ── REPORTS ──
+// Citizen → regulator reports, the regulator's review (signed by the ControllerRegistry admin) and the
+// authorised-controllers register. Wire shapes match lib/server/reports.ts and lib/server/controller-register.ts.
+export { REPORT_NOTE_MAX, REPORT_REASONS, reviewMessage } from './shared/report-message'
+export type { ReportReason, ReportVerdict } from './shared/report-message'
+import type { ReportReason, ReportVerdict } from './shared/report-message'
+
+/** Fixed reasons a citizen can give, in the words the citizen sees. */
+export const REPORT_REASON_LABEL: Record<ReportReason, string> = {
+  not_me: 'I don’t recognise this access',
+  object: 'I object to this use',
+  altered: 'My phone found this record changed or deleted',
+}
+
+export type ReportInput = {
+  eventId: string
+  reason: ReportReason
+  note?: string | null
+  /** Only for a receipt the server no longer returns: the chain position this phone kept. */
+  chain?: { txHash: Hex; logIndex: number }
+}
+export type ReportReceipt = { id: string; status: 'open'; reason: ReportReason; serverVerdict: ReportVerdict; createdAt: string }
+
+export type RegulatorReportWire = {
+  id: string
+  reason: ReportReason
+  note: string | null
+  controllerId: string
+  controllerName: string
+  eventType: 'READ' | 'UPDATE' | 'EXPORT' | 'SHARE_THIRD_PARTY'
+  citizenMasked: string
+  serverVerdict: ReportVerdict
+  status: 'open' | 'reviewed'
+  createdAt: string
+  sealedAt: number | null
+  txHash: string | null
+  logIndex: number | null
+  reviewedAt: string | null
+  reviewedBy: string | null
+}
+export type RegulatorReportsWire = {
+  reports: RegulatorReportWire[]
+  counts: { open: number; reviewed: number }
+  /** ControllerRegistry admin read from the contract; null when the chain did not answer. */
+  admin: string | null
+}
+export type ReviewResult = { id: string; status: 'open' | 'reviewed'; reviewedAt: string | null; reviewedBy: string | null }
+
+export type ControllerRegisterRow = {
+  id: Hex
+  name: string
+  eoa: Hex
+  status: 'active' | 'revoked'
+  registeredAt: number | null
+  registeredBlock: number
+  registrationTx: Hex
+  revocationTx: Hex | null
+  sealed: number
+  /** null when Watch could not reach the chain. */
+  altered: number | null
+  deleted: number | null
+  breachesOnTime: number
+  breachesLate: number
+  /** null when the reports table is not available. */
+  openReports: number | null
+  lastActivity: string | null
+}
+export type ControllerRegisterWire = {
+  controllers: ControllerRegisterRow[]
+  registry: Hex
+  blockNumber: number
+  watch: { blockNumber: number; checkedAt: string } | null
+  checkedAt: string
+}
+
+/** GET /api/citizen/session: always 200, so a first visit can check before asking for receipts. */
+export function getSession(): Promise<{ signedIn: boolean; code?: string }> {
+  return getJson('/api/citizen/session')
+}
+
+/** POST /api/citizen/report: the server re-checks the receipt against the chain and stores its own verdict. */
+export function sendReport(input: ReportInput): Promise<ReportReceipt> {
+  return postJson<ReportReceipt>('/api/citizen/report', input)
+}
+
+/** GET /api/regulator/reports: newest first, citizen codes masked, no purpose text or pseudonyms. */
+export function getRegulatorReports(): Promise<RegulatorReportsWire> {
+  return getJson<RegulatorReportsWire>('/api/regulator/reports')
+}
+
+/** POST /api/regulator/reports/review with the admin's signature over reviewMessage(id, signedAt). */
+export function reviewReport(id: string, signedAt: string, signature: Hex): Promise<ReviewResult> {
+  return postJson<ReviewResult>('/api/regulator/reports/review', { id, signedAt, signature })
+}
+
+/** GET /api/regulator/controllers: every controller registered on chain, with live compliance numbers. */
+export function getControllerRegister(): Promise<ControllerRegisterWire> {
+  return getJson<ControllerRegisterWire>('/api/regulator/controllers')
+}
