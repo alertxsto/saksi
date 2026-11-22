@@ -1,0 +1,399 @@
+{
+  "generatedAt": "2026-11-22T00:54:00.047Z",
+  "endpointHost": "127.0.0.1:20129",
+  "promptVersion": "0xbbb079b47f8c1631b2a8c47b7a8417bd329253f60805d8cd066aa1a4a401b65d",
+  "reasoningEffort": "high",
+  "timeoutMs": 40000,
+  "attemptsPerCase": 1,
+  "caseCount": 10,
+  "models": [
+    {
+      "summary": {
+        "model": "pythia",
+        "cases": 10,
+        "errors": 0,
+        "validJsonRate": 1,
+        "schemaValidRate": 1,
+        "recall": {
+          "dataAffected": 1,
+          "whenAndHow": 0.9411764705882353,
+          "actionsTaken": 0.9736842105263158,
+          "contact": 1,
+          "overall": 0.975
+        },
+        "detectedAtAccuracy": 1,
+        "latencyMs": {
+          "p50": 5425,
+          "p95": 5893
+        }
+      },
+      "runs": [
+        {
+          "id": "bucket-leak",
+          "latencyMs": 5689,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "File CSV program loyalitas dengan sekitar 12.400 baris yang berisi nama, alamat email, nomor telepon, dan tanggal lahir anggota.",
+            "whenAndHow": "Bucket penyimpanan objek dapat diakses publik sejak perubahan konfigurasi pada 20 Februari 2026. Tim menerima pemberitahuan dari peneliti keamanan pada 3 Maret 2026 pukul 09.15 WIB.",
+            "actionsTaken": "Bucket diubah menjadi privat, log akses diperiksa, dan kunci akses penyimpanan dirotasi.",
+            "contact": "Pertanyaan dapat dikirim ke privasi@kopi-sintetis.example.",
+            "detectedAtGuess": "3 Maret 2026 pukul 09.15 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 5,
+              "total": 5,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "phishing",
+          "latencyMs": 5893,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Patient names, appointment dates, and treating doctors’ names in appointment confirmations stored in the shared front-desk mailbox. No medical records were stored in email.",
+            "whenAndHow": "On 11 April 2026 at 14:40 WIB, the identity provider raised an impossible-travel alert for a receptionist account. The receptionist had entered her password on a fake Microsoft 365 login page received by email that morning. The attacker accessed the shared front-desk mailbox for about 6 hours.",
+            "actionsTaken": "Reset the password, revoked all active sessions, removed an attacker-created forwarding rule, enforced multi-factor authentication for all staff, and scheduled phishing awareness training.",
+            "contact": "Data protection officer: dpo@arunika-clinic.example",
+            "detectedAtGuess": "11 April 2026 at 14:40 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 5,
+              "total": 5,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "insider",
+          "latencyMs": 5706,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Data 830 anggota, termasuk nama, NIK, dan sisa saldo pinjaman.",
+            "whenAndHow": "Pada 7 Mei 2026 pukul 16.05 WIB, seorang karyawan layanan pelanggan menyalin data anggota ke flashdisk USB pribadi. Hasil wawancara menunjukkan karyawan tersebut berniat menjual data kepada pihak penagih utang.",
+            "actionsTaken": "Akun karyawan dinonaktifkan, flashdisk diamankan, kasus dilaporkan ke polisi, dan hak akses seluruh staf layanan pelanggan ditinjau ulang.",
+            "contact": "Pejabat Pelindungan Data: pdp@ksp-sintetis.example",
+            "detectedAtGuess": "7 Mei 2026 pukul 16.05 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "ransomware",
+          "latencyMs": 5056,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Shipping manifests for approximately 41,000 parcels, containing recipient names, delivery addresses, and phone numbers.",
+            "whenAndHow": "On Saturday, 6 June 2026, at 03:20 WIB, an on-call engineer confirmed that ransomware had encrypted the main file server after a monitoring alert. The attackers claimed they had exfiltrated the manifests; this has not yet been confirmed.",
+            "actionsTaken": "Isolated the affected network segment, restored the server from offline backups, engaged an external forensics firm to confirm what was copied, and decided not to pay the ransom.",
+            "contact": "security@lintas-fiktif.example",
+            "detectedAtGuess": "Saturday, 6 June 2026, at 03:20 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "misdirected-email",
+          "latencyMs": 5389,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Nama, gaji bulanan, dan nomor rekening bank 54 karyawan.",
+            "whenAndHow": "Lampiran spreadsheet penggajian dikirim oleh staf HR ke alamat email eksternal yang salah karena fitur isi otomatis memilih kontak yang mirip. Waktu pertama kali kesalahan diketahui belum dapat dipastikan.",
+            "actionsTaken": "Staf mencoba menarik kembali email dan menghubungi penerima, yang mengonfirmasi secara tertulis bahwa email beserta lampirannya telah dihapus. Fitur isi otomatis untuk domain eksternal telah dimatikan.",
+            "contact": "hr-privasi@sinar-contoh.example"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 2,
+              "total": 3,
+              "missed": [
+                "autocomplete|auto-complete|autofill"
+              ]
+            },
+            "actionsTaken": {
+              "hits": 2,
+              "total": 3,
+              "missed": [
+                "autocomplete|auto-complete|autofill"
+              ]
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "lost-laptop",
+          "latencyMs": 5426,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "2,150 policyholders’ names, policy numbers, and dates of birth.",
+            "whenAndHow": "On 19 July 2026, a regional sales manager reported that his work laptop had been left in a taxi earlier that evening. The laptop contained a local spreadsheet and was not protected by full-disk encryption.",
+            "actionsTaken": "A remote wipe command was issued, but the device has not come online. The manager’s passwords were changed, a police report was filed, and disk encryption is being enforced on every company laptop.",
+            "contact": "privacy@bumi-demo.example",
+            "detectedAtGuess": "19 July 2026 at 21:30 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 2,
+              "total": 3,
+              "missed": [
+                "not enabled|unencrypt|not encrypted|without encryption|no encryption|lacked"
+              ]
+            },
+            "actionsTaken": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "api-key-leak",
+          "latencyMs": 5287,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Nama, nomor HP, dan alamat email pelanggan.",
+            "whenAndHow": "Kunci API produksi tidak sengaja di-commit ke repositori Git publik pada 31 Juli 2026. Pemindaian rahasia otomatis menemukan kunci tersebut pada 2 Agustus 2026 pukul 10.45 WIB. Log menunjukkan tiga alamat IP tak dikenal memanggil API sebanyak 1.900 kali.",
+            "actionsTaken": "Kunci dicabut dan diganti, riwayat repositori dibersihkan, alamat IP tersebut diblokir, dan pemeriksaan rahasia pre-commit diwajibkan.",
+            "contact": "keamanan@dompetuji.example",
+            "detectedAtGuess": "2 Agustus 2026 pukul 10.45 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "vendor-breach",
+          "latencyMs": 5425,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Subscriber email addresses, first names, and the product categories each subscriber follows. Passwords and payment data were not shared with the vendor.",
+            "whenAndHow": "On 25 August 2026, Pasar Sampel was informed by email that an attacker had accessed MailContoh’s platform and copied customer lists.",
+            "actionsTaken": "Suspended all data synchronisation to the vendor, requested its forensic report, started a review of the processing agreement, and will warn customers about possible phishing emails.",
+            "contact": "help@pasar-sampel.example",
+            "detectedAtGuess": "25 August 2026"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 2,
+              "total": 2,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "sql-injection",
+          "latencyMs": 5458,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "Sekitar 3.700 baris data calon siswa, termasuk nama siswa, nama orang tua, alamat rumah, dan nomor telepon orang tua.",
+            "whenAndHow": "Pada 9 September 2026 pukul 01.12 sampai 01.40 WIB, serangan SQL injection melalui formulir pencarian portal pendaftaran memungkinkan penyerang mengunduh tabel calon siswa.",
+            "actionsTaken": "Portal dimatikan, query diganti menjadi parameterized query, kredensial database direset, dan uji penetrasi pihak ketiga dijadwalkan.",
+            "contact": "admin-pdp@sekolah-demo.example",
+            "detectedAtGuess": "9 September 2026 pukul 07.30 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 5,
+              "total": 5,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 3,
+              "total": 3,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        },
+        {
+          "id": "misconfigured-backup",
+          "latencyMs": 4813,
+          "validJson": true,
+          "schemaValid": true,
+          "fields": {
+            "dataAffected": "User email addresses, bcrypt-hashed passwords, daily step counts, and body weight entries.",
+            "whenAndHow": "The incident was discovered during an internal audit on 30 September 2026 at 13:00 WIB. A database backup file was exposed on a staging web server with directory listing enabled. Server logs show it was downloaded twice by an external IP address during the previous two weeks.",
+            "actionsTaken": "Removed the file, disabled directory listing, forced a password reset for every user, and rebuilt the staging environment behind access controls.",
+            "contact": "Data Protection Officer: dpo@sehatsampel.example",
+            "detectedAtGuess": "30 September 2026 at 13:00 WIB"
+          },
+          "recall": {
+            "dataAffected": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "whenAndHow": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "actionsTaken": {
+              "hits": 4,
+              "total": 4,
+              "missed": []
+            },
+            "contact": {
+              "hits": 1,
+              "total": 1,
+              "missed": []
+            }
+          },
+          "detectedAtCorrect": true
+        }
+      ]
+    }
+  ]
+}
