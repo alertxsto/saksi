@@ -151,7 +151,7 @@ export function BreachDetail({ b }: { b: BreachDetailView }) {
             {b.txHash ? shortHex(b.txHash, 6, 4) : 'None'}
           </ProofLine>
           {b.reportHash ? <ProofLine k="Notice hash">{shortHex(b.reportHash, 6, 4)}</ProofLine> : null}
-          {b.ai ? <ProofLine k="AI model">{b.ai.model}</ProofLine> : null}
+          {b.ai ? <ProofLine k="AI output">{shortHex(b.ai.outputHash, 6, 4)}</ProofLine> : null}
           <ProofLine k="Network">{CHAIN_NAME}</ProofLine>
           <ProofLine k="Notice id">{b.id.toUpperCase()}</ProofLine>
         </TechnicalProof>

@@ -15,11 +15,13 @@ export const FALLBACK_LABEL: Record<AiMeta['fallbackLevel'], string> = {
   template: 'TEMPLATE · AI OFFLINE',
 }
 
-export function AiChip({ meta }: { meta?: AiMeta }) {
+// Just "AI": the provider and model stay in the server's ai_runs provenance, not on screen. Fallback levels are
+// shown next to the chip where they matter (FALLBACK_LABEL).
+export function AiChip(_props: { meta?: AiMeta }) {
   return (
     <span className="label inline-flex h-7 items-center gap-1.5 rounded-pill border border-ai/40 bg-ai-bg px-2.5 text-ai">
       <IconSpark size={13} strokeWidth={2.2} />
-      AI · {meta ? `${meta.provider} · ${meta.model}` : '…'}
+      AI
     </span>
   )
 }
