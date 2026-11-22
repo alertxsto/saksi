@@ -129,7 +129,7 @@ Opening bukti akses (nilai mentah untuk menghitung ulang hash) ditaruh setelah `
 
 ## Kontrak di Sepolia
 
-Sumber: [`contracts/deployments/sepolia.json`](contracts/deployments/sepolia.json). Chain ID 11155111, blok deployment [12181663](https://sepolia.etherscan.io/block/12181663). Source ketiga kontrak terverifikasi di Sourcify dengan status *exact match*: bytecode on-chain sama persis dengan hasil kompilasi `contracts/src` (solc 0.8.24).
+Sumber: [`contracts/deployments/sepolia.json`](contracts/deployments/sepolia.json). Chain ID 11155111, blok deployment [12181663](https://sepolia.etherscan.io/block/12181663). Source ketiga kontrak terverifikasi di Etherscan dan di Sourcify (status *exact match*): bytecode on-chain sama persis dengan hasil kompilasi `contracts/src` (solc 0.8.24).
 
 | Kontrak | Alamat | Source terverifikasi |
 | --- | --- | --- |
